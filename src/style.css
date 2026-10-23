@@ -107,4 +107,14 @@ button:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
   #top { left: 8px; right: 8px; top: 8px; }
   #card { top: 74px; }
 }
+@media (max-width: 520px) {
+  .brand > div { display: none; }
+  .mark { width: 30px; height: 30px; } .mark::after { inset: 8px; border-width: 2px; }
+  #top { padding: 6px 8px; gap: 6px; }
+  .tools { gap: 6px; flex: 1; justify-content: flex-end; }
+  .seg button { padding: 6px 8px; font-size: .8rem; min-height: 34px; }
+  .ico { min-width: 34px; min-height: 34px; padding: 0 8px; }
+  .ico.txt { font-size: .75rem; }
+  #notice { top: 140px; font-size: .78rem; }
+}
 @media (prefers-reduced-motion: reduce) { #card { transition: none; } }

@@ -89,6 +89,7 @@ export class World {
     if (!tex) return;
     const plane = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.5, blending: THREE.NormalBlending }));
     plane.rotation.x = -Math.PI / 2; plane.position.y = 0.03; plane.renderOrder = 2; this.content.add(plane);
+    this.mask.plane = plane;
     tex.colorSpace = THREE.SRGBColorSpace;
   }
   _stamp(x, z, width) {
@@ -204,6 +205,7 @@ export class World {
     for (const l of room.lamps) { l.light.intensity = l.base * L; l.lamp.material = L > 0.5 ? this.M.lamp : this.M.dark; }
     room.acLed.material = L > 0.5 ? this.M.green : this.M.redLed;
     if (this.stage) this.stage.setLights(L);
+    if (this.mask.plane) this.mask.plane.material.opacity = 0.5 * (0.2 + 0.8 * L);   // the stripes are lit by the room, so they dim with it
 
     // rings
     if (o.visuals !== false) for (const h of this.hl) {
