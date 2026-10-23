@@ -1,0 +1,77 @@
+:root {
+  --bg: #f4f6f8; --card: #ffffff; --ink: #14202b; --muted: #55646f; --line: #d8dfe5;
+  --brand: #0b6e7f; --brand-ink: #ffffff; --soft: #e4f1f3; --accent: #c77700; --accent-soft: #fbf0dc;
+  --r: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f171e; --card: #17222b; --ink: #e8eef2; --muted: #9fb0bb; --line: #2a3945;
+    --brand: #4fc0d0; --brand-ink: #0b1a20; --soft: #17353c; --accent: #f0b04a; --accent-soft: #3a2e17;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.55 'Noto Sans', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+
+.top { background: var(--card); border-bottom: 1px solid var(--line); }
+.top-in { display: flex; align-items: center; min-height: 68px; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand h1 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.brand p { margin: 0; font-size: .82rem; color: var(--muted); }
+.mark {
+  width: 34px; height: 34px; border-radius: 9px; background: var(--brand); position: relative; flex: none;
+}
+.mark::after { content: ''; position: absolute; inset: 9px; border-radius: 50%; border: 3px solid var(--brand-ink); }
+
+.hero { padding: 28px 0 12px; }
+.hero h2 { margin: 0 0 6px; font-size: 1.6rem; line-height: 1.2; }
+.hero p { margin: 0; color: var(--muted); max-width: 62ch; }
+.facts { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; padding: 0; margin: 20px 0 0; }
+.facts li { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 14px; }
+.facts b { display: block; font-size: 1.5rem; line-height: 1.1; color: var(--brand); }
+.facts span { font-size: .85rem; color: var(--muted); }
+
+.outline { padding: 8px 0 48px; }
+.phase { margin-top: 26px; }
+.phase > h3 {
+  margin: 0 0 10px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  display: flex; align-items: center; gap: 10px;
+}
+.phase > h3::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+.step { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); margin: 0 0 10px; }
+.step > summary {
+  list-style: none; cursor: pointer; display: grid; grid-template-columns: 34px 1fr auto; gap: 12px;
+  align-items: start; padding: 12px 14px;
+}
+.step > summary::-webkit-details-marker { display: none; }
+.step > summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: var(--r); }
+.num {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--soft); color: var(--brand);
+  display: grid; place-items: center; font-weight: 700; font-size: .95rem;
+}
+.step .t { font-weight: 600; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.badge { font-size: .74rem; padding: 2px 8px; border-radius: 99px; background: var(--soft); color: var(--brand); }
+.badge.card { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.chev { display: inline-block; color: var(--muted); transition: transform .15s; align-self: center; font-size: 1.5rem; line-height: 1; }
+.step[open] .chev { transform: rotate(90deg); }
+.body { padding: 0 14px 14px 60px; }
+.body ul { margin: 0; padding-left: 18px; }
+.body li { margin: 4px 0; }
+.body li .badge { margin-left: 6px; }
+.parts { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.parts .badge { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+
+.foot { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: space-between; padding-top: 16px; padding-bottom: 28px; border-top: 1px solid var(--line); font-size: .8rem; color: var(--muted); }
+.stamp { font: 11px/1.4 ui-monospace, Menlo, monospace; }
+
+@media (max-width: 520px) {
+  .body { padding-left: 14px; }
+  .hero h2 { font-size: 1.35rem; }
+}
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
