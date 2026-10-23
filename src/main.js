@@ -1,30 +1,42 @@
-import { PHASES, PARTS, STEPS, JOB_CARD } from './data/steps.js';
+import { Stage } from './scene/stage.js';
+import { World } from './scene/world.js';
+import { Director } from './director.js';
+import { Narrator } from './narrator.js';
+import { TRAINING } from './steps/index.js';
+import { initUI } from './ui.js';
 
-const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const cardTitle = (n) => JOB_CARD.find((c) => c.n === n)?.title || '';
+const host = document.getElementById('stage');
+const stage = new Stage(host);
+const world = new World({ stage });
+const narrator = new Narrator();
+const dir = new Director({ world, narrator, steps: TRAINING });
+const ui = initUI({ stage, world, dir, narrator, steps: TRAINING, host });
 
-function stepHtml(s) {
-  const cards = new Set([s.card, ...(s.checks || []).map((c) => c.card)].filter(Boolean));
-  const badges = [...cards].sort().map((n) => `<span class="badge card" title="${esc(cardTitle(n))}">Job card ${n}</span>`).join('');
-  const checks = (s.checks || []).length
-    ? `<ul>${s.checks.map((c) => `<li>${esc(c.text)}${c.card ? `<span class="badge card">Job card ${c.card}</span>` : ''}</li>`).join('')}</ul>`
-    : '';
-  const parts = s.parts.length
-    ? `<div class="parts" aria-label="Vacuum parts this step shows">${s.parts.map((id) => `<span class="badge">${esc(PARTS[id].name)}</span>`).join('')}</div>`
-    : '';
-  const hasBody = checks || parts;
-  return `<details class="step"${hasBody ? '' : ' data-flat'}>
-    <summary><span class="num">${s.n}</span><span><span class="t">${esc(s.title)}</span>${badges ? `<span class="badges">${badges}</span>` : ''}</span>${hasBody ? '<span class="chev" aria-hidden="true">›</span>' : '<span></span>'}</summary>
-    ${hasBody ? `<div class="body">${checks}${parts}</div>` : ''}
-  </details>`;
+// for tests and screenshots
+window.__training = {
+  stage, world, dir, TRAINING, ui,
+  /** Advance the lesson by `sec` seconds without drawing. */
+  run(sec, dt = 1 / 30) { for (let t = 0; t < sec; t += dt) { dir.update(dt); world.update(dt); } },
+  /** Jump to a step and a beat, then run `sec` seconds into it, silently. */
+  go(step, beat = 0, sec = 0) {
+    document.getElementById('start').hidden = true;
+    dir.silent = true; dir.goto(step, { play: true });
+    let guard = 0; while (dir.beatIdx < beat && guard++ < 20000) { dir.update(1 / 30); world.update(1 / 30, { visuals: false, geometry: false }); }
+    window.__training.run(sec);
+    stage.shot(world.shot(world), 1, true);
+  },
+};
+
+// a hidden tab must not leave the narrator talking over nothing
+document.addEventListener('visibilitychange', () => { if (document.hidden && dir.playing) { dir.pause(); ui.update(0); } });
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  dir.update(dt);
+  world.update(dt);
+  stage.render(dt);
+  ui.update(dt);
+  requestAnimationFrame(frame);
 }
-
-const partIds = new Set(STEPS.flatMap((s) => [...s.parts, ...(s.checks || []).flatMap((c) => c.parts)]));
-const facts = [[STEPS.length, 'steps'], [JOB_CARD.length, 'job-card checks'], [partIds.size, 'vacuum parts shown']];
-document.getElementById('facts').innerHTML = facts.map(([n, t]) => `<li><b>${n}</b><span>${t}</span></li>`).join('');
-
-const root = document.getElementById('outline');
-root.innerHTML = Object.entries(PHASES).map(([key, ph]) => `<div class="phase"><h3>${esc(ph.label)}</h3>${STEPS.filter((s) => s.phase === key).map(stepHtml).join('')}</div>`).join('');
-
-// A step with nothing inside it does not open.
-root.addEventListener('click', (e) => { const d = e.target.closest('details[data-flat]'); if (d) e.preventDefault(); });
+requestAnimationFrame(frame);
