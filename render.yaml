@@ -1,0 +1,24 @@
+# Render Blueprint: deploys the training page as a static site.
+# Dashboard route: New > Static Site > pick this repo and the main branch, with the Build Command and
+# Publish Directory below. Or New > Blueprint, which reads this file.
+services:
+  - type: web
+    name: efs-training
+    runtime: static
+    branch: main
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: same-origin
+      # Narration audio and animation files (added later) never change under the same name.
+      - path: /media/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
