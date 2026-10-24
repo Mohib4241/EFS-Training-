@@ -2,6 +2,7 @@
 // environment), so the room, the worker and the vacuum belong together.
 import * as THREE from 'three';
 import { canvasTex, rng } from './tex.js';
+import { characterMaterials } from './character.js';
 
 const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0, ...o });
 const phys = (color, o = {}) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.4, metalness: 0, ...o });
@@ -34,11 +35,33 @@ export function makeMaterials() {
   }, { repeat: [10, 10] });
   const carpetBump = noiseTex(21, 128, 1);
   if (carpetBump) carpetBump.repeat.set(14, 14);
+  // for the big room: carpet tiles half a metre square, with a faint check, and large floor tiles
+  const carpetTiles = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#44556b'; g.fillRect(0, 0, w, h);
+    const r = rng(15);
+    for (let i = 0; i < 4200; i++) { const v = 52 + r() * 40; g.fillStyle = `rgb(${v * 0.9},${v * 1.1},${v * 1.5})`; g.fillRect(r() * w, r() * h, 2, 2); }
+    g.strokeStyle = 'rgba(20,28,40,.55)'; g.lineWidth = 3; g.strokeRect(0, 0, w, h);
+  }, { repeat: [28, 16] });
+  const bigTile = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#d9dcdd'; g.fillRect(0, 0, w, h); g.fillStyle = '#e4e7e9'; g.fillRect(4, 4, w - 8, h - 8);
+    g.strokeStyle = 'rgba(70,80,90,.5)'; g.lineWidth = 6; g.strokeRect(0, 0, w, h);
+  }, { repeat: [14, 10] });
+
+  // a hi-vis vest: orange-yellow with silver bands (drawn on the torso's box-mapped faces)
+  const vestTex = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#ffb320'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#e6eaed';
+    for (const y of [0.3, 0.64]) g.fillRect(0, h * y, w, h * 0.075);
+    for (const x of [0.2, 0.28, 0.7, 0.78]) g.fillRect(w * (x - 0.02), 0, w * 0.04, h);
+    g.fillStyle = 'rgba(0,0,0,0.12)'; for (const y of [0.3, 0.64]) { g.fillRect(0, h * y, w, 2); g.fillRect(0, h * (y + 0.075) - 2, w, 2); }
+  }, { aniso: 8 });
 
   return {
     // room
     floorHard: phys(0xffffff, { map: tile, roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
     carpet: std(0xffffff, { map: carpet, bumpMap: carpetBump, bumpScale: 1.4, roughness: 1 }),
+    carpetBig: std(0xffffff, { map: carpetTiles, bumpMap: carpetBump, bumpScale: 1.2, roughness: 1 }),
+    floorHardBig: phys(0xffffff, { map: bigTile, roughness: 0.3, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
     wall: std(0xd8d5cd, { bumpMap: grain, bumpScale: 0.25, roughness: 0.92 }),
     skirting: std(0xe9e8e3, { roughness: 0.5 }),
     slab: std(0x2c3641, { roughness: 0.7 }),
@@ -65,19 +88,16 @@ export function makeMaterials() {
     hoseMat: std(0x2d3238, { roughness: 0.6 }),
     fabric: std(0xf1efe8, { roughness: 1 }),
     brushHair: std(0x1e1f21, { roughness: 1 }),
-    // people
-    skin: std(0xc08a62, { roughness: 0.62 }),
-    hair: std(0x171412, { roughness: 0.8 }),
-    shirt: std(0x0f7f8c, { roughness: 0.78 }),
+    // people (the face, hair, cap and polo are in character.js)
+    ...characterMaterials(),
     trousers: std(0x1f2a3b, { roughness: 0.85 }),
+    belt: std(0x14171a, { roughness: 0.5 }),
     shoe: std(0x15181b, { roughness: 0.6 }),
-    vest: std(0xffb320, { roughness: 0.7 }),
+    vest: std(0xffffff, { map: vestTex, roughness: 0.65 }),
     reflect: std(0xe8ecee, { roughness: 0.35, metalness: 0.4 }),
     glove: std(0x2a7fe0, { roughness: 0.5 }),
-    eyeWhite: std(0xf7f7f7, { roughness: 0.3 }),
     plaster: std(0xf0c9a8, { roughness: 0.7 }),
     plasterBlue: std(0x3b8fe0, { roughness: 0.6 }),
-    mouth: std(0x8c3a36, { roughness: 0.6 }),
     // signs and things
     signYellow: std(0xffd21f, { roughness: 0.5 }),
     red: std(0xd23a32, { roughness: 0.5 }),

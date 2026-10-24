@@ -15,7 +15,9 @@
     "url": "git+https://github.com/Mohib4241/EFS-Training-.git"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
     "esbuild": "^0.28.2",
+    "meshoptimizer": "^0.22.0",
     "three": "^0.186.1"
   },
   "engines": {

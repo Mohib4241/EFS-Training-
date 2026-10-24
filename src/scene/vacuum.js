@@ -167,6 +167,7 @@ export class Vacuum {
       head: () => this.tool.localToWorld(V(0, 0.07, 0)),
     };
     this.anchor.wand = () => this.wandPivot.localToWorld(V(0, WAND_LEN * 0.6, 0));
+    this.anchor.plug = () => this.plug.position.clone().add(V(0, 0.03, 0));
     this.hoseMid = V(0, 0.2, 0); this.cableMid = V(0, 0.05, 0);
   }
 

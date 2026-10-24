@@ -1,18 +1,21 @@
-// The animated worker: a stylised person built from capsules, driven by code (no model files).
+// The animated worker: a friendly cartoon man (see character.js) driven by code, with no model files.
 //   - a walk cycle, a crouch and a forward lean,
 //   - arms that either follow a pose (forward kinematics) or reach a point in the world (two-bone
 //     inverse kinematics), blended so they never snap,
-//   - a head that looks at things, blinks and breathes,
+//   - a head that looks at things, blinks, breathes and talks (the mouth follows the narration),
+//   - hands with fingers that grip,
 //   - protective equipment (vest, gloves, glasses) and a plaster that can be shown or hidden.
 // The person faces +Z in their own frame; `root.rotation.y` is the heading.
 // Left and right are the person's own: their left is +X.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { Head, FACE, buildHand, buildCollar, chestLogo, torsoGeometry } from './character.js';
+import { canvasTex } from './tex.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const Q = () => new THREE.Quaternion();
 const DOWN = V(0, -1, 0);
-const L_THIGH = 0.43, L_SHIN = 0.43, ANKLE = 0.075, L_UP = 0.29, L_FORE = 0.31;
+const L_THIGH = 0.4, L_SHIN = 0.4, ANKLE = 0.075, L_UP = 0.28, L_FORE = 0.3;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export const POSES = {
@@ -26,6 +29,7 @@ export const POSES = {
   inspect: { armR: [0.8, 0.15, 1.7], armL: [0.6, 0.15, 1.7], headPitch: 0.45, lean: 0.12 },
   wave: { armR: [0.4, 1.1, 1.4] },
   bow: { lean: 0.55, armR: [0.2, 0.1, 0.1], armL: [0.2, 0.1, 0.1] },
+  folded: {},
 };
 
 export class Worker {
@@ -35,15 +39,17 @@ export class Worker {
     this.heading = 0; this.root.rotation.y = 0;
     this.phase = 0; this.walkW = 0;
     this.t = 0;
-    this.blink = 0; this.nextBlink = 2.5;
     this.cur = { lean: 0, twist: 0, headPitch: 0, headYaw: 0, crouch: 0, kneel: 0, armR: [0.05, 0.12, 0.08], armL: [0.05, 0.12, 0.08], shake: 0 };
     this.tgt = JSON.parse(JSON.stringify(this.cur));
     this.ik = { R: null, L: null };           // world target (Vector3 or () => Vector3) per hand
+    this.pole = { R: null, L: null };         // where the elbow points while reaching (in the person's own frame); null for the usual
     this.ikW = { R: 0, L: 0 };
     this.gaze = null;                          // world point to look at (Vector3 or function), or null
     this.ppe = { vest: 0, gloves: 0, glasses: 0, plaster: 0 };
     this.ppeT = { vest: 0, gloves: 0, glasses: 0, plaster: 0 };
     this.speed = 0;
+    this.stride = 1;                           // how long the steps are (short for turning on the spot)
+    this.sway = 0.35;                          // how much the body rocks while standing (a presenter does more)
     this._build();
   }
 
@@ -51,81 +57,81 @@ export class Worker {
     const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m;
   }
   _cap(r, len, mat, parent, y) { return this._m(new THREE.CapsuleGeometry(r, len, 6, 14), mat, parent, 0, y, 0); }
+  /** A limb segment: a cylinder that narrows from `rTop` to `rBot`, centred at y, with round ends. */
+  _taper(rTop, rBot, len, mat, parent, y) {
+    const g = new THREE.Group(); g.position.y = y; parent.add(g);
+    this._m(new THREE.CylinderGeometry(rTop, rBot, len, 24, 1), mat, g);
+    this._m(new THREE.SphereGeometry(rTop, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat, g, 0, len / 2, 0);
+    this._m(new THREE.SphereGeometry(rBot, 20, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), mat, g, 0, -len / 2, 0);
+    return g;
+  }
 
   _build() {
     const M = this.M, root = this.root;
     this.hips = new THREE.Group(); root.add(this.hips);
-    this._m(new RoundedBoxGeometry(0.34, 0.2, 0.21, 4, 0.07), M.trousers, this.hips, 0, 0.0, 0);
+    this._m(new RoundedBoxGeometry(0.37, 0.22, 0.225, 4, 0.08), M.trousers, this.hips, 0, -0.005, 0);
+    this._m(new RoundedBoxGeometry(0.382, 0.03, 0.237, 3, 0.012), M.belt, this.hips, 0, 0.095, 0);
 
-    // torso
+    // torso: a white polo with a blue collar, a placket and the EFS mark on the chest
     this.spine = new THREE.Group(); this.spine.position.y = 0.06; this.hips.add(this.spine);
-    this._m(new RoundedBoxGeometry(0.4, 0.52, 0.23, 4, 0.09), M.shirt, this.spine, 0, 0.27, 0);
-    this.neck = new THREE.Group(); this.neck.position.y = 0.55; this.spine.add(this.neck);
-    this._m(new THREE.CylinderGeometry(0.048, 0.055, 0.1, 14), M.skin, this.neck, 0, 0.02, 0);
+    this._m(torsoGeometry(0.42, 0.57, 0.24), M.poloWhite, this.spine, 0, -0.07, 0);
+    this.neck = new THREE.Group(); this.neck.position.y = 0.5; this.spine.add(this.neck);
+    const collar = buildCollar(M); collar.position.set(0, 0.02, -0.004); this.neck.add(collar);
+    const placket = this._m(new RoundedBoxGeometry(0.03, 0.12, 0.01, 2, 0.004), M.poloWhite, this.spine, 0, 0.43, 0.1085); placket.castShadow = false;
+    for (const y of [0.475, 0.425]) this._m(new THREE.CylinderGeometry(0.0055, 0.0055, 0.004, 12), M.button, this.spine, 0, y, 0.1145, false).rotation.x = Math.PI / 2;
+    this.logo = chestLogo(); this.logo.position.set(0.1, 0.355, 0.1235); this.spine.add(this.logo);
 
-    // head
-    this.head = new THREE.Group(); this.head.position.y = 0.08; this.head.scale.setScalar(1.14); this.neck.add(this.head);
-    const skull = this._m(new THREE.SphereGeometry(0.108, 28, 20), M.skin, this.head, 0, 0.09, 0); skull.scale.set(0.95, 1.1, 1.0);
-    const hair = this._m(new THREE.SphereGeometry(0.113, 28, 16, 0, Math.PI * 2, 0, Math.PI * 0.47), M.hair, this.head, 0, 0.112, -0.014); hair.scale.set(0.97, 1.08, 1.03);
-    this.eyes = [];
-    for (const s of [-1, 1]) {
-      const w = this._m(new THREE.SphereGeometry(0.0145, 12, 10), M.eyeWhite, this.head, s * 0.041, 0.098, 0.094); w.castShadow = false;
-      const p = this._m(new THREE.SphereGeometry(0.0082, 10, 8), M.black, this.head, s * 0.041, 0.098, 0.105); p.castShadow = false;
-      const b = this._m(new THREE.BoxGeometry(0.036, 0.007, 0.01), M.hair, this.head, s * 0.041, 0.127, 0.098); b.castShadow = false; b.rotation.z = -s * 0.12;
-      this.eyes.push(w, p);
-    }
-    this._m(new THREE.SphereGeometry(0.014, 10, 8), M.skin, this.head, 0, 0.082, 0.108);
-    const mouth = this._m(new THREE.TorusGeometry(0.024, 0.004, 6, 14, Math.PI), M.mouth, this.head, 0, 0.054, 0.1); mouth.rotation.z = Math.PI; mouth.castShadow = false;
-    for (const s of [-1, 1]) this._m(new THREE.SphereGeometry(0.02, 10, 8), M.skin, this.head, s * 0.103, 0.09, 0).scale.set(0.5, 1, 0.8);
+    // head: the shared face rig. Its origin is the chin.
+    this.face = new Head(M);
+    this.head = this.face.group; this.head.position.y = 0.04; this.head.scale.setScalar(1.12); this.neck.add(this.head);
 
     // safety glasses
     this.glasses = new THREE.Group(); this.head.add(this.glasses);
-    for (const s of [-1, 1]) { const rim = this._m(new THREE.TorusGeometry(0.027, 0.004, 8, 20), M.black, this.glasses, s * 0.041, 0.098, 0.11); rim.castShadow = false; const gl = this._m(new THREE.CircleGeometry(0.026, 18), M.glass, this.glasses, s * 0.041, 0.098, 0.111); gl.castShadow = false; }
-    this._m(new THREE.BoxGeometry(0.03, 0.006, 0.006), M.black, this.glasses, 0, 0.1, 0.112);
-    for (const s of [-1, 1]) this._m(new THREE.BoxGeometry(0.004, 0.006, 0.1), M.black, this.glasses, s * 0.09, 0.108, 0.06);
-
-    // vest over the torso
-    this.vest = new THREE.Group(); this.spine.add(this.vest);
-    this._m(new RoundedBoxGeometry(0.416, 0.4, 0.244, 4, 0.09), M.vest, this.vest, 0, 0.3, 0);
-    for (const y of [0.2, 0.38]) {                                   // reflective bands, flat on the vest
-      for (const z of [-1, 1]) this._m(new THREE.BoxGeometry(0.4, 0.035, 0.004), M.reflect, this.vest, 0, y, z * 0.123).castShadow = false;
-      for (const x of [-1, 1]) this._m(new THREE.BoxGeometry(0.004, 0.035, 0.226), M.reflect, this.vest, x * 0.209, y, 0).castShadow = false;
+    const gz = this.face.zAt(0.037, FACE.eyeY) + 0.028;
+    for (const s of [-1, 1]) {
+      const rim = this._m(new THREE.TorusGeometry(0.0285, 0.0034, 8, 24), M.black, this.glasses, s * FACE.eyeX, FACE.eyeY, gz); rim.castShadow = false;
+      const gl = this._m(new THREE.CircleGeometry(0.0282, 22), M.glass, this.glasses, s * FACE.eyeX, FACE.eyeY, gz + 0.0004); gl.castShadow = false;
+      this._m(new THREE.BoxGeometry(0.0035, 0.006, 0.105), M.black, this.glasses, s * 0.0905, FACE.eyeY + 0.004, gz - 0.054).castShadow = false;
     }
-    for (const s of [-1, 1]) for (const z of [-1, 1]) this._m(new THREE.BoxGeometry(0.045, 0.37, 0.004), M.reflect, this.vest, s * 0.085, 0.3, z * 0.123).castShadow = false;
+    this._m(new THREE.BoxGeometry(0.02, 0.005, 0.006), M.black, this.glasses, 0, FACE.eyeY + 0.004, gz).castShadow = false;
+
+    // high-visibility vest over the polo (a shaped shell with printed reflective bands)
+    this.vest = new THREE.Group(); this.spine.add(this.vest);
+    this._m(torsoGeometry(0.42, 0.57, 0.24, 0.012), M.vest, this.vest, 0, -0.074, 0);
 
     // arms
     this.arms = {};
     for (const [name, side] of [['R', -1], ['L', 1]]) {
-      const sh = new THREE.Group(); sh.position.set(side * 0.215, 0.47, 0); this.spine.add(sh);
-      this._m(new THREE.SphereGeometry(0.058, 16, 12), M.shirt, sh);
+      const sh = new THREE.Group(); sh.position.set(side * 0.232, 0.43, 0); this.spine.add(sh);
+      this._m(new THREE.SphereGeometry(0.066, 20, 14), M.poloWhite, sh);
       const up = new THREE.Group(); sh.add(up);
-      this._cap(0.049, L_UP - 0.11, M.skin, up, -L_UP / 2);
-      const sleeve = this._m(new THREE.CylinderGeometry(0.056, 0.05, 0.13, 16), M.shirt, up, 0, -0.065, 0);
+      this._taper(0.058, 0.047, L_UP - 0.06, M.skin, up, -L_UP / 2 - 0.0);
+      this._m(new THREE.CylinderGeometry(0.067, 0.064, 0.13, 22), M.poloWhite, up, 0, -0.065, 0);
       const fore = new THREE.Group(); fore.position.y = -L_UP; up.add(fore);
-      this._m(new THREE.SphereGeometry(0.04, 12, 10), M.skin, fore);
-      this._cap(0.042, L_FORE - 0.11, M.skin, fore, -L_FORE / 2 + 0.02);
-      const hand = new THREE.Group(); hand.position.y = -L_FORE + 0.02; fore.add(hand);
-      this._m(new THREE.SphereGeometry(0.047, 14, 10), M.skin, hand, 0, -0.025, 0).scale.set(0.9, 1.1, 0.7);
-      const glove = this._m(new THREE.SphereGeometry(0.054, 14, 10), M.glove, hand, 0, -0.03, 0); glove.scale.set(0.95, 1.2, 0.78);
-      const cuff = this._m(new THREE.CylinderGeometry(0.043, 0.043, 0.07, 12), M.glove, fore, 0, -L_FORE + 0.07, 0);
-      const holder = new THREE.Group(); holder.position.set(0, -0.04, 0.0); hand.add(holder);   // props go here
-      this.arms[name] = { side, sh, up, fore, hand, glove, cuff, holder };
+      this._m(new THREE.SphereGeometry(0.047, 14, 10), M.skin, fore);
+      this._taper(0.048, 0.036, L_FORE - 0.08, M.skin, fore, -L_FORE / 2 + 0.02);
+      const hand = buildHand(M, side); hand.group.position.y = -L_FORE + 0.04; fore.add(hand.group);
+      const holder = new THREE.Group(); holder.position.set(0, -0.06, 0.0); hand.group.add(holder);      // props go here
+      this.arms[name] = { side, sh, up, fore, hand: hand.group, handRig: hand, cuff: hand.cuff, holder };
     }
-    this.plaster = this._m(new THREE.BoxGeometry(0.014, 0.05, 0.06), M.plasterBlue, this.arms.L.hand, 0.04, -0.045, 0.0);
+    this.plaster = this._m(new THREE.BoxGeometry(0.014, 0.05, 0.06), M.plasterBlue, this.arms.L.hand, -0.022, -0.05, 0.0);
 
     // legs
     this.legs = {};
     for (const [name, side] of [['R', -1], ['L', 1]]) {
       const hip = new THREE.Group(); hip.position.set(side * 0.095, -0.02, 0); this.hips.add(hip);
-      this._cap(0.076, L_THIGH - 0.15, M.trousers, hip, -L_THIGH / 2);
+      this._m(new THREE.SphereGeometry(0.086, 20, 14), M.trousers, hip);
+      this._taper(0.086, 0.064, L_THIGH - 0.02, M.trousers, hip, -L_THIGH / 2);
       const knee = new THREE.Group(); knee.position.y = -L_THIGH; hip.add(knee);
-      this._m(new THREE.SphereGeometry(0.066, 12, 10), M.trousers, knee);
-      this._cap(0.063, L_SHIN - 0.14, M.trousers, knee, -L_SHIN / 2);
+      this._m(new THREE.SphereGeometry(0.064, 16, 12), M.trousers, knee);
+      this._taper(0.064, 0.05, L_SHIN - 0.02, M.trousers, knee, -L_SHIN / 2);
       const foot = new THREE.Group(); foot.position.y = -L_SHIN; knee.add(foot);
       this._m(new RoundedBoxGeometry(0.1, 0.075, 0.26, 3, 0.03), M.shoe, foot, 0, -0.03, 0.05);
       this.legs[name] = { side, hip, knee, foot };
     }
     this._applyLegs(0, 0, 0, 0);
+    this.grip = { R: 0.2, L: 0.2 }; this.gripT = { R: 0.2, L: 0.2 };
+    this.folded = false;
   }
 
   // ───────────── control ─────────────
@@ -138,9 +144,26 @@ export class Worker {
   /** Change only some pose values without resetting the rest. */
   adjust(o) { this.tgt = { ...this.tgt, ...o }; }
 
-  setIK(hand, target) { this.ik[hand] = target; }
+  setIK(hand, target, pole = null) { this.ik[hand] = target; this.pole[hand] = pole; }
   setGaze(target) { this.gaze = target; }
   setPPE(item, on) { this.ppeT[item] = on ? 1 : 0; }
+  /** How tightly a hand grips, 0 (relaxed) to 1 (closed round a handle). */
+  setGrip(hand, v) { this.gripT[hand] = v; }
+  /** Stand with the hands folded in front: how a presenter waits while someone else is talking. */
+  setFolded(on) {
+    this.folded = !!on;
+    const tgt = (s) => () => this._foldPoint(s);
+    this.ik.R = on ? tgt(-1) : null; this.ik.L = on ? tgt(1) : null;
+    this.gripT.R = this.gripT.L = on ? 0.55 : 0.2;
+  }
+  _foldPoint(side) {
+    const f = this.forward(this._ff || (this._ff = V(0, 0, 0))), l = V(f.z, 0, -f.x);
+    return this.root.position.clone().addScaledVector(V(0, 1, 0), 0.93 + this.cur.crouch * -0.3).addScaledVector(f, 0.2).addScaledVector(l, side * 0.032);
+  }
+  /** Where the speech wants the mouth: { open, wide, round } (see lipsync.js). */
+  setMouth(m) { this.face.setMouth(m); this.talking = !!(m && m.talking); }
+  /** Face a direction at once. */
+  setHeading(h) { this.heading = h; this.root.rotation.y = h; }
   place(x, z, heading) { this.root.position.set(x, 0, z); if (heading != null) { this.heading = heading; this.root.rotation.y = heading; } }
   get pos() { return this.root.position; }
   forward(out = V(0, 0, 0)) { return out.set(Math.sin(this.heading), 0, Math.cos(this.heading)); }
@@ -197,7 +220,7 @@ export class Worker {
     this.walkW += (walking - this.walkW) * k(8);
     this.phase += this.speed * dt * 5.4;
     const sp = Math.sin(this.phase), cp = Math.cos(this.phase);
-    const A = 0.42 * this.walkW, B = 0.75 * this.walkW;
+    const A = 0.42 * this.walkW * this.stride, B = 0.75 * this.walkW * this.stride;
     const crouchA = c.crouch * 1.1, crouchB = c.crouch * 2.0;
     const aL = A * sp + crouchA, aR = -A * sp + crouchA;
     const bL = B * Math.max(0, cp) + crouchB, bR = B * Math.max(0, -cp) + crouchB;
@@ -206,14 +229,16 @@ export class Worker {
     // breathing, a little sway
     const br = Math.sin(this.t * 1.7) * 0.004;
     this.spine.position.y = 0.06 + br;
-    this.spine.rotation.set(c.lean + c.crouch * 0.28 + Math.abs(sp) * 0.02 * this.walkW, c.twist + sp * 0.06 * this.walkW, 0);
+    // standing, the weight shifts slowly from one leg to the other, and the shoulders rock with it
+    const rock = Math.sin(this.t * 0.62) * (1 - this.walkW) * this.sway;
+    this.hips.rotation.z = rock * 0.022; this.hips.position.x = rock * 0.014;
+    this.spine.rotation.set(c.lean + c.crouch * 0.28 + Math.abs(sp) * 0.02 * this.walkW, c.twist + sp * 0.06 * this.walkW, -rock * 0.028);
     this.neck.rotation.y = this._gy * 0.5; this.head.rotation.set(this._gp * 0.6 + 0.0, this._gy * 0.5, 0);
-
-    // blink
-    this.nextBlink -= dt; if (this.nextBlink <= 0) { this.blink = 0.12; this.nextBlink = 2 + (Math.sin(this.t * 12.9) + 1) * 1.6; }
-    this.blink = Math.max(0, this.blink - dt);
-    const open = this.blink > 0 ? 0.1 : 1;
-    for (let i = 0; i < this.eyes.length; i += 2) { this.eyes[i].scale.y = open; this.eyes[i + 1].scale.y = open; }
+    // the eyes make up what the head does not turn
+    const talk = this.face.mouth.open;
+    this.face.look(clamp(this._gy * 0.5, -0.4, 0.4), clamp(this._gp * 0.4, -0.3, 0.3));
+    this.face.update(dt, { talking: this.talking, snap });
+    if (this.talking) this.head.rotation.x += Math.sin(this.t * 3.1) * 0.012 + talk * 0.03;     // a little nodding while speaking
 
     // protective equipment pops in and out
     for (const it of ['vest', 'gloves', 'glasses', 'plaster']) {
@@ -223,9 +248,12 @@ export class Worker {
       const vis = v > 0.02;
       if (it === 'vest') { this.vest.visible = vis; this.vest.scale.setScalar(s); }
       if (it === 'glasses') { this.glasses.visible = vis; this.glasses.scale.setScalar(s); }
-      if (it === 'gloves') for (const h of ['R', 'L']) { this.arms[h].glove.visible = vis; this.arms[h].cuff.visible = vis; }
+      if (it === 'gloves') for (const h of ['R', 'L']) { const on = v > 0.5; if (this.arms[h]._gl !== on) { this.arms[h]._gl = on; this.arms[h].handRig.setGlove(on); } }
       if (it === 'plaster') this.plaster.visible = vis && this.ppe.gloves < 0.5;
     }
+
+    // fingers close round whatever the hand holds
+    for (const h of ['R', 'L']) { this.grip[h] += (this.gripT[h] - this.grip[h]) * k(10); if (Math.abs(this.arms[h].handRig.grip - this.grip[h]) > 0.01) this.arms[h].handRig.setGrip(this.grip[h]); }
 
     // arms: pose first, then reach for targets
     this.root.updateMatrixWorld(true);
@@ -266,7 +294,7 @@ export class Worker {
       d = clamp(d, 0.08, L_UP + L_FORE - 0.005);
       const aa = (L_UP * L_UP - L_FORE * L_FORE + d * d) / (2 * d), hh = Math.sqrt(Math.max(L_UP * L_UP - aa * aa, 0));
       // the elbow points down and a little outwards and back
-      const pole = V(side * 0.6, -1, -0.5).applyAxisAngle(V(0, 1, 0), this.heading).normalize();
+      const pole = (this.pole[name] ? this.pole[name].clone() : V(side * 0.6, -1, -0.5)).applyAxisAngle(V(0, 1, 0), this.heading).normalize();
       const pp = pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
       const E = S.clone().add(dir.clone().multiplyScalar(aa)).add(pp.multiplyScalar(hh));
       const T = S.clone().add(dir.clone().multiplyScalar(d));

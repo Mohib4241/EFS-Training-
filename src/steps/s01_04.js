@@ -14,15 +14,10 @@ const facing = (extra = {}) => orbit((w) => w.worker.pos.clone().add(V(0, 1.0, 0
 export const STEPS_1_4 = [
   {
     n: 1,
-    title: { en: 'Arrive and make the area safe', hi: 'पहुँचें और जगह को सुरक्षित बनाएं', ne: 'आइपुग्नुहोस् र ठाउँ सुरक्षित बनाउनुहोस्' },
+    
     beats: [
       {
         check: 'risk', cam: 'door',
-        say: {
-          en: 'You arrive at the work area. Before you start, look around for anything that could hurt you or other people, such as a wet floor, a trailing cable, or people walking through.',
-          hi: 'आप काम की जगह पर पहुँचते हैं। शुरू करने से पहले चारों ओर देखें कि कोई ऐसी चीज़ तो नहीं जिससे आपको या दूसरों को चोट लग सकती है, जैसे गीला फ़र्श, फैली हुई तार, या आते-जाते लोग।',
-          ne: 'तपाईं काम गर्ने ठाउँमा आइपुग्नुहुन्छ। सुरु गर्नुअघि वरिपरि हेर्नुहोस्, आफूलाई वा अरूलाई चोट लाग्न सक्ने कुनै कुरा छ कि, जस्तै भिजेको भुइँ, छरिएको तार, वा हिँडिरहेका मानिसहरू।',
-        },
         act: function* (c) {
           c.pose('idle');
           yield* c.walk(3.7, -0.3);
@@ -33,11 +28,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'sign', cam: 'sign',
-        say: {
-          en: 'Then put out a warning sign, so that everyone can see that cleaning is going on here.',
-          hi: 'फिर चेतावनी का बोर्ड रखें, ताकि सभी को दिखे कि यहाँ सफ़ाई चल रही है।',
-          ne: 'त्यसपछि चेतावनी चिह्न राख्नुहोस्, ताकि सबैले देख्न सकून् कि यहाँ सफाइ भइरहेको छ।',
-        },
         act: function* (c) {
           yield* c.walk(2.75, 1.2, { face: 0 });
           c.adjust({ crouch: 0.75, lean: 0.12 }); yield* c.wait(0.9);
@@ -51,15 +41,10 @@ export const STEPS_1_4 = [
   },
   {
     n: 2,
-    title: { en: 'Know your paperwork', hi: 'अपने दस्तावेज़ जानें', ne: 'आफ्ना कागजात जान्नुहोस्' },
+    
     beats: [
       {
         check: 'docs', cam: SHOTS.room,
-        say: {
-          en: 'Know the papers for this job. First, the task risk assessment. It lists the dangers, and how to stay safe.',
-          hi: 'इस काम के कागज़ात जानें। पहला, टास्क रिस्क असेसमेंट। इसमें खतरे और बचाव के तरीके लिखे होते हैं।',
-          ne: 'यस कामका कागजातहरू जान्नुहोस्। पहिलो, टास्क रिस्क एसेसमेन्ट। यसमा खतरा र सुरक्षित रहने तरिका लेखिएको हुन्छ।',
-        },
         act: function* (c) {
           yield* c.walk(-0.3, -1.55, { face: Math.PI });
           const clip = c.props.clipboard; c.drop(clip, -0.1, 0.77, -2.5, 0); clip.rotation.set(-Math.PI / 2, 0, 0);
@@ -77,11 +62,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'docs',
-        say: {
-          en: 'Second, the method statement, or Standard Operating Procedure. It gives the steps to follow, in order.',
-          hi: 'दूसरा, मेथड स्टेटमेंट या स्टैंडर्ड ऑपरेटिंग प्रोसीजर। इसमें काम के चरण क्रम से लिखे होते हैं।',
-          ne: 'दोस्रो, मेथड स्टेटमेन्ट वा स्ट्यान्डर्ड अपरेटिङ प्रोसिजर। यसमा काम गर्ने चरणहरू क्रमैसँग लेखिएका हुन्छन्।',
-        },
         act: function* (c) {
           c.props.docs[0].visible = false; c.uncarry(c.props.docs[0]);
           const d = c.props.docs[1]; c.carry(d, { hand: 'R', off: [0, 0.0, 0.06], rot: [0, 0, 0] });
@@ -90,11 +70,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'docs',
-        say: {
-          en: 'Third, the maker\'s operating instructions for the machine. Read them before you use it.',
-          hi: 'तीसरा, मशीन बनाने वाले के संचालन निर्देश। मशीन चलाने से पहले उन्हें पढ़ें।',
-          ne: 'तेस्रो, मेसिन बनाउने कम्पनीका सञ्चालन निर्देशन। मेसिन चलाउनुअघि ती पढ्नुहोस्।',
-        },
         act: function* (c) {
           c.props.docs[1].visible = false; c.uncarry(c.props.docs[1]);
           const d = c.props.docs[2]; c.carry(d, { hand: 'R', off: [0, 0.0, 0.06], rot: [0, 0, 0] });
@@ -108,15 +83,10 @@ export const STEPS_1_4 = [
   },
   {
     n: 3,
-    title: { en: 'Wash your hands', hi: 'हाथ धोएं', ne: 'हात धुनुहोस्' },
+    
     beats: [
       {
         check: 'wash', cam: 'basin',
-        say: {
-          en: 'Wash your hands the way your company policy says.',
-          hi: 'अपनी कंपनी की नीति के अनुसार हाथ धोएं।',
-          ne: 'आफ्नो कम्पनीको नीति अनुसार हात धुनुहोस्।',
-        },
         act: function* (c) {
           yield* c.walk(PLACES.basin[0], PLACES.basin[1] - 0.2, { face: Math.PI });
           c.pose({ lean: 0.2, headPitch: 0.3, armR: [0.9, 0.2, 1.2], armL: [0.9, 0.2, 1.2] });
@@ -129,11 +99,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'cuts',
-        say: {
-          en: 'Check for cuts and grazes. Cover any with a waterproof dressing, so that germs and cleaning products cannot get into your blood.',
-          hi: 'कटे या छिले हुए हिस्से देखें। उन्हें वाटरप्रूफ पट्टी से ढकें, ताकि कीटाणु और सफ़ाई के रसायन खून में न जा सकें।',
-          ne: 'काटिएको वा खाटा परेको ठाउँ छ कि जाँच गर्नुहोस्। त्यसलाई पानी नछिर्ने पट्टीले छोप्नुहोस्, ताकि जीवाणु र सफाइका रसायन रगतमा पस्न नपाऊन्।',
-        },
         act: function* (c) {
           c.cam(facing({ dist: 3.0 }));
           yield* c.walk(-1.4, -0.4, { face: 0 });
@@ -148,15 +113,10 @@ export const STEPS_1_4 = [
   },
   {
     n: 4,
-    title: { en: 'Put on protective equipment', hi: 'सुरक्षा उपकरण पहनें', ne: 'सुरक्षा उपकरण लगाउनुहोस्' },
+    
     beats: [
       {
         check: 'ppe', cam: 'ppe',
-        say: {
-          en: 'Check and put on the protective equipment your risk assessment asks for. First, a high-visibility vest. Make sure it fits, suits the job, and is not damaged.',
-          hi: 'आपके रिस्क असेसमेंट में जो सुरक्षा उपकरण बताए गए हैं, उन्हें जाँचें और पहनें। पहले, चमकीली जैकेट। देखें कि वह ठीक आती है, काम के लायक है और फटी नहीं है।',
-          ne: 'तपाईंको रिस्क एसेसमेन्टले भनेका सुरक्षा उपकरण जाँच गरेर लगाउनुहोस्। पहिले, चम्किलो भेस्ट। यो नापमा मिलेको, काम सुहाउँदो र नफाटेको छ भन्ने हेर्नुहोस्।',
-        },
         act: function* (c) {
           yield* c.walk(PLACES.ppe[0], PLACES.ppe[1], { face: -Math.PI / 2 });
           c.adjust({ lean: 0.15, headPitch: 0.3 });
@@ -168,11 +128,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'ppe',
-        say: {
-          en: 'Next, gloves. They should be the right ones for the job, with no holes.',
-          hi: 'अब दस्ताने। वे काम के हिसाब से सही हों और उनमें कोई छेद न हो।',
-          ne: 'अब पन्जा। ती काम सुहाउँदा हुनुपर्छ र प्वाल नभएका हुनुपर्छ।',
-        },
         act: function* (c) {
           c.adjust({ lean: 0.15, headPitch: 0.3 });
           yield* c.reach('R', V(-3.45, 0.86, 0.33), 0.9);
@@ -183,11 +138,6 @@ export const STEPS_1_4 = [
       },
       {
         check: 'ppe',
-        say: {
-          en: 'And safety glasses, if the assessment asks for them. Keep them clean and undamaged.',
-          hi: 'और सेफ़्टी चश्मा, अगर असेसमेंट में लिखा हो। उसे साफ़ और बिना टूटा-फूटा रखें।',
-          ne: 'र सुरक्षा चस्मा, यदि एसेसमेन्टले भनेको छ भने। यसलाई सफा र नफुटेको राख्नुहोस्।',
-        },
         act: function* (c) {
           c.pose({ lean: 0.15, headPitch: 0.3 });
           yield* c.reach('R', V(-3.45, 0.86, 0.55), 0.9);

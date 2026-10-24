@@ -52,7 +52,7 @@ class Ctx {
 
   // camera, pointers, props
   cam(shot) { this.w.cam(shot); }
-  hl(ids) { this.w.highlight(ids); }
+  hl(ids, o) { this.w.highlight(ids, o); }
   noHl() { this.w.clearHighlight(); }
   tick(id) { this.w.tick(id); }
   carry(prop, o) { this.w.carry(prop, o); }
@@ -131,7 +131,7 @@ export class Director {
     if (this.beatIdx >= step.beats.length) return this._endStep();
     const beat = step.beats[this.beatIdx];
     if (beat.cam) this.world.cam(beat.cam);
-    if (beat.hl) this.world.highlight(beat.hl);
+    if (beat.hl) this.world.highlight(beat.hl, { bad: beat.bad });
     this.gen = beat.act ? beat.act(this.c) : (function* () {})();
     this.genDone = false;
     this._say(beat);
@@ -142,7 +142,7 @@ export class Director {
     this._stopSpeech();
     const text = this.text(beat);
     this.speechDone = false; this.speechWait = 0;
-    this.speechFor = estimate(text, this.lang);
+    this.speechFor = estimate(text, this.lang, this.narrator?.speed || 1);
     this.speech = null;
     if (!this.silent && this.playing) {
       const h = this.narrator.speak(text, this.lang);
@@ -191,6 +191,7 @@ export class Director {
       if (h) {
         // a voice that never starts (blocked until the page is touched) must not stall the lesson
         if (h.done) this.speechDone = true;
+        else if (h.blocked) { this.speech = null; }                         // not allowed to speak yet: count the time instead
         else if (!h.started && this.speechWait > 3.0) { h.cancel(); this.speech = null; this.speechWait = 0; }
       } else if (this.speechWait >= this.speechFor) this.speechDone = true;
     }

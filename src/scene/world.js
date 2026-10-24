@@ -4,6 +4,8 @@
 import * as THREE from 'three';
 import { makeMaterials } from './mat.js';
 import { buildRoom, PLACES, SOCKET_POS, CARPET_X } from './room.js';
+import { buildHall, HALL } from './hall.js';
+import { buildHallProps, SPOTS } from './hallprops.js';
 import { Vacuum } from './vacuum.js';
 import { Worker } from './worker.js';
 import { buildProps } from './props.js';
@@ -11,15 +13,16 @@ import { SHOTS } from './shots.js';
 import { canvasTex, rng } from './tex.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const FLOOR_X = [-4, 4], FLOOR_Z = [-3, 3];
+const BOUNDS = { room: { x: [-4, 4], z: [-3, 3], grit: 460, mask: [512, 384] }, hall: { x: [-7, 7], z: [-4.5, 3.6], grit: 1500, mask: [1024, 600] } };
 // how big the ring round each pointed-at thing is, in metres
-const RING = { pat: 0.15, switch: 0.13, tools: 0.17, head: 0.2, socket: 0.18, breaker: 0.22, wand: 0.2, hose: 0.22, pests: 0.3, crack: 0.3, torn: 0.3, lane: 0.6, cloths: 0.3 };
+const RING = { bay: 0.55, plug: 0.13, puddle: 0.6, frayed: 0.3, kit: 0.3, pat: 0.15, switch: 0.13, tools: 0.17, head: 0.2, socket: 0.18, breaker: 0.22, wand: 0.2, hose: 0.22, pests: 0.3, crack: 0.3, torn: 0.3, lane: 0.6, cloths: 0.3 };
 
 export class World {
-  constructor({ stage = null, scene = null } = {}) {
+  constructor({ stage = null, scene = null, M = null, env = 'room' } = {}) {
     this.stage = stage;
+    this.env = env;
     this.scene = stage ? stage.scene : (scene || new THREE.Scene());
-    this.M = makeMaterials();
+    this.M = M || makeMaterials();
     this.shot = SHOTS.wide;
     this.build();
   }
@@ -27,8 +30,10 @@ export class World {
   // ───────────── building and resetting ─────────────
   build() {
     const content = this.content = new THREE.Group(); this.scene.add(content);
-    this.room = buildRoom(this.M); content.add(this.room.group);
-    this.props = buildProps(this.M, this.room); content.add(this.props.group);
+    const hall = this.env === 'hall';
+    this.bounds = BOUNDS[this.env];
+    this.room = hall ? buildHall(this.M) : buildRoom(this.M); content.add(this.room.group);
+    this.props = hall ? buildHallProps(this.M) : buildProps(this.M, this.room); content.add(this.props.group);
     this.vac = new Vacuum(this.M); content.add(this.vac.root, this.vac.free);
     this.worker = new Worker(this.M); content.add(this.worker.root);
     this.time = 0; this.op = null; this.hl = []; this.water = false; this.cableHand = 'R'; this.followers = new Map();
@@ -37,14 +42,25 @@ export class World {
     this._grit(); this._mask(); this._ringTex();
     for (const k of ['pests', 'crack', 'torn']) this.props[k].visible = false;   // found in steps 6 and 7
 
-    // starting state: the worker outside the door, the machine parked, the sign still folded in their hands
-    this.worker.place(5.6, -0.3, -Math.PI / 2);
-    this.vac.root.position.set(PLACES.vac[0], 0, PLACES.vac[1]); this.vac.root.rotation.y = 0.62;
-    this.vac.setFill(0.4); this.vac.setTool('floor'); this.vac.brushT = 1; this.vac.brushOut = 1;
-    this.props.sign.visible = false;
-    this.carry(this.props.sign, { hand: 'R', off: [0, -0.62, 0.02], rot: [0, Math.PI / 2, 0] });
+    if (hall) {
+      // starting state in the big room: the worker beside the parked machine, which is unplugged
+      this.worker.place(-1.6, 2.7, Math.PI / 2 + 0.3);
+      this.vac.root.position.set(HALL.parked[0], 0, HALL.parked[1]); this.vac.root.rotation.y = 0.5;
+      this.vac.setFill(0.7); this.vac.setTool('floor'); this.vac.brushT = 1; this.vac.brushOut = 1;
+      this.worker.setPPE('gloves', false);
+    } else {
+      // starting state: the worker outside the door, the machine parked, the sign still folded in their hands
+      this.worker.place(5.6, -0.3, -Math.PI / 2);
+      this.vac.root.position.set(PLACES.vac[0], 0, PLACES.vac[1]); this.vac.root.rotation.y = 0.62;
+      this.vac.setFill(0.4); this.vac.setTool('floor'); this.vac.brushT = 1; this.vac.brushOut = 1;
+      this.props.sign.visible = false;
+      this.carry(this.props.sign, { hand: 'R', off: [0, -0.62, 0.02], rot: [0, Math.PI / 2, 0] });
+    }
     this.update(1 / 60, { snap: true });
   }
+
+  /** Change the room (the training room or the big room) and start again in it. */
+  setEnv(env) { this.env = env; this.reset(); }
 
   reset() {
     this.scene.remove(this.content);
@@ -57,47 +73,91 @@ export class World {
 
   // ───────────── dirt, stripes ─────────────
   _grit() {
-    const N = 460;
-    const geo = new THREE.SphereGeometry(0.009, 5, 4); geo.scale(1, 0.4, 1);
+    const hall = this.env === 'hall', B = this.bounds, N = B.grit;
+    const geo = new THREE.SphereGeometry(hall ? 0.013 : 0.009, 5, 4); geo.scale(1, 0.4, 1);
     const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 });
     const mesh = this.grit = new THREE.InstancedMesh(geo, mat, N);
     mesh.castShadow = false; mesh.receiveShadow = true;
     const r = rng(77), m = new THREE.Matrix4(), col = new THREE.Color();
     this.gritPos = []; this.gritLife = new Float32Array(N).fill(1);
     for (let i = 0; i < N; i++) {
-      let x, z;
-      if (i < 150) { x = 2.5 + r() * 1.4; z = -1.5 + r() * 2.4; }               // thick in the traffic lane
-      else if (i < 330) { x = 0.8 + r() * 2.9; z = -2.6 + r() * 3.9; }            // the rest of the carpet
-      else if (i < 380) { x = 2.0 + r() * 1.9; z = -2.95 + r() * 0.2; }           // along the back wall
-      else if (i < 420) { x = 3.75 + r() * 0.2; z = -2.9 + r() * 3.2; }           // along the right wall
-      else { x = -0.45 + r() * 1.0; z = -1.6 + r() * 3.2; }                       // the hard floor beside the carpet
-      const carpet = x > CARPET_X;
-      m.makeScale(0.8 + r() * 1.4, 1, 0.8 + r() * 1.4); m.setPosition(x, carpet ? 0.024 : 0.006, z);
+      let x, z, carpet;
+      if (hall) {                                                                   // dust and crumbs over the whole carpet, thick in the middle
+        if (i < N * 0.5) { x = -3.6 + r() * 8.2; z = -2.4 + r() * 5.4; }
+        else if (i < N * 0.85) { x = B.x[0] + 0.3 + r() * (B.x[1] - B.x[0] - 0.6); z = B.z[0] + 0.2 + r() * (B.z[1] - B.z[0] - 0.4); }
+        else { x = B.x[0] + 0.3 + r() * (B.x[1] - B.x[0] - 0.6); z = B.z[0] + 0.1 + r() * 0.35; }       // along the back wall
+        carpet = true;
+      } else {
+        if (i < 150) { x = 2.5 + r() * 1.4; z = -1.5 + r() * 2.4; }               // thick in the traffic lane
+        else if (i < 330) { x = 0.8 + r() * 2.9; z = -2.6 + r() * 3.9; }            // the rest of the carpet
+        else if (i < 380) { x = 2.0 + r() * 1.9; z = -2.95 + r() * 0.2; }           // along the back wall
+        else if (i < 420) { x = 3.75 + r() * 0.2; z = -2.9 + r() * 3.2; }           // along the right wall
+        else { x = -0.45 + r() * 1.0; z = -1.6 + r() * 3.2; }                       // the hard floor beside the carpet
+        carpet = x > CARPET_X;
+      }
+      const sc = 0.8 + r() * 1.4;
+      m.makeScale(sc, 1, sc * (0.7 + r() * 0.6)); m.setPosition(x, carpet ? 0.024 : 0.006, z);
       mesh.setMatrixAt(i, m);
-      col.setHex(carpet ? 0xcdbf9f : 0x3b3027).offsetHSL(0, 0, (r() - 0.5) * 0.08);
+      col.setHex(carpet ? (r() < 0.3 ? 0x8a7a62 : 0xcdbf9f) : 0x3b3027).offsetHSL(0, 0, (r() - 0.5) * 0.08);
       mesh.setColorAt(i, col);
-      this.gritPos.push([x, z, carpet ? 0.024 : 0.006, 0.8 + r() * 1.4]);
+      this.gritPos.push([x, z, carpet ? 0.024 : 0.006, sc]);
     }
     this.gritLeft = N; this.gritN = N;
     this.content.add(mesh);
+    this._suckInit();
   }
   _mask() {
-    // faint stripes where the head has been, laid over the floor
-    const W = 512, H = 384;
+    // faint lines where the head has been, laid over the floor
+    const [W, H] = this.bounds.mask, B = this.bounds, bw = B.x[1] - B.x[0], bd = B.z[1] - B.z[0];
     const tex = canvasTex(W, H, (g, w, h) => g.clearRect(0, 0, w, h), { aniso: 4 });
-    this.mask = { tex, W, H, last: null, ctx: tex ? tex.image.getContext('2d') : null };
+    this.mask = { tex, W, H, last: null, ctx: tex ? tex.image.getContext('2d') : null, bw, bd };
     if (!tex) return;
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.5, blending: THREE.NormalBlending }));
-    plane.rotation.x = -Math.PI / 2; plane.position.y = 0.03; plane.renderOrder = 2; this.content.add(plane);
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(bw, bd), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.5, blending: THREE.NormalBlending }));
+    plane.rotation.x = -Math.PI / 2; plane.position.set((B.x[0] + B.x[1]) / 2, 0.03, (B.z[0] + B.z[1]) / 2); plane.renderOrder = 2; this.content.add(plane);
     this.mask.plane = plane;
     tex.colorSpace = THREE.SRGBColorSpace;
   }
   _stamp(x, z, width) {
     const k = this.mask; if (!k.ctx) { return; }
-    const u = (x + 4) / 8 * k.W, v = (z + 3) / 6 * k.H;
-    const g = k.ctx; g.strokeStyle = 'rgba(205,228,255,0.2)'; g.lineWidth = width / 8 * k.W; g.lineCap = 'round';
+    const B = this.bounds;
+    const u = (x - B.x[0]) / k.bw * k.W, v = (z - B.z[0]) / k.bd * k.H;
+    const g = k.ctx; g.strokeStyle = 'rgba(205,228,255,0.17)'; g.lineWidth = width * 0.6 / k.bw * k.W; g.lineCap = 'round';
     g.beginPath(); if (k.last) g.moveTo(k.last[0], k.last[1]); else g.moveTo(u, v); g.lineTo(u, v); g.stroke();
     k.last = [u, v]; k.dirty = true;
+  }
+
+  // dust being pulled into the floor head: a few specks that fly in and vanish
+  _suckInit() {
+    const N = 90, pos = new Float32Array(N * 3).fill(-10);
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const dot = canvasTex(32, 32, (g, w, h) => { const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, { aniso: 1 });
+    const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.05, map: dot, color: 0xd8ccb0, transparent: true, opacity: 0.85, depthWrite: false, sizeAttenuation: true }));
+    pts.frustumCulled = false; this.content.add(pts);
+    this.suck = { N, life: new Float32Array(N), pts, rand: rng(41), vel: new Float32Array(N * 3) };
+  }
+  _suckUpdate(dt, active) {
+    const S = this.suck, p = S.pts.geometry.attributes.position, v = this.vac;
+    if (!active && S.idle) return;
+    const hp = v.tool.position, yaw = v.toolYaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
+    const ix = hp.x + fx * 0.07, iz = hp.z + fz * 0.07;
+    let any = false;
+    for (let i = 0; i < S.N; i++) {
+      if (S.life[i] <= 0) {
+        if (active && S.rand() < dt * 28) {
+          const a = S.rand() * Math.PI * 2, rad = 0.1 + S.rand() * 0.22;
+          S.life[i] = 1; p.setXYZ(i, ix + Math.cos(a) * rad, 0.03 + S.rand() * 0.07, iz + Math.sin(a) * rad);
+        }
+        continue;
+      }
+      S.life[i] -= dt * 3.2;
+      const k = Math.min(1, dt * 9);
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      p.setXYZ(i, x + (ix - x) * k, y + (0.03 - y) * k * 0.5, z + (iz - z) * k);
+      if (S.life[i] <= 0) p.setXYZ(i, 0, -10, 0);
+      any = true;
+    }
+    S.idle = !any && !active;
+    p.needsUpdate = true;
   }
   _sweep(x, z, r, dt) {
     const m = new THREE.Matrix4(); let changed = false;
@@ -150,7 +210,8 @@ export class World {
   cableHold(hand = 'R') { this.vac.cableMode = 'hold'; this.cableHand = hand; this.trail = null; }
   cableLay(x, z, bend = 0.25) { this.vac.layCable(V(x, 0.012, z), bend); this.trail = null; }
   cablePlug() {
-    this.trail = [SOCKET_POS.clone().add(V(0, 0, 0.03)), V(3.0, 0.22, -2.9), V(3.0, 0.012, -2.78)];
+    const sp = this.room.socket.pos;
+    this.trail = [sp.clone().add(V(0, 0, 0.03)), V(sp.x, 0.22, sp.z + 0.07), V(sp.x, 0.012, sp.z + 0.19)];
     this.vac.cableMode = 'plugged'; this.vac.cableWorld = this.trail;
   }
 
@@ -166,16 +227,20 @@ export class World {
   anchorOf(id) {
     const a = this.vac.anchor[id];
     if (a) return a();
+    const ra = this.room.anchors?.[id]; if (ra) return ra();
     return ({
+      puddle: () => SPOTS.puddle.clone().add(V(0, 0.05, 0)), frayed: () => SPOTS.frayed.clone().add(V(0, 0.05, 0)), kit: () => SPOTS.basket.clone().add(V(0, 0.15, 0)),
       breaker: () => V(2.0, 1.4, -2.8), socket: () => V(3.0, 0.38, -2.9), cloths: () => V(-3.45, 0.95, 1.6), sign: () => this.props.sign.getWorldPosition(V(0, 0, 0)).add(V(0, 0.3, 0)),
       pests: () => V(-3.1, 0.12, -2.1), crack: () => V(-0.5, 0.1, -1.4), torn: () => V(0.6, 0.12, 1.8), lane: () => V(3.4, 0.1, -0.3),
     }[id] || (() => V(0, 1, 0)))();
   }
-  highlight(ids) {
+  /** Ring the parts in `ids`. `o.bad` (true, or a list of ids) marks things that are wrong, shown in red. */
+  highlight(ids, o = {}) {
     this.clearHighlight();
     this.hl = ids.map((id) => {
       const ring = new THREE.Sprite(this.ringMat.clone()); ring.renderOrder = 20; ring.scale.setScalar(0.3); this.content.add(ring);
-      return { id, ring, tick: false, t: Math.random() };
+      const bad = o.bad === true || (Array.isArray(o.bad) && o.bad.includes(id));
+      return { id, ring, tick: false, bad, t: Math.random() };
     });
   }
   clearHighlight() { for (const h of this.hl) { this.content.remove(h.ring); h.ring.material.dispose(); } this.hl = []; }
@@ -212,7 +277,7 @@ export class World {
       h.t += dt; const p = this.anchorOf(h.id); h.ring.position.copy(p);
       const base = RING[h.id] || 0.28;
       h.ring.scale.setScalar(base * (1 + 0.14 * Math.sin(h.t * 4.5)) + (h.tick ? 0.02 : 0));
-      h.ring.material.color.setHex(h.tick ? 0x6cff9d : 0xffffff);
+      h.ring.material.color.setHex(h.bad ? 0xff6b5e : h.tick ? 0x6cff9d : 0xffffff);
     }
     if (this.mask.dirty && this.mask.tex) { this.mask.tex.needsUpdate = true; this.mask.dirty = false; }
     if (this.stage) this.stage.shot(this.shot(this), dt, snap);
@@ -259,6 +324,7 @@ export class World {
 
   _cleaning(dt) {
     const o = this.op, v = this.vac;
+    this._suckUpdate(dt, !!(o && o.clean && v.on));
     if (!o || !o.clean || !v.on) { if (this.mask.last) this.mask.last = null; return; }
     const hp = v.tool.position;
     this._sweep(hp.x, hp.z, v.tooling === 'floor' ? 0.2 : 0.1, dt);
@@ -270,4 +336,6 @@ export class World {
   get dirt() { return this.gritLeft / this.gritN; }
 
   cam(shot) { this.shot = typeof shot === 'string' ? SHOTS[shot] : shot; }
+  /** Show or hide everything in the scene (another page may be using the stage). */
+  show(on) { this.content.visible = !!on; }
 }
