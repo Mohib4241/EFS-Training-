@@ -1,6 +1,7 @@
 // The worker and the vacuum: a hand really reaches the point it is sent to, walking arrives, the tool
 // follows the worker's hands, and the cable follows the machine.
 import test from 'node:test';
+import './human-setup.mjs';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { Worker } from '../src/scene/worker.js';
@@ -19,11 +20,14 @@ test('a hand reaches a point within arm\'s length', () => {
   }
 });
 
-test('a point out of reach is approached, not overshot', () => {
+test('a point out of reach is approached, not overshot: the body leans towards it and the arm stays whole', () => {
   const w = new Worker(makeMaterials()); w.place(0, 0, 0); w.update(1 / 30, true);
-  const far = V(0, 1.4, 2.0); w.setIK('R', far); for (let i = 0; i < 40; i++) w.update(1 / 30);
-  const d = w.handPos('R').distanceTo(V(0, 1.45, 0));
-  assert.ok(d < 0.75, `the hand is ${d.toFixed(2)} m from the shoulder`);
+  const far = V(0, 1.4, 2.0), before = w.handPos('R').distanceTo(far);
+  w.setIK('R', far); for (let i = 0; i < 60; i++) w.update(1 / 30);
+  const shoulder = w.arms.R.sh.getWorldPosition(V(0, 0, 0)), d = w.handPos('R').distanceTo(shoulder);
+  assert.ok(d < 0.66, `the hand is ${d.toFixed(2)} m from the shoulder`);
+  assert.ok(w.handPos('R').distanceTo(far) < before - 0.5, 'the hand did not go towards the point');
+  assert.ok(w.rig.W.chest.q.angleTo(new THREE.Quaternion()) > 0.1, 'the body does not lean towards the point');
 });
 
 test('walking arrives, and turns to face the way it goes', () => {

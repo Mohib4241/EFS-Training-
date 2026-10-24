@@ -1,6 +1,7 @@
 // The narrated training: every step of the procedure is there in order, in three languages, with the
 // procedure's own figures (not the job card's where they differ), and the whole thing plays through.
 import test from 'node:test';
+import './human-setup.mjs';
 import assert from 'node:assert/strict';
 import { TRAINING } from '../src/steps/index.js';
 import { STEPS, PARTS, POINTED, JOB_CARD } from '../src/data/steps.js';

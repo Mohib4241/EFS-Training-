@@ -10,6 +10,9 @@ body {
   font: 15px/1.45 'Noto Sans', 'Noto Sans Devanagari', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 #stage { position: fixed; inset: 0; }
+#boot { position: fixed; inset: 0; display: grid; place-items: center; color: #cfe0ff; z-index: 5; background: radial-gradient(ellipse at center, #163a7a, #0a1f48); }
+#boot .badge.big { width: 92px; height: 68px; border-radius: 18px; font-size: 1.6rem; animation: bootPulse 1.2s ease-in-out infinite; }
+@keyframes bootPulse { 50% { transform: scale(1.08); box-shadow: 0 0 0 14px rgba(61,123,232,.18); } }
 #stage canvas { display: block; touch-action: none; }
 button, select { font: inherit; color: inherit; }
 button { cursor: pointer; }

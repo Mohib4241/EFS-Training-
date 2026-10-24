@@ -46,12 +46,12 @@ export const SOP_TEXT = [
   {
     title: { en: 'Put on safety gear', hi: 'सुरक्षा का सामान पहनिए', ne: 'सुरक्षा सामग्री लगाउनुहोस्' },
     beats: [
-      { en: 'Check and put on the safety gear that your risk assessment asks for. First, a bright safety vest. Make sure it fits, suits the job, and is not torn.',
-        hi: 'ख़तरे के आकलन में जो सुरक्षा का सामान बताया गया हो, उसे जाँचकर पहनिए। पहले चमकीली जैकेट। देखिए कि वह ठीक नाप की हो, काम के लायक हो, और फटी न हो।',
-        ne: 'जोखिमको मूल्याङ्कनमा भनिएका सुरक्षा सामग्री जाँचेर लगाउनुहोस्। पहिले चम्किलो जाकेट। त्यो ठीक नापको, काम अनुसारको, र नफाटेको छ कि हेर्नुहोस्।' },
-      { en: 'Next, gloves. They must be right for the job, with no holes.',
-        hi: 'अब दस्ताने। वे काम के हिसाब से सही हों, और उनमें छेद न हो।',
-        ne: 'अब पन्जा। ती काम अनुसार ठीक हुनुपर्छ, र प्वाल परेको हुनु हुँदैन।' },
+      { en: 'Check the safety gear that your risk assessment asks for. Make sure it fits, suits the job, and is not damaged.',
+        hi: 'ख़तरे के आकलन में जो सुरक्षा का सामान बताया गया हो, उसे जाँचिए। देखिए कि वह ठीक नाप का हो, काम के लायक हो, और कहीं से टूटा-फटा न हो।',
+        ne: 'जोखिमको मूल्याङ्कनमा भनिएका सुरक्षा सामग्री जाँच्नुहोस्। ती ठीक नापका, काम अनुसारका, र कतै नबिग्रेका छन् कि हेर्नुहोस्।' },
+      { en: 'Now put on the gloves. They must be right for the job, with no holes.',
+        hi: 'अब दस्ताने पहनिए। वे काम के हिसाब से सही हों, और उनमें छेद न हो।',
+        ne: 'अब पन्जा लगाउनुहोस्। ती काम अनुसार ठीक हुनुपर्छ, र प्वाल परेको हुनु हुँदैन।' },
       { en: 'Then safety glasses, if the risk assessment asks for them. Keep them clean and not broken.',
         hi: 'फिर सुरक्षा चश्मा, अगर आकलन में बताया गया हो। उसे साफ़ रखिए, और वह टूटा न हो।',
         ne: 'त्यसपछि सुरक्षा चस्मा, मूल्याङ्कनमा भनिएको छ भने। त्यसलाई सफा राख्नुहोस्, र त्यो फुटेको हुनु हुँदैन।' },
@@ -209,9 +209,9 @@ export const SOP_TEXT = [
   {
     title: { en: 'Take off safety gear, wash hands', hi: 'सुरक्षा का सामान उतारिए और हाथ धोइए', ne: 'सुरक्षा सामग्री फुकालेर हात धुनुहोस्' },
     beats: [
-      { en: 'Take off your safety gear: the gloves, the glasses and the vest.',
-        hi: 'अपना सुरक्षा का सामान उतारिए: दस्ताने, चश्मा और जैकेट।',
-        ne: 'आफ्ना सुरक्षा सामग्री फुकाल्नुहोस्: पन्जा, चस्मा र जाकेट।' },
+      { en: 'Take off your safety gear: first the gloves, then the glasses.',
+        hi: 'अपना सुरक्षा का सामान उतारिए: पहले दस्ताने, फिर चश्मा।',
+        ne: 'आफ्ना सुरक्षा सामग्री फुकाल्नुहोस्: पहिले पन्जा, त्यसपछि चस्मा।' },
       { en: 'Then wash your hands, the way your company says.',
         hi: 'फिर कंपनी के नियम के अनुसार अपने हाथ धोइए।',
         ne: 'त्यसपछि कम्पनीको नियम अनुसार हात धुनुहोस्।' },

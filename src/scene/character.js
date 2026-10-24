@@ -128,7 +128,7 @@ function headGeometry(wi, hi) {
 }
 
 export class Head {
-  constructor(M, { cap = true } = {}) {
+  constructor(M, { cap = true, neck = true } = {}) {
     this.M = M;
     this.group = new THREE.Group();
     this.mouth = { open: 0, wide: 0.7, round: 0 };       // what is shown now
@@ -138,7 +138,7 @@ export class Head {
     this.brow = 0; this.browT = 0;
     this.smileT = 0.6; this.smile = 0.6;
     this.lids = 0.85;
-    this._build(cap);
+    this._build(cap, neck);
   }
 
   _mesh(geo, mat, parent, x = 0, y = 0, z = 0, shadow = true) {
@@ -152,7 +152,7 @@ export class Head {
     return h ? h.point.z : 0.09;
   }
 
-  _build(cap) {
+  _build(cap, neck = true) {
     const M = this.M, g = this.group;
     this._ray = new THREE.Raycaster();
 
@@ -173,7 +173,7 @@ export class Head {
 
     this._ears(); this._eyes(); this._brows(); this._nose(); this._cheeks(); this._mouth(); this._hair();
     // neck
-    this._mesh(new THREE.CylinderGeometry(0.041, 0.05, 0.14, 24), M.skin, g, 0, -0.045, -0.008);
+    if (neck) this._mesh(new THREE.CylinderGeometry(0.041, 0.05, 0.14, 24), M.skin, g, 0, -0.045, -0.008);    // a body with its own neck leaves this out
     if (cap) this._cap();
   }
 

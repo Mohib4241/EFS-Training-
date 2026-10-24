@@ -60,9 +60,11 @@ export const MOVES = {
     w.setFolded(false); w.setPose('idle');
     hand.setPoint(true); hand.setGrip(0.9);
     w.face.setSmile(1); w.face.setBrow(0.8);
-    const logo = () => w.spine.localToWorld(V(0.1, 0.355, 0.13));
+    const logo = () => w.logoWorld();
     const tap = { v: 0 };
-    w.setIK('R', () => logo().addScaledVector(w.right(), 0.15).addScaledVector(w.forward(), 0.08 + tap.v).add(V(0, 0.0, 0)), V(-1, -0.2, -0.15));
+    // the hand comes in from his right, the forefinger pointing across at the mark
+    w.setIK('R', () => logo().addScaledVector(w.right(), 0.13).addScaledVector(w.forward(), 0.05 + tap.v).add(V(0, -0.02, 0)), V(-1, -0.4, -0.2),
+      { fingers: () => w._dir(0.85, 0.1, -0.35), palm: () => w._dir(0, -0.6, -1) });
     yield* p.wait(0.9);
     for (let i = 0; i < 2; i++) { yield* p.tween(0.22, (k) => { tap.v = -0.03 * k; }); yield* p.tween(0.22, (k) => { tap.v = -0.03 * (1 - k); }); }
     yield* p.wait(0.9);
@@ -109,7 +111,8 @@ export const MOVES = {
     w.face.setSmile(1); w.face.setBrow(0.6);
     const sw = { t: 0 };
     const base = () => w.arms.R.sh.getWorldPosition(V(0, 0, 0)).addScaledVector(w.right(), 0.22).add(V(0, 0.15, 0)).addScaledVector(w.forward(), 0.07);
-    w.setIK('R', () => base().addScaledVector(w.right(), 0.07 * Math.sin(sw.t * 8.5)), V(-0.4, -1, -0.1));
+    w.setIK('R', () => base().addScaledVector(w.right(), 0.07 * Math.sin(sw.t * 8.5)), V(-0.4, -1, -0.1),
+      { fingers: () => w._dir(0.12 * Math.sin(sw.t * 8.5), 1, 0.05), palm: () => w._dir(0, 0, 1) });
     yield* p.tween(0.5, () => {});
     let t = 0; while (t < 2.7) { yield; t += p.dt; sw.t = t; }
     w.setIK('R', null); hand.setSpread(0);

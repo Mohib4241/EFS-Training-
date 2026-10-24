@@ -37,7 +37,7 @@ export const STEPS = [
   { n: 1, phase: 'safety', title: 'Check the area for risks and put up warning signs', parts: [], checks: [{ id: 'risk', from: 'sop', text: 'Look around for dangers' }, { id: 'sign', from: 'sop', text: 'Put out a warning sign', parts: [] }] },
   { n: 2, phase: 'safety', title: 'Know the paperwork: risk assessment, method statement and the maker\'s instructions', parts: [], checks: [{ id: 'docs', from: 'sop', text: 'The three documents', parts: [] }] },
   { n: 3, phase: 'safety', title: 'Wash your hands and cover any cut with a waterproof dressing', parts: [], checks: [{ id: 'wash', from: 'sop', text: 'Wash hands', parts: [] }, { id: 'cuts', from: 'sop', text: 'Cover cuts', parts: [] }] },
-  { n: 4, phase: 'safety', title: 'Check and put on your protective equipment (PPE)', parts: [], checks: [{ id: 'ppe', from: 'sop', text: 'Vest, gloves, glasses', parts: [] }] },
+  { n: 4, phase: 'safety', title: 'Check and put on your protective equipment (PPE)', parts: [], checks: [{ id: 'ppe', from: 'sop', text: 'Gloves and safety glasses: checked for fit and damage, then put on', parts: [] }] },
   {
     n: 5, phase: 'safety', title: 'Check the equipment is complete and safe to use',
     parts: ['pat', 'cable', 'bag', 'hose', 'wand', 'casing', 'wheels', 'tools'],

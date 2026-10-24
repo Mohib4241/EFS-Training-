@@ -118,12 +118,14 @@ export const STEPS_1_4 = [
       {
         check: 'ppe', cam: 'ppe',
         act: function* (c) {
+          c.props.ppeVest.visible = false;
           yield* c.walk(PLACES.ppe[0], PLACES.ppe[1], { face: -Math.PI / 2 });
+          // look the gloves and glasses over before putting them on
           c.adjust({ lean: 0.15, headPitch: 0.3 });
-          yield* c.reach('R', V(-3.45, 0.86, 0.03), 0.9);
-          c.props.ppeVest.visible = false; c.release('R');
-          c.adjust({ lean: 0, headPitch: 0 }); c.worker.setPPE('vest', true);
-          yield* c.wait(1.6);
+          for (const z of [0.33, 0.55]) { c.gaze(V(-3.45, 0.8, z)); yield* c.wait(1.2); }
+          yield* c.reach('L', V(-3.45, 0.84, 0.33), 0.9);
+          c.release('L'); c.gaze(null); c.adjust({ lean: 0, headPitch: 0 });
+          yield* c.wait(0.6);
         },
       },
       {
