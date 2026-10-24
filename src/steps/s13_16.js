@@ -112,9 +112,7 @@ export const STEPS_13_16 = [
           c.pose({ armR: [0.9, 0.2, 1.6], armL: [0.9, 0.2, 1.6], headPitch: 0.25 });
           yield* c.wait(1.0); c.worker.setPPE('gloves', false);
           yield* c.wait(1.2); c.worker.setPPE('glasses', false);
-          c.pose({ armR: [0.5, 0.35, 1.0], armL: [0.5, 0.35, 1.0] });
-          yield* c.wait(1.2); c.worker.setPPE('vest', false);
-          c.pose('idle'); yield* c.wait(0.8);
+          c.pose('idle'); yield* c.wait(1.0);
         },
       },
       {

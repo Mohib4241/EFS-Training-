@@ -4,6 +4,7 @@
 // the same site; it is built here and kept out of Git.
 import { build } from 'esbuild';
 import fs from 'node:fs';
+import { writeHuman } from './tools/human.mjs';
 
 const TITLE = 'Soft Services Training';
 
@@ -51,6 +52,7 @@ ${body}
 `);
   if (fs.existsSync('src/media')) fs.cpSync('src/media', 'dist/media', { recursive: true });
   copyWasm();
+  await writeHuman('dist/human.bin');
   console.log(`built dist/index.html (${(fs.statSync('dist/index.html').size / 1024).toFixed(0)} KB)`);
 }
 
