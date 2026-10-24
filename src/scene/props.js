@@ -8,15 +8,11 @@ import { PLACES } from './room.js';
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-export function buildProps(M, room) {
-  const p = { group: new THREE.Group() };
-  const root = p.group;
-  const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
-  const rb = (w, h, d, r = 0.01) => new RoundedBoxGeometry(w, h, d, 3, r);
-  const grp = (parent = root) => { const g = new THREE.Group(); parent.add(g); return g; };
 
-  // ───── warning sign (A-frame with a picture, no words) ─────
-  const sign = p.sign = grp();
+/** The warning sign: an A-frame with a picture and no words, two panels hinged at the top. */
+export function makeSign(M) {
+  const sign = new THREE.Group();
+  const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
   const pic = canvasTex(128, 256, (g, w, h) => {
     g.fillStyle = '#ffd21f'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#fff'; g.beginPath(); g.moveTo(64, 20); g.lineTo(118, 112); g.lineTo(10, 112); g.closePath(); g.fill();
@@ -27,9 +23,21 @@ export function buildProps(M, room) {
   });
   const signMat = pic ? new THREE.MeshStandardMaterial({ map: pic, roughness: 0.5 }) : M.signYellow;
   for (const s of [-1, 1]) {                       // two panels hinged at the top
-    const hold = grp(sign); hold.position.set(0, 0.62, 0); hold.rotation.x = s * 0.2;
-    mk(rb(0.32, 0.62, 0.012, 0.01), s < 0 ? signMat : M.signYellow, hold, 0, -0.31, 0);
+    const hold = new THREE.Group(); sign.add(hold); hold.position.set(0, 0.62, 0); hold.rotation.x = s * 0.2;
+    mk(new RoundedBoxGeometry(0.32, 0.62, 0.012, 3, 0.01), s < 0 ? signMat : M.signYellow, hold, 0, -0.31, 0);
   }
+  return sign;
+}
+
+export function buildProps(M, room) {
+  const p = { group: new THREE.Group() };
+  const root = p.group;
+  const mk = (geo, mat, parent, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true; parent.add(m); return m; };
+  const rb = (w, h, d, r = 0.01) => new RoundedBoxGeometry(w, h, d, 3, r);
+  const grp = (parent = root) => { const g = new THREE.Group(); parent.add(g); return g; };
+
+  // ───── warning sign (A-frame with a picture, no words) ─────
+  const sign = p.sign = makeSign(M); root.add(sign);
   p.signFold = 0; // 0 = standing open, 1 = folded flat
 
   // ───── clipboard and the three papers ─────

@@ -59,8 +59,12 @@ export class Stage {
     this.key.target.position.set(0, 0, 0);
     this.fill = new THREE.DirectionalLight(0xbcd2ff, 0.3);
     this.fill.position.set(6, 3.5, 4);
-    this.scene.add(this.hemi, this.key, this.key.target, this.fill);
-    this._lightBase = { hemi: 0.42, key: 1.7, fill: 0.3, env: 0.32 };
+    this.rim = new THREE.DirectionalLight(0x9cc4ff, 0);               // a back light, used by the studio looks
+    this.rim.position.set(3, 4, -6);
+    this.scene.add(this.hemi, this.key, this.key.target, this.fill, this.rim);
+    this._lightBase = { hemi: 0.42, key: 1.7, fill: 0.3, env: 0.32, rim: 0 };
+    this._room = { bg: this.scene.background, fog: this.scene.fog.clone() };
+    this.viewShift = 0;                                               // moves the picture sideways (a fraction of the width), to make room for text
     this.lightsOn = 1; this._lightsNow = 1;
 
     // post-processing
@@ -105,6 +109,7 @@ export class Stage {
     this.composer.setPixelRatio(dpr);
     this.composer.setSize(w, h);
     this.camera.aspect = w / h;
+    if (this.viewShift) this.camera.setViewOffset(w, h, -w * this.viewShift, 0, w, h); else this.camera.clearViewOffset();
     // a tall (phone) screen needs a wider field to keep the room in view
     this.camera.fov = this.fov * (this.camera.aspect < 0.9 ? 1.0 + (0.9 - this.camera.aspect) * 0.9 : 1);
     this.camera.updateProjectionMatrix();
@@ -112,6 +117,25 @@ export class Stage {
 
   /** 1 = lights on, 0 = lights off (the room goes dim). */
   setLights(v) { this.lightsOn = v; }
+
+  /**
+   * The look of the whole picture: background, fog, the lights and the exposure. A screen picks one when
+   * it opens. `shadow` is how far the key light's shadow reaches, in metres: a small value keeps the
+   * shadow sharp for a close subject.
+   */
+  setLook(look = {}) {
+    const L = { bg: null, fog: null, hemi: 0.42, key: 1.7, fill: 0.3, rim: 0, env: 0.32, exposure: 0.92, bloom: 0.2, shadow: [6.5, 5.5], keyPos: [-4.5, 8.5, 6.5], keyTarget: [0, 0, 0], keyColor: 0xfff0dc, rimColor: 0x9cc4ff, shift: 0, ...look };
+    this.scene.background = L.bg || this._room.bg;
+    this.scene.fog = L.fog === 'none' ? null : (L.fog || this._room.fog.clone());
+    this._lightBase = { hemi: L.hemi, key: L.key, fill: L.fill, env: L.env, rim: L.rim };
+    this.renderer.toneMappingExposure = L.exposure;
+    this.key.color.setHex(L.keyColor); this.rim.color.setHex(L.rimColor);
+    this.key.position.set(...L.keyPos); this.key.target.position.set(...L.keyTarget);
+    const sc = this.key.shadow.camera; sc.left = -L.shadow[0]; sc.right = L.shadow[0]; sc.top = L.shadow[1]; sc.bottom = -L.shadow[1]; sc.updateProjectionMatrix();
+    this.bloom.strength = L.bloom;
+    if (this.viewShift !== L.shift) { this.viewShift = L.shift; this.resize(); }
+    this.lightsOn = 1; this._lightsNow = 1;
+  }
 
   /** Move the camera towards a shot { pos, look, fov } with a soft ease; `snap` jumps there. */
   shot(s, dt, snap = false) {
@@ -128,7 +152,7 @@ export class Stage {
     // the lights fade rather than jump
     this._lightsNow += (this.lightsOn - this._lightsNow) * (1 - Math.exp(-dtReal * 3));
     const L = 0.12 + 0.88 * this._lightsNow, b = this._lightBase;
-    this.hemi.intensity = b.hemi * L; this.key.intensity = b.key * L; this.fill.intensity = b.fill * L;
+    this.hemi.intensity = b.hemi * L; this.key.intensity = b.key * L; this.fill.intensity = b.fill * L; this.rim.intensity = b.rim * L;
     this.scene.environmentIntensity = b.env * (0.25 + 0.75 * this._lightsNow);
 
     if (this.useBloom) this.composer.render(); else this.renderer.render(this.scene, this.camera);

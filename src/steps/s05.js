@@ -9,15 +9,10 @@ const vacShot = (o = {}) => orbit((w) => w.vac.root.position.clone().add(V(0.5, 
 
 export const STEP_5 = {
   n: 5,
-  title: { en: 'Check the equipment', hi: 'उपकरण की जाँच करें', ne: 'उपकरणको जाँच गर्नुहोस्' },
+  
   beats: [
     {
       check: 'kit', cam: 'kit', hl: ['cloths'],
-      say: {
-        en: 'Gather your equipment: the vacuum cleaner with its attachments, colour-coded cloths, a dustpan and brush, and a refuse bag. Use the right colour for each area, so germs do not spread from one area to another.',
-        hi: 'अपना सामान इकट्ठा करें: वैक्यूम क्लीनर और उसके अटैचमेंट, रंग से बँटे कपड़े, डस्टपैन और ब्रश, और कचरे की थैली। हर जगह के लिए सही रंग का कपड़ा इस्तेमाल करें, ताकि कीटाणु एक जगह से दूसरी जगह न फैलें।',
-        ne: 'आफ्ना सामान जम्मा गर्नुहोस्: भ्याकुम क्लिनर र यसका सामानहरू, रङ अनुसार छुट्याइएका कपडा, डस्टप्यान र ब्रश, र फोहोर राख्ने झोला। हरेक ठाउँका लागि सही रङको कपडा प्रयोग गर्नुहोस्, ताकि जीवाणु एक ठाउँबाट अर्को ठाउँमा नफैलियोस्।',
-      },
       act: function* (c) {
         yield* c.walk(PLACES.equip[0], PLACES.equip[1], { face: -Math.PI / 2 });
         c.adjust({ lean: 0.12, headPitch: 0.3 });
@@ -30,11 +25,6 @@ export const STEP_5 = {
     },
     {
       check: 'circuit', cam: 'breaker', hl: ['breaker'],
-      say: {
-        en: 'If the building needs a circuit breaker for the power supply, check that it switches on and off properly.',
-        hi: 'अगर इमारत की बिजली के लिए सर्किट ब्रेकर ज़रूरी है, तो जाँचें कि वह ठीक से चालू और बंद होता है।',
-        ne: 'यदि भवनको बिजलीका लागि सर्किट ब्रेकर चाहिन्छ भने, त्यो ठीकसँग खुल्छ र बन्द हुन्छ कि जाँच गर्नुहोस्।',
-      },
       act: function* (c) {
         yield* c.walk(PLACES.breaker[0], PLACES.breaker[1], { face: Math.PI });
         const lever = c.room.breaker.lever;
@@ -48,11 +38,6 @@ export const STEP_5 = {
     },
     {
       check: 'pat', cam: onPart('pat', { dist: 1.3, az: -0.55, el: 0.22, fov: 34 }), hl: ['pat'],
-      say: {
-        en: 'Check the PAT label. The portable appliance test must be in date and follow your company policy. Do this before you operate the machine.',
-        hi: 'पैट टेस्ट का लेबल जाँचें। पोर्टेबल एप्लायंस टेस्ट की तारीख़ वैध होनी चाहिए और कंपनी की नीति के अनुसार होनी चाहिए। मशीन चलाने से पहले यह देखें।',
-        ne: 'प्याट टेस्टको लेबल जाँच गर्नुहोस्। पोर्टेबल एप्लायन्स टेस्टको मिति सकिएको हुनु हुँदैन र कम्पनीको नीति अनुसार हुनुपर्छ। मेसिन चलाउनुअघि यो हेर्नुहोस्।',
-      },
       act: function* (c) {
         const p = c.vac.anchor.pat();
         const sx = p.x + 0.6, sz = p.z + 0.5;
@@ -65,11 +50,6 @@ export const STEP_5 = {
     },
     {
       check: 'cable', cam: vacShot(), hl: ['cable'],
-      say: {
-        en: 'Check the cable. Run a clean cloth along it, from the machine to the plug, and feel for cuts, scrapes or bare wires. If it is faulty, report it, and do not use the machine.',
-        hi: 'तार की जाँच करें। एक साफ़ कपड़े को मशीन से प्लग तक तार पर फेरें, और देखें कि कहीं कटी, छिली या नंगी तार तो नहीं। अगर खराबी हो तो रिपोर्ट करें और मशीन का इस्तेमाल न करें।',
-        ne: 'तार जाँच गर्नुहोस्। सफा कपडाले मेसिनदेखि प्लगसम्म तारमा सुमसुम्याउनुहोस्, र काटिएको, खुइलिएको वा खुला तार छ कि हेर्नुहोस्। बिग्रेको भए रिपोर्ट गर्नुहोस्, र मेसिन प्रयोग नगर्नुहोस्।',
-      },
       act: function* (c) {
         const vac = c.vac;
         // take the plug from the coil and lay the cable out on the floor
@@ -106,11 +86,6 @@ export const STEP_5 = {
     },
     {
       check: 'cable-lay', cam: vacShot(), hl: ['cable'],
-      say: {
-        en: 'Lay the cable neatly. It must never be a trip hazard.',
-        hi: 'तार को सलीके से रखें। वह कभी भी ठोकर लगने का खतरा नहीं बनना चाहिए।',
-        ne: 'तारलाई मिलाएर राख्नुहोस्। यो कहिल्यै ठेस लाग्ने खतरा बन्नु हुँदैन।',
-      },
       act: function* (c) {
         const vac = c.vac;
         c.adjust({ crouch: 0.6, lean: 0.3 });
@@ -126,11 +101,6 @@ export const STEP_5 = {
     },
     {
       check: 'bag', cam: onPart('bag', { dist: 1.45, az: -0.3, el: 0.42, fov: 34 }), hl: ['bag'],
-      say: {
-        en: 'Check the dust bag. Lift it by one corner to see how full it is. Never press down on it: you could be cut by something sharp, or blow dust into the air. If it is two-thirds full or more, change it.',
-        hi: 'डस्ट बैग देखें। उसे एक कोने से उठाकर देखें कि कितना भरा है। उसे कभी दबाएं नहीं: कोई नुकीली चीज़ चुभ सकती है, या धूल उड़ सकती है। अगर वह दो-तिहाई या उससे ज़्यादा भरा हो, तो उसे बदल दें।',
-        ne: 'धुलो झोला जाँच गर्नुहोस्। एक कुनाबाट उठाएर कति भरिएको छ हेर्नुहोस्। यसलाई कहिल्यै नदबाउनुहोस्: तिखो चीजले काट्न सक्छ, वा धुलो उड्न सक्छ। दुई तिहाई वा बढी भरिएको छ भने बदल्नुहोस्।',
-      },
       act: function* (c) {
         const vac = c.vac, p = vac.root.position;
         const sx = p.x + 0.5, sz = p.z - 0.55;
@@ -146,11 +116,6 @@ export const STEP_5 = {
     },
     {
       check: 'hose', cam: vacShot({ dist: 2.6 }), hl: ['hose', 'wand'],
-      say: {
-        en: 'Look along the hose and the wand for blockages, splits or kinks. When the machine is switched on, you will also feel the suction at the end of the hose.',
-        hi: 'होज़ और वैंड को देखें कि कहीं रुकावट, दरार या मोड़ तो नहीं। मशीन चालू होने पर होज़ के सिरे पर सक्शन भी महसूस करें।',
-        ne: 'होज र वान्डमा अवरोध, चिरा वा बाङ्गो परेको छ कि हेर्नुहोस्। मेसिन चालु भएपछि होजको छेउमा सक्सन पनि महसुस गर्नुहोस्।',
-      },
       act: function* (c) {
         const vac = c.vac;
         const hm = vac.hoseMid.clone();
@@ -166,11 +131,6 @@ export const STEP_5 = {
     },
     {
       check: 'casing', cam: vacShot({ dist: 2.4, az: -0.2 }), hl: ['casing', 'wheels'],
-      say: {
-        en: 'Check the casing for damage that could stop the machine working well, and make sure the wheels roll freely.',
-        hi: 'देखें कि मशीन के ढाँचे में कोई टूट-फूट तो नहीं जो उसके काम में रुकावट डाले, और पहिए आसानी से घूमते हों।',
-        ne: 'मेसिनको खोलमा कामलाई असर गर्ने बिग्रिएको ठाउँ छ कि हेर्नुहोस्, र पाङ्ग्राहरू सजिलै घुम्छन् भन्ने निश्चित गर्नुहोस्।',
-      },
       act: function* (c) {
         const vac = c.vac, base = vac.root.position.clone();
         const fwd = V(Math.sin(vac.root.rotation.y), 0, Math.cos(vac.root.rotation.y));
@@ -185,11 +145,6 @@ export const STEP_5 = {
     },
     {
       check: 'tools', cam: onPart('tools', { dist: 1.5, az: 0.55, el: 0.25, fov: 34 }), hl: ['tools'],
-      say: {
-        en: 'Make sure you have the right accessories for the job: the floor head, the crevice tool and the brush for edges and corners.',
-        hi: 'देखें कि काम के लिए सही अटैचमेंट हैं: फ़्लोर हेड, कोनों के लिए क्रेविस टूल और ब्रश।',
-        ne: 'काम अनुसारका सही सामान छन् भन्ने हेर्नुहोस्: फ्लोर हेड, किनारा र कुनाका लागि क्रेभिस टूल र ब्रश।',
-      },
       act: function* (c) {
         const vac = c.vac;
         c.adjust({ lean: 0.25, crouch: 0.25, headPitch: 0.35 });

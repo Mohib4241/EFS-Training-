@@ -12,15 +12,10 @@ function* pass(c, x, z, speed = 0.95) { yield* c.walk(x, z, { speed }); }
 export const STEPS_10_12 = [
   {
     n: 10,
-    title: { en: 'Plug in safely', hi: 'सुरक्षित तरीके से प्लग लगाएं', ne: 'सुरक्षित तरिकाले प्लग लगाउनुहोस्' },
+    
     beats: [
       {
         check: 'plug-where', cam: follow({ az: 0.9, dist: 4.6 }), hl: ['socket'],
-        say: {
-          en: 'Connect the machine to the power. Use a socket behind the line of your work, and as close to the exit as you can. That keeps the cable out of your way.',
-          hi: 'मशीन को बिजली से जोड़ें। ऐसा सॉकेट चुनें जो आपके काम की दिशा के पीछे हो और निकास के जितना हो सके उतना पास हो। इससे तार रास्ते से बाहर रहती है।',
-          ne: 'मेसिनलाई बिजलीमा जोड्नुहोस्। तपाईंको कामको लाइनभन्दा पछाडि र बाहिर निस्कने ठाउँ जति सक्दो नजिकको सकेट प्रयोग गर्नुहोस्। यसले तारलाई बाटोबाट टाढा राख्छ।',
-        },
         act: function* (c) {
           // take the wand and bring the machine over to the socket
           yield* takeTool(c, { clean: false, d: 0.85, elev: 1.15 });
@@ -32,11 +27,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'plug-dry', cam: 'socket', hl: ['socket', 'cable'],
-        say: {
-          en: 'Always plug in with the socket switched off, and with dry hands.',
-          hi: 'प्लग हमेशा तब लगाएं जब सॉकेट का स्विच बंद हो, और हाथ सूखे हों।',
-          ne: 'प्लग सधैँ सकेटको स्विच बन्द गरेर र हात सुक्खा भएपछि मात्र लगाउनुहोस्।',
-        },
         act: function* (c) {
           const vac = c.vac;
           // dry hands on the cloth
@@ -64,11 +54,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'plug-stand', cam: sideOn({ dist: 4.0, az: 0.5, el: 0.4 }), hl: ['cable'],
-        say: {
-          en: 'Never stand on the cable. Something sharp on your shoe could cut the wire, and that would put you in danger.',
-          hi: 'तार पर कभी न खड़े हों। जूते में लगी कोई नुकीली चीज़ तार काट सकती है, और इससे आपकी जान को ख़तरा हो सकता है।',
-          ne: 'तारमा कहिल्यै नउभिनुहोस्। जुत्तामा लागेको तिखो चीजले तार काट्न सक्छ, र त्यसले तपाईंलाई खतरामा पार्न सक्छ।',
-        },
         act: function* (c) {
           yield* c.walk(2.45, -1.8, { face: Math.PI });
           c.gaze(() => c.vac.cableMid); c.adjust({ headPitch: 0.3 }); yield* c.wait(2.6);
@@ -77,11 +62,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'suction', cam: onPart('switch', { dist: 1.6, az: -0.5, el: 0.5, fov: 34 }), hl: ['switch', 'hose'],
-        say: {
-          en: 'Switch on the machine, and feel the suction at the end of the hose. If it is weak, there may be a blockage.',
-          hi: 'मशीन चालू करें, और होज़ के सिरे पर सक्शन महसूस करें। अगर वह कमज़ोर हो, तो कहीं रुकावट हो सकती है।',
-          ne: 'मेसिन चालु गर्नुहोस्, र होजको छेउमा सक्सन महसुस गर्नुहोस्। कमजोर छ भने कतै अवरोध हुन सक्छ।',
-        },
         act: function* (c) {
           const vac = c.vac, p = vac.root.position;
           yield* c.walk(p.x + 0.5, p.z - 0.55, { face: Math.atan2(-0.5, 0.55) });
@@ -98,15 +78,10 @@ export const STEPS_10_12 = [
   },
   {
     n: 11,
-    title: { en: 'Edges and corners first', hi: 'पहले किनारे और कोने', ne: 'पहिले किनारा र कुना' },
+    
     beats: [
       {
         check: 'edges', cam: orbit((w) => w.worker.pos.clone().add(V(0, 0.7, 0)), { dist: 3.4, az: -0.5, el: 0.4, fov: 38 }),
-        say: {
-          en: 'Start with the edges and corners. Fit the crevice tool, and clean them thoroughly, one manageable area at a time.',
-          hi: 'किनारों और कोनों से शुरू करें। क्रेविस टूल लगाएं और एक-एक छोटे हिस्से को अच्छी तरह साफ़ करें।',
-          ne: 'किनारा र कुनाबाट सुरु गर्नुहोस्। क्रेभिस टूल जडान गर्नुहोस्, र एक-एक सजिलो भाग राम्ररी सफा गर्नुहोस्।',
-        },
         act: function* (c) {
           const vac = c.vac;
           // take the crevice tool from its clip and fit it to the wand
@@ -126,11 +101,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'posture', cam: fixed([2.0, 1.5, 0.6], [2.6, 0.5, -2.6], 38),
-        say: {
-          en: 'Keep a good posture while you work. Bend your knees, keep your back straight, and do not overreach.',
-          hi: 'काम करते समय सही मुद्रा रखें। घुटने मोड़ें, पीठ सीधी रखें, और बहुत दूर तक हाथ न बढ़ाएं।',
-          ne: 'काम गर्दा सही मुद्रा राख्नुहोस्। घुँडा बाङ्गो पार्नुहोस्, ढाड सीधा राख्नुहोस्, र धेरै टाढासम्म हात नपुर्‍याउनुहोस्।',
-        },
         act: function* (c) {
           c.w.operate(null); yield* c.wait(0.4);
           c.w.operate({ clean: true, d: 0.95, elev: 0.8, lat: 0.35, width: 0.1, stroke: true, amp: 0.09, freq: 6 });
@@ -146,15 +116,10 @@ export const STEPS_10_12 = [
   },
   {
     n: 12,
-    title: { en: 'Clean in overlapping passes', hi: 'एक-दूसरे पर चढ़ती पट्टियों में सफ़ाई', ne: 'एकआपसमा मिल्ने लाइनमा सफा गर्नुहोस्' },
+    
     beats: [
       {
         check: 'pass-away', cam: orbit((w) => w.worker.pos.clone().add(V(0, 0.2, 0)), { dist: 4.4, az: -0.5, el: 0.6, fov: 40 }),
-        say: {
-          en: 'Now fit the floor head again, and clean the floor in a set pattern, with passes that overlap a little. Start at the point closest to the socket, and work away from it.',
-          hi: 'अब फ़्लोर हेड फिर से लगाएं, और फ़र्श को तय तरीके से साफ़ करें, ऐसी पट्टियों में जो थोड़ी-थोड़ी एक-दूसरे पर चढ़ें। सॉकेट के सबसे पास वाली जगह से शुरू करें और उससे दूर जाएं।',
-          ne: 'अब फ्लोर हेड फेरि जडान गर्नुहोस्, र भुइँलाई तोकिएको ढाँचामा, अलिअलि एकआपसमा मिल्ने लाइनमा सफा गर्नुहोस्। सकेटको सबैभन्दा नजिकको ठाउँबाट सुरु गर्नुहोस् र त्यसबाट टाढा जानुहोस्।',
-        },
         act: function* (c) {
           yield* takeTool(c, { clean: true, d: 0.85, elev: 1.15, lat: 0, width: 0.3, stroke: true, amp: 0.2, freq: 5 });
           yield* c.walk(3.55, -2.0, { face: 0, speed: 0.9 });
@@ -168,11 +133,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'pass-away', cam: orbit((w) => w.worker.pos.clone().add(V(0, 0.2, 0)), { dist: 4.8, az: -0.45, el: 0.62, fov: 40 }),
-        say: {
-          en: 'This keeps the cable behind you. You will not trip on it, and you will not stretch it or pull the plug out of the socket.',
-          hi: 'इससे तार आपके पीछे रहती है। आप उस पर ठोकर नहीं खाएंगे, और न तार खिंचेगी, न प्लग सॉकेट से निकलेगा।',
-          ne: 'यसले तारलाई तपाईंको पछाडि राख्छ। तपाईं त्यसमा ठेस खानुहुन्न, तार तनिँदैन, र प्लग सकेटबाट निस्कँदैन।',
-        },
         hl: ['cable'],
         act: function* (c) {
           const lanes = [2.8, 2.55, 2.3, 2.05];
@@ -190,11 +150,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'pass-traffic', cam: orbit(V(3.3, 0, -0.4), { dist: 4.0, az: -0.4, el: 0.7, fov: 40 }), hl: ['lane'],
-        say: {
-          en: 'Give extra attention to traffic lanes. They are at entrances and exits, and under desks on carpet. Clean them in both directions, to lift grit that would wear the carpet away.',
-          hi: 'आवाजाही वाले रास्तों पर ख़ास ध्यान दें। ये दरवाज़ों के पास और कालीन पर डेस्क के नीचे होते हैं। इन्हें दोनों दिशाओं में साफ़ करें, ताकि वह कण निकल जाएं जो कालीन को घिस देते हैं।',
-          ne: 'आवतजावत हुने बाटोमा विशेष ध्यान दिनुहोस्। यी प्रवेश र निकास नजिक, र कार्पेटमा डेस्कमुनि हुन्छन्। दुवै दिशामा सफा गर्नुहोस्, ताकि कार्पेट खियाउने कण निस्कियोस्।',
-        },
         act: function* (c) {
           yield* c.walk(2.3, -0.7, { face: Math.PI / 2, speed: 0.95 });
           for (const z of [-0.7, -0.4]) {
@@ -207,11 +162,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'pass-brush', cam: orbit((w) => w.worker.pos.clone().add(V(0, 0.2, 0)), { dist: 4.2, az: -0.4, el: 0.55, fov: 40 }),
-        say: {
-          en: 'When you reach hard floor, switch the brush back on.',
-          hi: 'जब सख़्त फ़र्श पर पहुँचें, तो ब्रश फिर से चालू कर दें।',
-          ne: 'कडा भुइँमा पुगेपछि ब्रश फेरि चालु गर्नुहोस्।',
-        },
         hl: ['head'],
         act: function* (c) {
           const vac = c.vac;
@@ -224,11 +174,6 @@ export const STEPS_10_12 = [
       },
       {
         check: 'pass-off', cam: 'room', hl: ['switch', 'socket'],
-        say: {
-          en: 'Whenever you stop, switch off at the machine and at the socket, unplug, and park the machine where it will not be in anyone\'s way.',
-          hi: 'जब भी रुकें, मशीन और सॉकेट दोनों पर स्विच बंद करें, प्लग निकालें, और मशीन को ऐसी जगह रखें जहाँ वह किसी के रास्ते में न आए।',
-          ne: 'जब पनि रोकिनुहुन्छ, मेसिन र सकेट दुवैमा स्विच बन्द गर्नुहोस्, प्लग निकाल्नुहोस्, र मेसिनलाई कसैको बाटोमा नपर्ने ठाउँमा राख्नुहोस्।',
-        },
         act: function* (c) {
           const vac = c.vac;
           yield* putDownTool(c);

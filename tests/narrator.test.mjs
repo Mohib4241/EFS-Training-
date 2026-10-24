@@ -1,13 +1,13 @@
 // The narrator's pure parts: choosing a voice, splitting text, estimating how long it takes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pickVoice, chunk, estimate, LANGS } from '../src/narrator.js';
+import { pickVoice, rankVoices, quality, chunk, estimate, LANGS } from '../src/narrator.js';
 
 const v = (lang, name = lang, localService = true) => ({ lang, name, localService });
 
-test('voice: English prefers British, then Indian, then any English', () => {
+test('voice: English prefers Indian, then British, then any English', () => {
   assert.equal(pickVoice([v('en-US'), v('en-GB'), v('hi-IN')], 'en').voice.lang, 'en-GB');
-  assert.equal(pickVoice([v('en-US'), v('en-IN')], 'en').voice.lang, 'en-IN');
+  assert.equal(pickVoice([v('en-US'), v('en-IN'), v('en-GB')], 'en').voice.lang, 'en-IN');
   assert.equal(pickVoice([v('fr-FR'), v('en-ZA')], 'en').voice.lang, 'en-ZA', 'any English voice will do');
   assert.equal(pickVoice([v('fr-FR')], 'en'), null, 'no English voice, none chosen');
   assert.equal(pickVoice([v('en_US')], 'en').voice.lang, 'en_US', 'underscores in a language tag are accepted');
@@ -27,9 +27,26 @@ test('voice: with no Nepali voice a Hindi one stands in and is marked approximat
   assert.equal(pickVoice(null, 'hi'), null);
 });
 
-test('voice: of two matching voices, a neural or Google one that works offline wins', () => {
-  const a = v('hi-IN', 'Basic', false), b = v('hi-IN', 'Google हिन्दी', true), c = v('hi-IN', 'Natural', false);
-  assert.equal(pickVoice([a, c, b], 'hi').voice, b);
+test('voice: a natural-sounding voice beats a Google one, which beats a basic one; a robotic one comes last', () => {
+  const basic = v('hi-IN', 'Basic', false), google = v('hi-IN', 'Google हिन्दी', true), natural = v('hi-IN', 'Microsoft Swara Online (Natural)', false), robot = v('hi-IN', 'eSpeak hindi', true);
+  assert.equal(pickVoice([basic, google, natural, robot], 'hi').voice, natural);
+  assert.equal(pickVoice([basic, google, robot], 'hi').voice, google);
+  assert.equal(pickVoice([robot, basic], 'hi').voice, basic);
+  assert.ok(quality(natural) > quality(google) && quality(google) > quality(basic) && quality(basic) > quality(robot));
+  const names = rankVoices([robot, basic, google, natural], 'hi').map((r) => r.voice.name);
+  assert.deepEqual(names, [natural.name, google.name, basic.name, robot.name]);
+});
+
+test('voice: a voice the listener picked is used when it fits the language, and ignored when it does not', () => {
+  const a = v('en-GB', 'Plain GB'), b = v('en-IN', 'Google India English'), c = v('hi-IN', 'Swara');
+  assert.equal(pickVoice([a, b, c], 'en', 'Plain GB').voice, a);
+  assert.equal(pickVoice([a, b, c], 'en', 'Swara').voice, b, 'a Hindi voice is not offered for English');
+  assert.equal(pickVoice([a, b, c], 'en', 'Nothing called this').voice, b);
+});
+
+test('voice: a Hindi stand-in for Nepali is only offered when there is no Nepali voice', () => {
+  assert.deepEqual(rankVoices([v('hi-IN'), v('ne-NP')], 'ne').map((r) => r.voice.lang), ['ne-NP']);
+  assert.deepEqual(rankVoices([v('hi-IN')], 'ne').map((r) => r.approx), [true]);
 });
 
 test('chunk: splits at sentence ends (full stop, question mark, danda) and keeps pieces short', () => {
