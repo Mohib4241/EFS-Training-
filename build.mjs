@@ -27,11 +27,15 @@ function copyWasm() {
 
 async function assemble() {
   const out = await build({
-    entryPoints: ['src/main.js'], bundle: true, minify: true, format: 'iife', target: 'es2020',
+    entryPoints: ['src/main.js'], bundle: true, minify: true, format: 'esm', splitting: true, target: 'es2020',
+    outdir: 'dist/assets', entryNames: '[name]-[hash]', chunkNames: '[name]-[hash]', metafile: true,
     write: false, legalComments: 'none', logLevel: 'warning',
   });
-  const js = out.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-  const css = fs.readFileSync('src/style.css', 'utf8');
+  fs.mkdirSync('dist/assets', { recursive: true });
+  for (const file of fs.readdirSync('dist/assets')) fs.rmSync(`dist/assets/${file}`);
+  for (const file of out.outputFiles) fs.writeFileSync(file.path, file.contents);
+  const entry = Object.entries(out.metafile.outputs).find(([,v]) => v.entryPoint === 'src/main.js')[0];
+  const css = ['src/style.css', 'src/enterprise.css'].map(path => fs.readFileSync(path, 'utf8')).join('\n');
   const body = fs.readFileSync('src/body.html', 'utf8').replace('__BUILD__', buildStamp());
   fs.mkdirSync('dist', { recursive: true });
   fs.writeFileSync('dist/index.html', `<!doctype html>
@@ -47,7 +51,7 @@ ${fontLinks}
 </head>
 <body>
 ${body}
-<script>${js}</script>
+<script type="module" src="${entry.replace(/^dist\//, '')}"></script>
 </body>
 </html>
 `);
@@ -55,6 +59,7 @@ ${body}
   copyWasm();
   await build({ entryPoints: ['src/interaction/hand-worker.js'], bundle: true, minify: true, format: 'iife', target: 'es2020', outfile: 'dist/hand-worker.js', logLevel: 'warning' });
   await writeHuman('dist/human.bin');
+  fs.writeFileSync('dist/build-metadata.json', JSON.stringify(out.metafile, null, 2));
   console.log(`built dist/index.html (${(fs.statSync('dist/index.html').size / 1024).toFixed(0)} KB)`);
 }
 

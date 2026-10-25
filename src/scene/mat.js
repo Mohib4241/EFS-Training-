@@ -58,10 +58,10 @@ export function makeMaterials() {
 
   return {
     // room
-    floorHard: phys(0xffffff, { map: tile, roughness: 0.32, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
+    floorHard: std(0xffffff, { map: tile, roughness: 0.7 }),
     carpet: std(0xffffff, { map: carpet, bumpMap: carpetBump, bumpScale: 1.4, roughness: 1 }),
     carpetBig: std(0xffffff, { map: carpetTiles, bumpMap: carpetBump, bumpScale: 1.2, roughness: 1 }),
-    floorHardBig: phys(0xffffff, { map: bigTile, roughness: 0.3, clearcoat: 0.5, clearcoatRoughness: 0.25 }),
+    floorHardBig: std(0xffffff, { map: bigTile, roughness: 0.7 }),
     wall: std(0xd8d5cd, { bumpMap: grain, bumpScale: 0.25, roughness: 0.92 }),
     skirting: std(0xe9e8e3, { roughness: 0.5 }),
     slab: std(0x2c3641, { roughness: 0.7 }),
@@ -81,10 +81,10 @@ export function makeMaterials() {
     green: new THREE.MeshBasicMaterial({ color: 0x35e07a }),
     redLed: new THREE.MeshBasicMaterial({ color: 0xff4a3a }),
     // vacuum
-    vacRed: phys(0xd6322b, { roughness: 0.34, clearcoat: 0.8, clearcoatRoughness: 0.18 }),
-    vacGrey: phys(0x3a4148, { roughness: 0.4, clearcoat: 0.4 }),
-    vacLid: phys(0x2a2f35, { roughness: 0.38, clearcoat: 0.5 }),
-    chrome: std(0xdfe5ea, { metalness: 1, roughness: 0.12 }),
+    vacRed: std(0xb8322d, { roughness: 0.58 }),
+    vacGrey: std(0x3a4148, { roughness: 0.65 }),
+    vacLid: std(0x2a2f35, { roughness: 0.65 }),
+    chrome: std(0xdfe5ea, { metalness: 1, roughness: 0.32 }),
     hoseMat: std(0x2d3238, { roughness: 0.6 }),
     fabric: std(0xf1efe8, { roughness: 1 }),
     brushHair: std(0x1e1f21, { roughness: 1 }),

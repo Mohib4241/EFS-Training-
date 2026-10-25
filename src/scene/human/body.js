@@ -68,6 +68,7 @@ function geometries(data) {
   const out = {};
   for (const m of data.meshes) {
     const g = new THREE.BufferGeometry();
+    g.userData.shared = true;
     g.setAttribute('position', new THREE.BufferAttribute(m.positions, 3));
     g.setAttribute('normal', new THREE.BufferAttribute(m.normals, 3));
     g.setAttribute('skinIndex', new THREE.Uint8BufferAttribute(m.skinIndex, 4));

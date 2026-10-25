@@ -377,7 +377,7 @@ export class Head {
   }
 
   _cheeks() {
-    const tex = canvasTex(64, 64, (g, w, h) => {
+    const tex = this.M.blush.map || canvasTex(64, 64, (g, w, h) => {
       const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = gr; g.fillRect(0, 0, w, h);
     });

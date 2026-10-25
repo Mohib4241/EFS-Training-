@@ -38,7 +38,7 @@ export const STEPS_13_16 = [
           c.adjust({ crouch: 0.3, lean: 0.3, headPitch: 0.3 });
           vac.lidT = 1; yield* c.wait(1.1);
           vac.bagLiftT = 1;
-          c.worker.setIK('R', () => vac.bagBody.localToWorld(V(0.13, 0.17, 0.04)));
+          c.worker.setIK('R', () => vac.bagCorner());
           yield* c.wait(2.4);                                    // it is well over two-thirds full
           vac.bagShown = false; yield* c.wait(1.0);              // the full bag goes into the refuse bag
           vac.setFill(0); vac.bagShown = true; vac.bagLiftT = 0; // a new bag goes in
