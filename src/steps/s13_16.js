@@ -2,7 +2,7 @@
 // equipment and wash your hands, leave the store tidy and secure.
 import { SHOTS, orbit, onPart, fixed, onWorker } from '../scene/shots.js';
 import { PLACES } from '../scene/room.js';
-import { V, takeTool, putDownTool } from './moves.js';
+import { V, takeTool, putDownTool, removeGloves, washHands } from './moves.js';
 
 const vacShot = (o = {}) => orbit((w) => w.vac.root.position.clone().add(V(0.4, 0.3, 0)), { dist: 3.0, az: 0.1, el: 0.4, fov: 38, ...o });
 const facing = (o = {}) => orbit((w) => w.worker.pos.clone().add(V(0, 1.2, 0)), { dist: 2.9, az: -0.4, el: 0.12, fov: 36, ...o });
@@ -109,9 +109,10 @@ export const STEPS_13_16 = [
         check: 'ppe-off', cam: facing({ dist: 2.6 }),
         act: function* (c) {
           yield* c.walk(-1.4, 0.2, { face: 0 });
-          c.pose({ armR: [0.9, 0.2, 1.6], armL: [0.9, 0.2, 1.6], headPitch: 0.25 });
-          yield* c.wait(1.0); c.worker.setPPE('gloves', false);
-          yield* c.wait(1.2); c.worker.setPPE('glasses', false);
+          yield* removeGloves(c);
+          const temple = () => c.worker.head.localToWorld(V(-0.07, 0.128, 0.12));
+          yield* c.reach('R', temple, 0.7);
+          c.worker.setPPE('glasses', false); c.release('R');
           c.pose('idle'); yield* c.wait(1.0);
         },
       },
@@ -119,12 +120,7 @@ export const STEPS_13_16 = [
         check: 'ppe-off', cam: 'basin',
         act: function* (c) {
           yield* c.walk(PLACES.basin[0], PLACES.basin[1] - 0.2, { face: Math.PI });
-          c.pose({ lean: 0.2, headPitch: 0.3, armR: [0.9, 0.2, 1.2], armL: [0.9, 0.2, 1.2] });
-          c.w.water = true;
-          const wash = (dx) => () => V(-1.7 + dx + 0.045 * Math.sin(c.w.time * 9), 1.02, -2.62 + 0.03 * Math.cos(c.w.time * 9));
-          c.worker.setIK('R', wash(-0.04)); c.worker.setIK('L', wash(0.04));
-          yield* c.wait(3.6);
-          c.w.water = false; c.release('R'); c.release('L'); c.pose('idle');
+          yield* washHands(c);
         },
       },
     ],

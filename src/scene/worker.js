@@ -90,11 +90,11 @@ function gloveSkin(M) {
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uGlove = m.userData.glove;
     sh.uniforms.uGloveColor = { value: new THREE.Color(0x2f86e8) };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float glove;\nvarying float vGlove;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlove = glove;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uGlove;\nuniform vec3 uGloveColor;\nvarying float vGlove;')
-      .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = mix(diffuseColor.rgb, uGloveColor, vGlove * uGlove);')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.38, vGlove * uGlove);');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float glove;\nattribute float gloveAlong;\nvarying float vGlove;\nvarying float vGloveAlong;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlove = glove;\nvGloveAlong = gloveAlong;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uGlove;\nuniform vec3 uGloveColor;\nvarying float vGlove;\nvarying float vGloveAlong;')
+      .replace('#include <color_fragment>', '#include <color_fragment>\nfloat cuffEdge = 1.05 - 1.1 * uGlove;\nfloat gloveCover = vGlove * smoothstep(cuffEdge, cuffEdge + 0.04, vGloveAlong);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uGloveColor, gloveCover);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.38, gloveCover);');
   };
   m.customProgramCacheKey = () => 'glove-skin';
   return m;
@@ -171,6 +171,8 @@ export class Worker {
     this.gaze = null;
     this.ppe = { vest: 0, gloves: 0, glasses: 0, plaster: 0 };
     this.ppeT = { vest: 0, gloves: 0, glasses: 0, plaster: 0 };
+    this.gloves = { L: 0, R: 0 };
+    this.gloveTargets = { L: 0, R: 0 };
     this.speed = 0; this.vel = V(); this._v = 0; this._moved = false;
     this.stride = 1;
     this.sway = 0.35;
@@ -191,7 +193,8 @@ export class Worker {
     const M = this.M, C = clothes(M);
     this.skinArm = gloveSkin(M);
     const body = this.body = makeBody({ ...C, skin: M.skin });
-    for (const id of ['armL', 'armR']) if (body.meshes[id]) body.meshes[id].material = this.skinArm;
+    this.armSkin = { L: this.skinArm, R: gloveSkin(M) };
+    for (const side of ['L', 'R']) if (body.meshes['arm' + side]) body.meshes['arm' + side].material = this.armSkin[side];
     this.root.add(body.root);
     this.bones = body.bones;
     this.rig = new Rig(body);
@@ -281,7 +284,16 @@ export class Worker {
     this.ik[hand] = target; this.pole[hand] = pole; this.ikOpt[hand] = opts || {};
   }
   setGaze(target) { this.gaze = target; }
-  setPPE(item, on) { this.ppeT[item] = on ? 1 : 0; }
+  setPPE(item, on) {
+    this.ppeT[item] = on ? 1 : 0;
+    if (item === 'gloves') for (const side of ['L', 'R']) this.setGlove(side, on ? 1 : 0);
+  }
+  /** Fit each glove separately; a fractional value follows insertion or peeling of the cuff. */
+  setGlove(side, amount) {
+    if (!(side in this.gloveTargets)) return;
+    this.gloveTargets[side] = clamp(amount, 0, 1);
+    this.ppeT.gloves = Math.min(this.gloveTargets.L, this.gloveTargets.R);
+  }
   /** How tightly a hand grips, 0 (relaxed) to 1 (closed round a handle). */
   setGrip(hand, v) { this.gripT[hand] = v; }
   /** Stand with the hands folded in front, as a presenter waits. */
@@ -320,6 +332,8 @@ export class Worker {
   right(out = V()) { return out.set(-Math.cos(this.heading), 0, Math.sin(this.heading)); }
   /** The middle of a closed hand, in the room. */
   handPos(h, out = V()) { return this.arms[h].holder.getWorldPosition(out); }
+  /** Stable contact anchor: IK callbacks run while the bones are being solved, left then right. */
+  wristPos(h, out = V()) { return this._wristWorld?.[h] ? out.copy(this._wristWorld[h]) : this.bones['hand' + h].getWorldPosition(out); }
   holder(h) { return this.arms[h].holder; }
   /** The EFS mark on the chest, in the room. */
   logoWorld(out = V()) { return this.logo.getWorldPosition(out); }
@@ -383,6 +397,8 @@ export class Worker {
     this._faceUpdate(dt, snap);
     this._ppe(dt, snap);
     this.root.updateMatrixWorld(true);
+    this._wristWorld ||= { L: V(), R: V() };
+    for (const side of ['L', 'R']) this.bones['hand' + side].getWorldPosition(this._wristWorld[side]);
   }
 
   // ───────────── feet ─────────────
@@ -637,8 +653,11 @@ export class Worker {
   _ppe(dt, snap) {
     const k = snap ? 1 : 1 - Math.exp(-dt * 8);
     for (const it of Object.keys(this.ppe)) this.ppe[it] += (this.ppeT[it] - this.ppe[it]) * k;
-    this.skinArm.userData.glove.value = smooth(0.15, 0.85, this.ppe.gloves);
+    for (const side of ['L', 'R']) {
+      this.gloves[side] += (this.gloveTargets[side] - this.gloves[side]) * k;
+      this.armSkin[side].userData.glove.value = this.gloves[side];
+    }
     const gl = this.ppe.glasses; this.glasses.visible = gl > 0.02; this.glasses.scale.setScalar(0.9 + 0.1 * gl);
-    this.plaster.visible = this.ppe.plaster > 0.5 && this.ppe.gloves < 0.5;
+    this.plaster.visible = this.ppe.plaster > 0.5 && this.gloves.L < 0.5;
   }
 }
