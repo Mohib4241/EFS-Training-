@@ -140,25 +140,6 @@ svg { width: 20px; height: 20px; flex: none; }
 .home .ghost:hover { background: rgba(28,79,163,.7); }
 
 /* ───────── lesson: plays like a video ───────── */
-.cinematic-sop { overflow:hidden; color:#182625; background:#f8f8f4; }
-.cinematic-film { position:absolute; inset:0; overflow:hidden; background:radial-gradient(circle at 55% 35%, #fff 0 25%, #efefea 70%, #e3e5e1); }
-.cinematic-film video { width:100%; height:100%; display:block; object-fit:cover; object-position:center; filter:contrast(1.03) saturate(.94); }
-.cinematic-surface { position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg, rgba(250,250,247,.78) 0%, rgba(250,250,247,.08) 48%, rgba(250,250,247,.04) 100%); }
-.cinematic-brand { position:absolute; top:clamp(20px,4vw,48px); right:clamp(20px,5vw,72px); display:grid; justify-items:end; color:#142b56; letter-spacing:.12em; text-shadow:0 1px 14px #fff; }
-.cinematic-brand b { font-size:clamp(24px,4vw,58px); line-height:.78; letter-spacing:-.08em; }
-.cinematic-brand span { margin-top:7px; font-size:clamp(6px,.85vw,12px); font-weight:800; }
-.cinematic-card { position:absolute; left:clamp(18px,5vw,74px); top:50%; transform:translateY(-50%); width:min(385px,calc(100vw - 36px)); padding:clamp(20px,3vw,34px); border:1px solid #d8ded8; border-radius:18px; background:rgba(255,255,252,.88); box-shadow:0 18px 55px rgba(31,45,39,.18); backdrop-filter:blur(15px); }
-.cinematic-card h2 { margin:8px 0 12px; color:#1a2927; font-size:clamp(24px,3vw,42px); line-height:1.04; letter-spacing:-.045em; }
-.cinematic-card p { margin:0; color:#4c5b56; font-size:clamp(12px,1.2vw,16px); line-height:1.55; }
-.cinematic-kicker { color:#627e32; font-size:10px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
-.cinematic-controls { position:absolute; left:clamp(14px,3vw,38px); right:clamp(14px,3vw,38px); bottom:clamp(14px,3vw,32px); display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid #d4dbd4; border-radius:12px; background:rgba(255,255,252,.9); box-shadow:0 12px 35px rgba(31,45,39,.16); backdrop-filter:blur(14px); }
-.cinematic-controls button { width:38px; height:38px; display:grid; place-items:center; flex:none; border:1px solid #d3ddd5; border-radius:8px; color:#24423b; background:#fff; }
-.cinematic-controls button:disabled { opacity:.35; }
-.cinematic-controls button svg { width:17px; height:17px; }
-.cinematic-controls .cinematic-hear { width:auto; grid-auto-flow:column; gap:7px; padding:0 12px; color:#1c3429; border-color:#b3cb70; background:#deef82; font-size:11px; font-weight:800; }
-.cinematic-controls select { width:min(480px,100%); min-width:0; flex:1; padding:9px; border:0; color:#31443d; background:transparent; font-size:11px; font-weight:700; }
-.cinematic-controls a { padding:9px 10px; color:#395c45; font-size:10px; font-weight:800; text-decoration:none; white-space:nowrap; }
-@media(max-width:700px) { .cinematic-film video { object-position:58% center; } .cinematic-card { top:auto; bottom:95px; transform:none; padding:18px; width:min(345px,calc(100vw - 36px)); } .cinematic-card h2 { font-size:25px; } .cinematic-card p { font-size:11px; line-height:1.45; } .cinematic-brand { top:20px; right:20px; } .cinematic-controls { padding:8px; gap:5px; } .cinematic-controls a { display:none; } .cinematic-controls .cinematic-hear span { display:none; } .cinematic-controls .cinematic-hear { width:38px; padding:0; } }
 .lesson .hit { position: absolute; inset: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .lesson .chapter {
   position: absolute; left: clamp(16px, 4vw, 48px); bottom: clamp(26px, 7vh, 64px); max-width: min(86vw, 560px); padding: 12px 18px 13px 16px;
