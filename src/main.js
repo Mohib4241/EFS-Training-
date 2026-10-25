@@ -8,7 +8,7 @@ loadHuman('human.bin').then(() => {
   window.__app = app;
   if (wait) wait.remove();
   let last = performance.now();
-  function frame(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; app.frame(dt); requestAnimationFrame(frame); }
+  function frame(now) { const dt = (now - last) / 1000; last = now; app.frame(dt); requestAnimationFrame(frame); }
   requestAnimationFrame(frame);
 }).catch((e) => {
   console.error(e);

@@ -158,7 +158,8 @@ export class Stage {
     if (this.useBloom) this.composer.render(); else this.renderer.render(this.scene, this.camera);
 
     // frame rate, and the quality that follows from it
-    this._acc += dtReal; this._frames++;
+    // Ignore suspension gaps, matching the quality governor; retain real slow-frame times.
+    if (dtReal > 0 && dtReal <= 1) { this._acc += dtReal; this._frames++; }
     if (this._acc >= 0.5) { this.fps = this._frames / this._acc; this._acc = 0; this._frames = 0; }
     const lvl = this.gov.update(dtReal);
     if (lvl !== null) { this.level = lvl; this.setLevel(lvl); }
