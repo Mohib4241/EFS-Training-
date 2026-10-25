@@ -107,7 +107,7 @@ function gloveSkin(M) {
  */
 function poloCollar(M) {
   const g = new THREE.Group();
-  const cy = 1.418, cz = -0.03, gap = 0.2, N = 40, ROWS = 6;
+  const cy = 1.418, cz = -0.03, gap = 0.48, N = 40, ROWS = 6;
   const neckR = (y) => 0.0655 - (y - 1.37) * 0.06;                   // the neck's radius at height y (see model.js)
   const onShirt = (p, lift) => {                                        // press a point onto the shirt, `lift` outside it
     for (let i = 0; i < 12; i++) {
@@ -128,11 +128,11 @@ function poloCollar(M) {
     bandPos.push(dx * r0, cy - 0.006, cz + dz * r0, dx * r1, cy + 0.028 - front * 0.012, cz + dz * r1);
     // the fold: from the top of the band, out and down onto the shirt; longer at the front, to the points
     const top = V(dx * (r1 + 0.006), cy + 0.03 - front * 0.012, cz + dz * (r1 + 0.006));
-    const reach = 0.042 + front * 0.034, tip = i === 0 || i === N ? 1 : 0;
+    const reach = 0.038 + front * 0.022, tip = i === 0 || i === N ? 1 : 0;
     for (let r = 0; r <= ROWS; r++) {
       const u = r / ROWS;
       let p = V(dx * (r1 + 0.01 + reach * 0.75 * u), top.y - reach * u * (0.55 + front * 0.6), cz + dz * (r1 + 0.01 + reach * 0.5 * u));
-      if (tip && r === ROWS) { p.x *= 0.55; p.y -= 0.02; }                 // the collar points
+      if (tip && r === ROWS) { p.x *= 1.18; p.y -= 0.008; }                 // the collar points
       if (u > 0.25) p = onShirt(p, 0.003 + 0.002 * (1 - u));
       else p.lerp(onShirt(p.clone(), 0.004), u / 0.25 * 0.6).add(V(0, 0.002 * (1 - u / 0.25), 0));
       pos.push(p.x, p.y, p.z);
@@ -198,7 +198,7 @@ export class Worker {
 
     // the head: the shared face rig, without its own neck (the body has one)
     this.face = new Head(M, { neck: false });
-    this.head = this.face.group; this.head.scale.setScalar(1.24);
+    this.head = this.face.group; this.head.scale.setScalar(1.24); this.head.position.y = -0.035;
     this.bones.head.add(this.head);
 
     // polo details on the chest: the blue collar, the placket with two buttons, and the EFS mark
@@ -209,7 +209,7 @@ export class Worker {
     const placket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.115, 0.006), C.shirt); placket.castShadow = false; onChest(placket, 0, 1.36, 0.001);
     placket.rotation.x = -0.12;
     for (const y of [1.39, 1.335]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.004, 14), M.button); b.rotation.x = Math.PI / 2 - 0.12; onChest(b, 0, y, 0.005); }
-    this.logo = chestLogo(); this.logo.scale.setScalar(0.95); onChest(this.logo, 0.088, 1.315, 0.003);
+    this.logo = chestLogo(); this.logo.scale.setScalar(1.15); onChest(this.logo, 0.088, 1.315, 0.003);
     this.logo.rotation.y = 0.32; this.logo.rotation.x = -0.1;
 
     // safety glasses on the face
