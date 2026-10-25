@@ -10,14 +10,10 @@
 // the first time), and the language drop-downs change it at any moment. Most browsers only let a page
 // speak after it has been touched or clicked once, so until then a small hint says "tap anywhere to
 // hear"; the first touch anywhere lets the narrator speak (`onUnlock`).
-import { Stage } from './scene/stage.js';
-import { makeMaterials } from './scene/mat.js';
 import { Narrator, LANGS } from './narrator.js';
 import { UI } from './i18n.js';
 import { Shell, store } from './shell.js';
 import { HomeScreen } from './screens/home.js';
-import { LessonScreen } from './screens/lesson.js';
-import { SimulationScreen } from './screens/simulation.js';
 import { LibraryScreen } from './screens/library.js';
 
 
@@ -26,8 +22,8 @@ export const ROUTES = ['home', 'vacuum/sop', 'vacuum/instructions', 'vacuum/part
 export class App {
   constructor(host) {
     this.host = host;
-    this.stage = new Stage(host);
-    this.M = makeMaterials();
+    this.stage = null;
+    this.M = null;
     this.narrator = new Narrator();
     this.lang = store.get('efs-lang', 'en'); if (!LANGS.includes(this.lang)) this.lang = 'en';
     this.narrator.muted = store.get('efs-mute', '0') === '1';
@@ -39,14 +35,14 @@ export class App {
     this.route = ''; this.screen = null; this.screens = {};
     this.factories = {
       home: () => new HomeScreen(this),
-      'vacuum/sop': () => new LessonScreen(this, 'sop'),
-      'vacuum/instructions': () => new LessonScreen(this, 'instructions'),
-      'vacuum/parts': () => new SimulationScreen(this, 'vacuum'),
-      chiller: () => new SimulationScreen(this, 'hvac'),
+      'vacuum/sop': async () => { const {LessonScreen} = await import('./screens/lesson.js'); return new LessonScreen(this, 'sop'); },
+      'vacuum/instructions': async () => { const {LessonScreen} = await import('./screens/lesson.js'); return new LessonScreen(this, 'instructions'); },
+      'vacuum/parts': () => this.get('lab/vacuum'),
+      chiller: () => this.get('lab/hvac'),
       labs: () => new HomeScreen(this, 'labs'),
       progress: () => new HomeScreen(this, 'progress'),
       library: () => new LibraryScreen(this),
-      ...Object.fromEntries(['vacuum', 'drill', 'mcb', 'hvac'].map(kind => [`lab/${kind}`, () => new SimulationScreen(this, kind)])),
+      ...Object.fromEntries(['vacuum', 'drill', 'mcb', 'hvac'].map(kind => [`lab/${kind}`, () => this.simulation(kind)])),
     };
     this.shell = new Shell(this);
     this.narrator.onVoices = () => { this.shell._paintSettings(); if (this.unlocked) this.shell.voiceNotice(); };
@@ -61,7 +57,8 @@ export class App {
     for (const ev of ['click', 'keydown', 'touchend', 'pointerup']) addEventListener(ev, activate, true);
     addEventListener('hashchange', () => this.sync());
     addEventListener('keydown', (e) => this._key(e));
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.narrator.stop(); this.screen?.pause?.(); } });
+    addEventListener('resize', () => this.screen?.resize?.());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.narrator.stop(); this.screen?.pause?.(); this.stopFrames?.(); } else if (this.stage && this.host.style.visibility !== 'hidden') this.startFrames?.(); });
     this.sync();
   }
 
@@ -72,18 +69,48 @@ export class App {
   }
   go(route) { if (location.hash === `#/${route}`) this.sync(); else location.hash = `#/${route}`; }
   sync() { this.show(App.parse(location.hash)); }
+  async simulation(kind) { const {SimulationScreen} = await import('./screens/simulation.js'); return new SimulationScreen(this, kind); }
   get(route) { return (this.screens[route] ||= this.factories[route]()); }
 
-  show(route) {
+  async prepare3D() {
+    if (!this.runtime) this.runtime = (async () => {
+      const [{Stage}, {makeMaterials}, {loadHuman}] = await Promise.all([
+        import('./scene/stage.js'), import('./scene/mat.js'), import('./scene/human/body.js'),
+      ]);
+      await loadHuman('human.bin');
+      this.stage ||= new Stage(this.host);
+      this.M ||= makeMaterials();
+    })().catch(error => { this.runtime = null; throw error; });
+    return this.runtime;
+  }
+
+  async show(route) {
     if (route === this.route && this.screen) return;
-    if (this.screen) { this.narrator.stop(); this.screen.leave(); }
+    const request = this.request = (this.request || 0) + 1;
+    this.stopFrames?.();
+    if (this.screen) { this.narrator.stop(); this.screen.leave(); this.screen = null; }
     this.route = route;
-    const s = this.screen = this.get(route);
-    s.build();
-    s.enter();
-    this.shell.paint();
-    this.stage.resize();
-    this.hint();
+    const content = ['home', 'labs', 'library', 'progress'].includes(route);
+    document.body.dataset.workspace = content ? 'content' : route.startsWith('vacuum/') && route !== 'vacuum/parts' ? 'lesson' : 'lab';
+    this.host.style.visibility = 'hidden';
+    this.shell.loading(true);
+    try {
+      if (!content) await this.prepare3D();
+      if (request !== this.request) return;
+      const s = await this.get(route);
+      if (request !== this.request) return;
+      s.build(); this.screen = s;
+      if (!content) this.host.style.visibility = '';
+      s.enter(); this.shell.paint(); this.stage?.resize(); this.hint();
+      this.shell.screensEl?.setAttribute('aria-label', s.title(this.lang));
+      this.shell.screensEl?.focus({preventScroll:true});
+      if (!content && !document.hidden) this.startFrames?.();
+      document.title = `${s.title(this.lang)} | EFS Academy`;
+    } catch (error) {
+      if (request !== this.request) return;
+      delete this.screens[route];
+      console.error(error); this.shell.loading(false, true);
+    } finally { if (request === this.request && this.screen) this.shell.loading(false); }
   }
 
   /** May the narrator be heard? (sound on, a voice exists, and the browser allows it) */
@@ -130,16 +157,17 @@ export class App {
     if (k === 'l' || k === 'L') this.setLang(LANGS[(LANGS.indexOf(this.lang) + 1) % LANGS.length]);
     else if (k === 'm' || k === 'M') this.toggleMute();
     else if (k === 'p' || k === 'P') this.shell.toggleFps();
-    else if (k === 'g' || k === 'G') this.shell.notice(`Graphics: ${this.stage.cycleQuality()}`, 2200);
+    else if ((k === 'g' || k === 'G') && this.stage) this.shell.notice(`Graphics: ${this.stage.cycleQuality()}`, 2200);
     else this.screen?.key?.(e);
   }
 
   // ───────────── per frame ─────────────
   frame(dt) {
     // Keep animation integration stable without falsifying measured GPU/frame performance.
-    this.screen?.update(Math.min(0.05, dt));
-    if (this.host.style.visibility !== 'hidden') this.stage.render(dt);
+    if (!this.screen || (typeof document !== 'undefined' && document.hidden)) return;
+    this.screen.update(Math.min(0.05, dt));
+    if (this.stage && this.host.style.visibility !== 'hidden') this.stage.render(dt);
     this._acc = (this._acc || 0) + dt;
-    if (this._acc > 0.5) { this._acc = 0; this.shell.setFps(`${this.stage.fps.toFixed(0)} fps · ${this.stage.qualityLabel}`); }
+    if (this._acc > 0.5 && this.stage) { this._acc = 0; this.shell.setFps(`${this.stage.fps.toFixed(0)} fps · ${this.stage.qualityLabel}`); }
   }
 }

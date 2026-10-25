@@ -1,9 +1,9 @@
 // Chooses how much graphics work the scene does, from how long frames really take. Pure logic, so
 // it can be tested without a GPU.
 //
-//   level 2  high    contact occlusion, bloom, sharp pixels (up to 1.5x), big shadow map
-//   level 1  medium  no bloom, normal pixels, smaller shadow map
-//   level 0  low     no post-processing and no shadows
+//   level 2  high    sharp pixels (up to 1.5x), big shadow map
+//   level 1  medium  normal pixels, smaller shadow map
+//   level 0  low     no shadows
 //
 // On top of the level there is a render scale (1, 0.85 or 0.7 of the pixels in each direction).
 // In `auto` mode it works like the dynamic resolution of a console game: when the frame rate sags

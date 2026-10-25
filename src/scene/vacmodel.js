@@ -106,7 +106,7 @@ export class VacuumModel {
     const labTex = canvasTex(256, 176, (g, w, h) => {
       g.fillStyle = '#fbfbf7'; rr(g, 0, 0, w, h, 14); g.fill();
       g.fillStyle = '#1aa05c'; g.fillRect(0, 0, w, 50); g.fillStyle = '#fff'; g.font = '700 34px system-ui, sans-serif'; g.textBaseline = 'middle'; g.fillText('PAT', 14, 27);
-      g.font = '600 26px system-ui, sans-serif'; g.fillText('PASS', 150, 27);
+      g.font = '600 26px system-ui, sans-serif'; g.fillText('DEMO', 142, 27);
       g.strokeStyle = '#1aa05c'; g.lineWidth = 12; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(40, 104); g.lineTo(70, 134); g.lineTo(122, 74); g.stroke();
       g.fillStyle = '#6b7780'; g.fillRect(150, 78, 90, 8); g.fillRect(150, 100, 70, 8); g.fillRect(150, 122, 80, 8); g.fillRect(24, 150, 210, 6);
     });
@@ -279,7 +279,7 @@ export class VacuumModel {
       for (const m of p.mats) {
         const base = m.userData;
         m.transparent = dim ? true : base.baseTransparent;
-        m.opacity = dim ? 0.13 : base.baseOpacity;
+        m.opacity = dim ? 0.6 : base.baseOpacity;
         m.depthWrite = !dim;
         m.needsUpdate = true;
       }
@@ -299,11 +299,6 @@ export class VacuumModel {
     const l = this.on ? 1 : 0;
     this.swLed.material.color.setRGB(0.12 + 0.1 * l, 0.14 + 0.78 * l, 0.14 + 0.36 * l);
     this.swBtn.position.y = 0.565 - 0.004 * l;
-    // the focused part glows gently
-    if (this.focus) {
-      const p = this.parts[this.focus], k = 0.5 + 0.5 * Math.sin(t * 3);
-      for (const m of p.mats) if (m.emissive) { m.emissive.setRGB(0.02 + 0.05 * k, 0.07 + 0.1 * k, 0.15 + 0.2 * k); }
-    }
   }
   clearGlow() { for (const p of Object.values(this.parts)) for (const m of p.mats) if (m.emissive) m.emissive.setRGB(0, 0, 0); }
 

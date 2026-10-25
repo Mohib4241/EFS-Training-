@@ -155,7 +155,7 @@ const STEPS = [
           c.adjust({ crouch: 0.3, lean: 0.3, headPitch: 0.3 });
           vac.lidT = 1; yield* c.wait(1.1);
           vac.bagLiftT = 1;
-          c.worker.setIK('R', () => vac.bagBody.localToWorld(V(0.13, 0.17, 0.04)));
+          c.worker.setIK('R', () => vac.bagCorner());
           yield* c.wait(2.8); c.tick('bag');
           vac.bagLiftT = 0; yield* c.wait(1.0);
           vac.lidT = 0; c.release('R'); c.pose('idle'); yield* c.wait(0.9);
@@ -366,7 +366,7 @@ const STEPS = [
           c.adjust({ crouch: 0.3, lean: 0.3, headPitch: 0.3 });
           vac.lidT = 1; yield* c.wait(1.1);
           vac.bagLiftT = 1;
-          c.worker.setIK('R', () => vac.bagBody.localToWorld(V(0.13, 0.17, 0.04)));
+          c.worker.setIK('R', () => vac.bagCorner());
           yield* c.wait(2.0);                                      // it is well over two-thirds full
           // the full bag comes out and goes into the rubbish bag
           const old = c.props.bagOld; old.visible = true;

@@ -64,11 +64,34 @@ export class World {
 
   reset() {
     this.scene.remove(this.content);
-    this.content.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.isMesh && o.material && o.material.map && o.material.userData?.own) o.material.map.dispose(); });
-    if (this.vac?.bagTex) this.vac.bagTex.dispose();
-    if (this.mask) this.mask.tex?.dispose();
+    this.disposeContent();
     this.hl = [];
     this.build();
+  }
+
+  disposeContent() {
+    const sharedMaterials = new Set(), sharedTextures = new Set();
+    const visited = new Set();
+    const protect = value => {
+      if (!value || typeof value !== 'object' || visited.has(value)) return;
+      visited.add(value);
+      if (value.isTexture) { sharedTextures.add(value); return; }
+      if (value.isMaterial) { sharedMaterials.add(value); for (const entry of Object.values(value)) if (entry?.isTexture) sharedTextures.add(entry); return; }
+      if (Object.getPrototypeOf(value) === Object.prototype) for (const entry of Object.values(value)) protect(entry);
+    };
+    protect(this.M);
+    const geometries = new Set(), materials = new Set(), textures = new Set(), skeletons = new Set();
+    this.content.traverse(o => {
+      if (o.geometry && !o.isSprite && !o.geometry.userData.shared) geometries.add(o.geometry);
+      if (o.isInstancedMesh) o.dispose();
+      if (o.skeleton) skeletons.add(o.skeleton);
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m && !sharedMaterials.has(m)) materials.add(m);
+    });
+    if (this.ringMat) materials.add(this.ringMat);
+    for (const material of materials) for (const value of Object.values(material)) if (value?.isTexture && !sharedTextures.has(value)) textures.add(value);
+    if (this.mask?.tex) textures.add(this.mask.tex);
+    if (this.vac?.bagTex) textures.add(this.vac.bagTex);
+    for (const resource of [...geometries, ...materials, ...textures, ...skeletons]) resource.dispose();
   }
 
   // ───────────── dirt, stripes ─────────────
@@ -218,11 +241,9 @@ export class World {
   // ───────────── rings that point at parts ─────────────
   _ringTex() {
     const t = canvasTex(128, 128, (g, w, h) => {
-      const gr = g.createRadialGradient(64, 64, 20, 64, 64, 62);
-      gr.addColorStop(0, 'rgba(40,230,210,0)'); gr.addColorStop(0.6, 'rgba(40,230,210,0.0)'); gr.addColorStop(0.8, 'rgba(120,255,235,0.95)'); gr.addColorStop(0.9, 'rgba(40,230,210,0.35)'); gr.addColorStop(1, 'rgba(40,230,210,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.clearRect(0,0,w,h);g.strokeStyle='#486e82';g.lineWidth=5;g.beginPath();g.arc(64,64,46,0,Math.PI*2);g.stroke();
     }, { aniso: 1 });
-    this.ringMat = new THREE.SpriteMaterial({ map: t, color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.8 });
+    this.ringMat = new THREE.SpriteMaterial({ map: t, color: 0xffffff, transparent: true, depthTest: false, depthWrite: false, opacity: 0.85 });
   }
   anchorOf(id) {
     const a = this.vac.anchor[id];
@@ -276,8 +297,8 @@ export class World {
     if (o.visuals !== false) for (const h of this.hl) {
       h.t += dt; const p = this.anchorOf(h.id); h.ring.position.copy(p);
       const base = RING[h.id] || 0.28;
-      h.ring.scale.setScalar(base * (1 + 0.14 * Math.sin(h.t * 4.5)) + (h.tick ? 0.02 : 0));
-      h.ring.material.color.setHex(h.bad ? 0xff6b5e : h.tick ? 0x6cff9d : 0xffffff);
+      h.ring.scale.setScalar(base + (h.tick ? 0.02 : 0));
+      h.ring.material.color.setHex(h.bad ? 0x9d3833 : h.tick ? 0x376648 : 0xffffff);
     }
     if (this.mask.dirty && this.mask.tex) { this.mask.tex.needsUpdate = true; this.mask.dirty = false; }
     if (this.stage) this.stage.shot(this.shot(this), dt, snap);

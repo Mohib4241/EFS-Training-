@@ -13,7 +13,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch { return false; } },
 };
 
 // The menu. A section with `sub` is a drop-down.
@@ -51,7 +51,9 @@ export class Shell {
     this.secOpen = new Set();
     this.root = document.createElement('div'); this.root.id = 'ui';
     this.root.innerHTML = `
-      <div id="screens"></div>
+      <a class="skip-link" href="#screens">Skip to training content</a>
+      <main id="screens" tabindex="-1" aria-label="Training workspace"></main>
+      <section id="route-loading" hidden role="status"><h2>Preparing training workspace</h2><p>Loading the model and procedure…</p></section>
       <header id="top">
         <button id="menuBtn" class="ico" type="button" aria-controls="side" aria-expanded="false">${ICON.menu}</button>
         <div class="brand"><span class="badge" aria-hidden="true">EFS</span><div><h1 id="ttl"></h1><p id="subtitle"></p></div></div>
@@ -78,6 +80,12 @@ export class Shell {
   }
 
   get lang() { return this.app.lang; }
+  loading(on, failed = false) {
+    const el = $('#route-loading'); el.hidden = !on && !failed;
+    this.screensEl.setAttribute('aria-busy', String(on));
+    if (failed) el.innerHTML = '<h2>The 3D workspace could not load</h2><p>Try again, or read the complete procedure in the SOP library. Your saved practice is retained.</p><button type="button" data-retry>Try again</button><a href="#/library">Read SOP library</a><a href="media/vacuum-sop.pdf">Open source PDF</a>';
+    else if (on) el.innerHTML = '<h2>Preparing training workspace</h2><p>Loading the model and procedure…</p>';
+  }
   t(k) { return NAV[this.lang]?.[k] ?? UI[this.lang][k] ?? UI.en[k] ?? k; }
 
   // ───────────── drawing the texts that depend on the language ─────────────
@@ -211,6 +219,7 @@ export class Shell {
     const a = this.app;
     this.root.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b || !this.root.contains(b)) return;
+      if (b.hasAttribute('data-retry')) return a.show(a.route);
       if (b.closest('#screens')) return;                   // a screen handles its own buttons
       if (b.id === 'menuBtn') return this.openMenu(!this.menuOpen);
       if (b.id === 'sideX') return this.openMenu(false);
@@ -231,6 +240,7 @@ export class Shell {
       if (e.target.id === 'spd') { const v = +e.target.value; a.narrator.speed = v; store.set('efs-speed', String(v)); $('#spdV').textContent = `${v.toFixed(2)}×`; }
     });
     $('#scrim').addEventListener('click', () => this.openMenu(false));
+    this.root.querySelector('.skip-link').addEventListener('click', e => { e.preventDefault(); this.screensEl.focus({preventScroll:true}); });
     addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { if (this.menuOpen) { this.openMenu(false); $('#menuBtn').focus(); } this.closeSettings(); }
     });

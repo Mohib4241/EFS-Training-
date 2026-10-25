@@ -3,15 +3,14 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { VacuumModel } from './vacmodel.js';
 import { canvasTex } from './tex.js';
 const V = (x=0,y=0,z=0) => new THREE.Vector3(x,y,z);
-const mat = (color, metalness=0, roughness=.42) => new THREE.MeshStandardMaterial({color,metalness,roughness});
+const mat = (color, metalness=0, roughness=.62) => new THREE.MeshStandardMaterial({color,metalness,roughness});
 
 export class LabModel {
   constructor(kind, materials) {
     this.kind=kind; this.root=new THREE.Group(); this.parts={}; this.explode=0; this.explodeTarget=0; this.flowOn=false; this.actions=new Set(); this.time=0;
     this.colors={dark:mat(0x252b33,.15), black:mat(0x101820), yellow:mat(0xf1c72e,.12), teal:mat(0x2ab8ad,.3), white:mat(0xe5eaf0,.1), silver:mat(0x8d9fab,.82,.25), copper:mat(0xb7773f,.8), blue:mat(0x418bf1,.25), red:mat(0xef5c4d)};
     if(kind==='vacuum') this._vacuum(materials); else if(kind==='drill') this._drill(); else if(kind==='mcb') this._mcb(); else this._hvac();
-    const floor=new THREE.Mesh(new THREE.CylinderGeometry(1.85,1.91,.08,96),mat(0x152c39,.45,.3)); floor.position.y=-.06; floor.receiveShadow=true;this.root.add(floor);
-    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.84,.007,8,96),new THREE.MeshBasicMaterial({color:0x46d8bf}));ring.rotation.x=Math.PI/2;ring.position.y=-.012;this.root.add(ring);
+    const floor=new THREE.Mesh(new THREE.CylinderGeometry(1.85,1.85,.04,64),mat(0xb5babd,0,.9)); floor.position.y=-.04; floor.receiveShadow=true;this.root.add(floor);
     this.flowGroup=new THREE.Group();this.root.add(this.flowGroup);this.particles=[];
     for(let i=0;i<28;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.025,8,6),new THREE.MeshBasicMaterial({color:i%2?0x76e9df:0xb3e2ff}));this.flowGroup.add(p);this.particles.push(p);}
     this.flowGroup.visible=false;
@@ -49,7 +48,7 @@ export class LabModel {
     this.mesh(p,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),90,.012,6),C.dark);
     this.mesh(p,new THREE.ConeGeometry(.033,.12,24),C.silver,1.6,1.13,0).rotation.z=-Math.PI/2;
     for(const child of p.children)child.position.y-=1.13;p.position.y=1.13;this.parts.bit.base.y=1.13;
-    p=this.part('battery',[-.5,-.16,.12]);this.box(p,.68,.24,.54,C.dark,-.2,.2,0,.06);this.box(p,.64,.07,.5,C.teal,-.2,.33,0,.025);this.label(p,'18V  •  Li-ion',.48,.1,-.2,.22,.276);
+    p=this.part('battery',[-.5,-.16,.12]);this.box(p,.68,.24,.54,C.dark,-.2,.2,0,.06);this.box(p,.64,.07,.5,C.teal,-.2,.33,0,.025);this.label(p,'BATTERY · DEMO',.48,.1,-.2,.22,.276);
     for(let i=0;i<3;i++)this.box(p,.055,.025,.01,C.teal,-.32+i*.08,.115,.274,.003);
     p=this.part('trigger',[0,.1,.55]);this.box(p,.13,.15,.17,C.black,.08,.84,.02,.025);this.box(p,.14,.045,.5,C.red,-.02,.97,0,.015);
     p=this.part('workpiece',[.5,0,.3]);this.box(p,.1,1.6,1.0,mat(0xb7a27e),1.85,.84,0,.01);
@@ -66,7 +65,7 @@ export class LabModel {
     const C=this.colors;
     let p=this.part('rail',[0,0,-.5]);this.box(p,2.25,.24,.13,C.silver,0,.63,-.34,.015);this.box(p,2.25,.045,.19,C.silver,0,.76,-.32,.005);this.box(p,2.25,.045,.19,C.silver,0,.5,-.32,.005);
     p=this.part('case',[-.65,.2,.2]);this.box(p,.78,1.5,.62,C.white,0,.85,0,.045);this.box(p,.8,.85,.13,C.white,0,.93,.365,.025);this.box(p,.68,.4,.1,C.dark,0,1.04,.45,.02);
-    this.label(p,'MCB  •  C16',.59,.17,0,1.42,.321,'#e5eaf0','#273344');
+    this.label(p,'MCB  •  DEMO',.59,.17,0,1.42,.321,'#e5eaf0','#273344');
     this.label(p,'TEACHING MODEL',.66,.12,0,.43,.44,'#e5eaf0','#637888');
     this.label(p,'OFF ≠ ISOLATED',.7,.12,0,.18,.325,'#f3c334','#20262b');
     for(let i=0;i<5;i++)this.box(p,.015,.4,.01,C.silver,-.3+i*.15,.62,.438,.002);
@@ -106,7 +105,7 @@ export class LabModel {
     return {flow,lead,lag,alarm:a.has('fault')&&!a.has('restore'),demand:this.demand,stages:Number(lead)+Number(lag)};
   }
   setHologram(on){
-    this.root.traverse(o=>{if(!o.isMesh||!o.material?.color)return;const m=o.material;if(!m.userData.original)m.userData.original={color:m.color.clone(),wireframe:m.wireframe,transparent:m.transparent,opacity:m.opacity};const base=m.userData.original;if(on){m.color.setHex(0x48e9d2);m.wireframe=true;m.transparent=true;m.opacity=.5;}else{m.color.copy(base.color);m.wireframe=base.wireframe;m.transparent=base.transparent;m.opacity=base.opacity;}});
+    this.root.traverse(o=>{if(!o.isMesh||!o.material?.color)return;const m=o.material;if(!m.userData.original)m.userData.original={color:m.color.clone(),wireframe:m.wireframe,transparent:m.transparent,opacity:m.opacity};const base=m.userData.original;if(on){m.color.setHex(0x526779);m.wireframe=true;m.transparent=false;m.opacity=1;}else{m.color.copy(base.color);m.wireframe=base.wireframe;m.transparent=base.transparent;m.opacity=base.opacity;}});
   }
   setDemonstration(on){
     if(!this.toolRoot)return;
@@ -114,7 +113,7 @@ export class LabModel {
     this.drillSupport.visible=on;this.root.updateMatrixWorld(true);
   }
   setActions(actions){this.actions=new Set(actions);}
-  setFocus(id){this.focus=id;for(const [key,p]of Object.entries(this.parts))for(const m of p.meshes||[])if(m.material.emissive)m.material.emissive.setHex(key===id?0x114a48:0x000000);}
+  setFocus(id){this.focus=id;for(const [key,p]of Object.entries(this.parts))for(const m of p.meshes||[])if(m.material.color){m.userData.selectionBase ||= m.material.color.clone();m.material.color.copy(m.userData.selectionBase);if(key===id)m.material.color.lerp(new THREE.Color(0x7694a6),.28);}if(this.vacuum)this.vacuum.setFocus(id);}
   anchor(id){const p=this.parts[id];if(!p)return this.center.clone();const b=new THREE.Box3().setFromObject(p.group);return b.getCenter(new THREE.Vector3());}
   update(dt,t){
     this.time=t;this.explode+=(this.explodeTarget-this.explode)*(1-Math.exp(-dt*5));const e=this.explode,A=this.actions;

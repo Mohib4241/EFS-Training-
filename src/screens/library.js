@@ -1,6 +1,7 @@
 import { PHASES, STEPS, JOB_CARD } from '../data/steps.js';
 import { esc } from '../shell.js';
 import { ICON } from '../icons.js';
+import {sourcePages} from '../data/procedure.js';
 
 export const SOP_SOURCES = [
   { id: 'sop', title: 'BU3 · Vacuum cleaning', publisher: 'BICSc · Version 3.0 · October 2020', pages: 3, url: 'media/vacuum-sop.pdf' },
@@ -8,9 +9,7 @@ export const SOP_SOURCES = [
 ];
 
 // Printed source pages, including the two procedures that continue onto another page.
-export const SOP_PAGES = Object.fromEntries(STEPS.map(({ n }) => [n,
-  n <= 4 ? [1] : n === 5 ? [1, 2] : n <= 11 ? [2] : n === 12 ? [2, 3] : [3],
-]));
+export const SOP_PAGES = Object.fromEntries(STEPS.map(({n}) => [n, sourcePages(n)]));
 
 export function findSteps(query = '', phase = 'all') {
   const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
@@ -31,7 +30,7 @@ export class LibraryScreen {
     el.innerHTML = `<div class="library-wrap">
       <header class="library-header">
         <p class="eyebrow">THE KNOWLEDGE BASE</p>
-        <h1>Every step. A clear standard.</h1>
+        <h2>Vacuum cleaning procedures</h2>
         <p>Explore the complete supplied vacuum-cleaning procedure, then put it into practice.</p>
         <div class="library-actions"><a class="primary-btn" href="#/vacuum/sop">${ICON.play} Play guided SOP</a><a class="secondary-btn" href="#/lab/vacuum">${ICON.vacuum} Open vacuum lab</a></div>
       </header>

@@ -6,14 +6,14 @@ The vacuum SOP includes the supplied procedure and job card PDFs, searchable ste
 
 Each lab includes selectable parts, exploded views, task demonstrations, guided decisions, and optional hand controls. Hand tracking starts only on request, processes camera frames on device in a worker, and stops when leaving the lab. The camera-free model initialization and inference were verified; real-hand tracking still needs device testing. The procedural worker is an approximation, not an exact replica of the supplied video character.
 
-The original 3D **vacuum cleaning** lesson remains available. An animated worker goes through the whole procedure, step by step, while a narrator speaks in **English, Hindi or Nepali**. There are no subtitles, only the voice, and you can switch language at any time. Each step shows the checks it needs (the PAT test label, the cable, the dust bag, and so on) and points out the vacuum parts it uses: only the parts you need to operate the machine, never its insides.
+The 3D **vacuum cleaning** lesson follows all sixteen steps with narration and a current-beat transcript in **English, Hindi or Nepali**. A persistent procedure sequence and English source-linked guidance stay beside the model. Each SOP step has a source-derived knowledge check. Checks are saved separately from lab practice; neither playback nor answers certify practical competence. PPE shown is illustrative: the task risk assessment determines actual PPE.
 
-It is a static web page. It runs in the browser, needs WebGL, and has no server.
+It is a static web application with no backend. Home, library and practice records work without WebGL. The 3D runtime, body and route modules load only when a lesson or lab is opened; the library remains available if graphics or asset loading fails.
 
 ## How it is built
 
 - **The procedure.** The 16-step Standard Operating Procedure is what is taught, in its order and with its figures. The company's six-step job card is used only where the procedure is silent (today that is body posture while cleaning edges and corners). Where the two disagree, the procedure wins: the dust bag is changed when it is **two-thirds full**, not at the job card's 70%. `src/data/steps.js` records every check with its source (`sop`, `sop+card` or `card`), and a test makes sure every check is covered by a narrated beat and the job card's figure is never spoken.
-- **The scene.** Three.js with a studio look: soft shadows, reflections from a room environment, a little bloom, and a graphics level that follows the frame rate (like the dynamic resolution of a console game). `G` cycles Auto, High, Medium, Low; `P` shows the frame rate.
+- **The scene.** Three.js PBR with neutral studio illumination, restrained shadows and adaptive pixel resolution. No bloom or postprocessing passes. `G` cycles Auto, High, Medium, Low; `P` shows measured frame cadence. Camera framing respects the actual viewport. Reduced-motion preferences disable introductory autoplay and camera easing; procedure playback remains explicitly available.
 - **The worker.** A person built from code, with a walk cycle, crouching, two-bone inverse kinematics so hands really reach what they touch, blinking, and protective equipment that is put on and taken off. No model files.
 - **The vacuum.** A canister machine with its casing, wheels, on/off switch, cable and plug, PAT label, dust bag, hose, wand, a floor head whose brush can be switched on and off, and accessories. The cable follows the machine, the dirt disappears where the head goes over it, and the floor keeps the stripes of the passes.
 - **The narration.** One sentence or two per *beat*, written in all three languages next to the action it goes with (`src/steps/`). A beat ends when both the action and the speech have finished, so picture and voice stay together in every language even though the sentences take different times.
@@ -48,6 +48,7 @@ npm install
 npm run build     # writes dist/index.html plus media, model and worker assets
 npm run serve     # builds and serves it on http://localhost:5173
 npm test
+npm run check     # JavaScript syntax checks; no lint or TypeScript toolchain is configured
 ```
 
 The tests (`npm test`, no browser needed) check the voice choice and text splitting, that the 16 steps are in order with narration in all three languages, that the procedure's checks are all covered, that only the parts a step uses are pointed at, that a hand reaches what it is sent to, that the whole training plays through to the end, and that jumping to a step gives the same scene as playing up to it.
@@ -60,7 +61,9 @@ A static site:
 2. Build Command `npm install && npm run build`, Publish Directory `dist`. (Or **New > Blueprint**, which reads `render.yaml`.)
 3. Deploy. If auto-deploy is off, use **Manual Deploy > Deploy latest commit**.
 
-The stamp at the bottom left of the page shows `Render build`, the first seven characters of the commit and the time, so you can tell which version you are looking at.
+Build metadata is retained in the generated HTML footer and dist/build-metadata.json. The build emits hashed ESM chunks under assets/; deploy the entire dist directory. Hashed scripts are immutable; source media uses revalidation rather than a year-long immutable cache under mutable filenames.
+
+See [engineering audit](docs/enterprise-audit.md) and [implementation and validation report](docs/enterprise-report.md) for the architecture, content boundaries, measured results and remaining device checks. Browser QA scripts in tools/ use an existing Playwright installation via PLAYWRIGHT_MODULE; no new runtime dependency is required.
 
 ## Layout
 
