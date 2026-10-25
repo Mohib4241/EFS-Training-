@@ -17,6 +17,7 @@ import { UI } from './i18n.js';
 import { Shell, store } from './shell.js';
 import { HomeScreen } from './screens/home.js';
 import { LessonScreen } from './screens/lesson.js';
+import { CinematicSopScreen } from './screens/cinematic-sop.js';
 import { SimulationScreen } from './screens/simulation.js';
 import { LibraryScreen } from './screens/library.js';
 
@@ -39,7 +40,7 @@ export class App {
     this.route = ''; this.screen = null; this.screens = {};
     this.factories = {
       home: () => new HomeScreen(this),
-      'vacuum/sop': () => new LessonScreen(this, 'sop'),
+      'vacuum/sop': () => new CinematicSopScreen(this),
       'vacuum/instructions': () => new LessonScreen(this, 'instructions'),
       'vacuum/parts': () => new SimulationScreen(this, 'vacuum'),
       chiller: () => new SimulationScreen(this, 'hvac'),
