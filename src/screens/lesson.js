@@ -16,8 +16,8 @@ import { ICON } from '../icons.js';
 import { esc } from '../shell.js';
 
 const LOOKS = {
-  room: { hemi: 0.42, key: 1.7, fill: 0.3, rim: 0, env: 0.32, exposure: 0.92, bloom: 0.2, shadow: [6.5, 5.5], keyPos: [-4.5, 8.5, 6.5], keyTarget: [0, 0, 0] },
-  hall: { hemi: 0.5, key: 1.9, fill: 0.4, rim: 0.4, env: 0.4, exposure: 0.92, bloom: 0.12, shadow: [9, 7], keyPos: [-6, 10, 7], keyTarget: [0, 0, 0] },
+  room: { hemi: 0.68, key: 2.1, fill: 0.65, rim: 0.55, env: 0.55, exposure: 1, bloom: 0.04, shadow: [6.5, 5.5], keyPos: [-4.5, 8.5, 6.5], keyTarget: [0, 0, 0], keyColor: 0xfff6ed, rimColor: 0xffffff },
+  hall: { hemi: 0.72, key: 2.1, fill: 0.65, rim: 0.6, env: 0.55, exposure: 1, bloom: 0.04, shadow: [9, 7], keyPos: [-6, 10, 7], keyTarget: [0, 0, 0], keyColor: 0xfff6ed, rimColor: 0xffffff },
 };
 
 const KINDS = {

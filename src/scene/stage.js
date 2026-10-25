@@ -7,6 +7,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { QualityGovernor, LEVEL_NAMES } from '../quality.js';
 import { canvasTex } from './tex.js';
 
@@ -55,7 +56,7 @@ export class Stage {
     this.key.castShadow = true;
     const sc = this.key.shadow.camera;
     sc.left = -6.5; sc.right = 6.5; sc.top = 5.5; sc.bottom = -5.5; sc.near = 1; sc.far = 24;
-    this.key.shadow.bias = -0.0003; this.key.shadow.normalBias = 0.03; this.key.shadow.radius = 3.5;
+    this.key.shadow.bias = -0.00015; this.key.shadow.normalBias = 0.003; this.key.shadow.radius = 3.5;
     this.key.target.position.set(0, 0, 0);
     this.fill = new THREE.DirectionalLight(0xbcd2ff, 0.3);
     this.fill.position.set(6, 3.5, 4);
@@ -71,6 +72,10 @@ export class Stage {
     const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
     this.composer = new EffectComposer(r, rt);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
+    this.ao = new GTAOPass(this.scene, this.camera, 4, 4, undefined,
+      { radius: .12, thickness: .035, distanceFallOff: 1, samples: 8 }, { radius: 4, samples: 8 });
+    this.ao.blendIntensity = .38;
+    this.composer.addPass(this.ao);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.2, 0.45, 1.3);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
@@ -108,6 +113,8 @@ export class Stage {
     this.renderer.domElement.style.width = '100%'; this.renderer.domElement.style.height = '100%';
     this.composer.setPixelRatio(dpr);
     this.composer.setSize(w, h);
+    // Soft contact shading does not need full output resolution; keep the expensive depth pass small.
+    this.ao.setSize(Math.max(1, Math.round(w * dpr * .5)), Math.max(1, Math.round(h * dpr * .5)));
     this.camera.aspect = w / h;
     if (this.viewShift) this.camera.setViewOffset(w, h, -w * this.viewShift, 0, w, h); else this.camera.clearViewOffset();
     // a tall (phone) screen needs a wider field to keep the room in view
@@ -131,6 +138,7 @@ export class Stage {
     this.renderer.toneMappingExposure = L.exposure;
     this.key.color.setHex(L.keyColor); this.rim.color.setHex(L.rimColor);
     this.key.position.set(...L.keyPos); this.key.target.position.set(...L.keyTarget);
+    this._shadowSetup = { position: V(...L.keyPos), target: V(...L.keyTarget), extents: L.shadow.slice() };
     const sc = this.key.shadow.camera; sc.left = -L.shadow[0]; sc.right = L.shadow[0]; sc.top = L.shadow[1]; sc.bottom = -L.shadow[1]; sc.updateProjectionMatrix();
     this.bloom.strength = L.bloom;
     if (this.viewShift !== L.shift) { this.viewShift = L.shift; this.resize(); }
@@ -144,6 +152,18 @@ export class Stage {
     this.look.lerp(s.look, snap ? 1 : 1 - Math.exp(-dt * 3.2));
     this.fov += ((s.fov || 40) - this.fov) * (snap ? 1 : 1 - Math.exp(-dt * 2));
     this.camera.lookAt(this.look);
+    if (this._shadowSetup) {
+      // Concentrate the shadow map on the working hands or face during a close shot. Keeping the
+      // light's direction fixed avoids a lighting jump while giving millimetre-scale contact detail.
+      const base = this._shadowSetup, reach = this.camera.position.distanceTo(this.look) * .7;
+      const sx = Math.min(base.extents[0], Math.max(.65, reach)), sy = Math.min(base.extents[1], Math.max(.65, reach));
+      this.key.target.position.copy(this.look);
+      this.key.position.copy(base.position).sub(base.target).add(this.look);
+      const shadowCamera = this.key.shadow.camera;
+      if (Math.abs(shadowCamera.right - sx) > .01 || Math.abs(shadowCamera.top - sy) > .01) {
+        shadowCamera.left = -sx; shadowCamera.right = sx; shadowCamera.top = sy; shadowCamera.bottom = -sy; shadowCamera.updateProjectionMatrix();
+      }
+    }
     const f = this.fov * (this.camera.aspect < 0.9 ? 1.0 + (0.9 - this.camera.aspect) * 0.9 : 1);
     if (Math.abs(this.camera.fov - f) > 0.01) { this.camera.fov = f; this.camera.updateProjectionMatrix(); }
   }

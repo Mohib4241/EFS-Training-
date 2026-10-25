@@ -74,10 +74,10 @@ function clothes(M) {
   if (M._clothes) return M._clothes;
   const k = knit(), tw = twill();
   M._clothes = {
-    shirt: new THREE.MeshPhysicalMaterial({ color: 0xeef0f2, roughness: 0.86, sheen: 0.7, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.75, bumpMap: k, bumpScale: 0.6 }),
-    trousers: new THREE.MeshPhysicalMaterial({ color: 0x252c39, roughness: 0.84, sheen: 0.5, sheenColor: new THREE.Color(0x8a97b0), sheenRoughness: 0.7, bumpMap: tw, bumpScale: 0.5 }),
-    belt: new THREE.MeshPhysicalMaterial({ color: 0x141517, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.4 }),
-    shoe: new THREE.MeshPhysicalMaterial({ color: 0x0f1012, roughness: 0.36, clearcoat: 0.7, clearcoatRoughness: 0.3 }),
+    shirt: new THREE.MeshPhysicalMaterial({ color: 0xf1f0eb, roughness: 0.86, sheen: 0.35, sheenColor: new THREE.Color(0xffffff), sheenRoughness: 0.85, bumpMap: k, bumpScale: 0.00035 }),
+    trousers: new THREE.MeshPhysicalMaterial({ color: 0x252b32, roughness: 0.9, sheen: 0.2, sheenColor: new THREE.Color(0x8a97b0), sheenRoughness: 0.85, bumpMap: tw, bumpScale: 0.0003 }),
+    belt: new THREE.MeshPhysicalMaterial({ color: 0x202327, roughness: 0.8, clearcoat: 0.05, clearcoatRoughness: 0.7 }),
+    shoe: new THREE.MeshPhysicalMaterial({ color: 0x0f1012, roughness: 0.6, clearcoat: 0.2, clearcoatRoughness: 0.55 }),
     sole: new THREE.MeshStandardMaterial({ color: 0x2c2e31, roughness: 0.92 }),
   };
   return M._clothes;
@@ -108,7 +108,7 @@ function gloveSkin(M) {
 function poloCollar(M) {
   const g = new THREE.Group();
   const cy = 1.418, cz = -0.03, gap = 0.48, N = 40, ROWS = 6;
-  const neckR = (y) => 0.0655 - (y - 1.37) * 0.06;                   // the neck's radius at height y (see model.js)
+  const neckR = (y) => 0.0605 - (y - 1.37) * 0.06;
   const onShirt = (p, lift) => {                                        // press a point onto the shirt, `lift` outside it
     for (let i = 0; i < 12; i++) {
       const d = shirtSDF(p.x, p.y, p.z) - lift, e = 0.0007;
@@ -203,7 +203,7 @@ export class Worker {
     this.face = new Head(M, { neck: false });
     // Slightly smaller than the early prototype: it gives the shared guide the adult proportions of
     // the supplied reference while preserving the same fully-rigged face in all lessons and labs.
-    this.head = this.face.group; this.head.scale.setScalar(1.16); this.head.position.y = -0.025;
+    this.head = this.face.group; this.head.scale.setScalar(1.12); this.head.position.y = -0.043;
     this.bones.head.add(this.head);
 
     // polo details on the chest: the blue collar, the placket with two buttons, and the EFS mark
@@ -211,7 +211,7 @@ export class Worker {
     const onChest = (o, x, y, dz = 0) => { o.position.set(x - cb[0], y - cb[1], shirtFront(x, y) + dz - cb[2]); chest.add(o); return o; };
     const collar = poloCollar(M); collar.position.set(-cb[0], -cb[1], -cb[2]); chest.add(collar);
     this.collar = collar;
-    const placket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.115, 0.006), C.shirt); placket.castShadow = false; onChest(placket, 0, 1.36, 0.001);
+    const placket = new THREE.Mesh(new THREE.BoxGeometry(0.023, 0.115, 0.002), C.shirt); placket.castShadow = false; onChest(placket, 0, 1.36, 0.001);
     placket.rotation.x = -0.12;
     for (const y of [1.39, 1.335]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.004, 14), M.button); b.rotation.x = Math.PI / 2 - 0.12; onChest(b, 0, y, 0.005); }
     this.logo = chestLogo(); this.logo.scale.setScalar(1.15); onChest(this.logo, 0.088, 1.315, 0.003);

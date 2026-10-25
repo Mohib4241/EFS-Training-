@@ -2,6 +2,7 @@
 // equipment and wash your hands, leave the store tidy and secure.
 import { SHOTS, orbit, onPart, fixed, onWorker } from '../scene/shots.js';
 import { PLACES } from '../scene/room.js';
+import { FACE } from '../scene/character.js';
 import { V, takeTool, putDownTool, removeGloves, washHands } from './moves.js';
 
 const vacShot = (o = {}) => orbit((w) => w.vac.root.position.clone().add(V(0.4, 0.3, 0)), { dist: 3.0, az: 0.1, el: 0.4, fov: 38, ...o });
@@ -110,7 +111,7 @@ export const STEPS_13_16 = [
         act: function* (c) {
           yield* c.walk(-1.4, 0.2, { face: 0 });
           yield* removeGloves(c);
-          const temple = () => c.worker.head.localToWorld(V(-0.07, 0.128, 0.12));
+          const temple = () => c.worker.head.localToWorld(V(-0.07, FACE.eyeY, 0.12));
           yield* c.reach('R', temple, 0.7);
           c.worker.setPPE('glasses', false); c.release('R');
           c.pose('idle'); yield* c.wait(1.0);
