@@ -136,7 +136,8 @@ export class App {
 
   // ───────────── per frame ─────────────
   frame(dt) {
-    this.screen?.update(dt);
+    // Keep animation integration stable without falsifying measured GPU/frame performance.
+    this.screen?.update(Math.min(0.05, dt));
     if (this.host.style.visibility !== 'hidden') this.stage.render(dt);
     this._acc = (this._acc || 0) + dt;
     if (this._acc > 0.5) { this._acc = 0; this.shell.setFps(`${this.stage.fps.toFixed(0)} fps · ${this.stage.qualityLabel}`); }
