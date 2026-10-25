@@ -155,8 +155,6 @@ export class Stage {
     this.hemi.intensity = b.hemi * L; this.key.intensity = b.key * L; this.fill.intensity = b.fill * L; this.rim.intensity = b.rim * L;
     this.scene.environmentIntensity = b.env * (0.25 + 0.75 * this._lightsNow);
 
-    if (this.useBloom) this.composer.render(); else this.renderer.render(this.scene, this.camera);
-
     // frame rate, and the quality that follows from it
     // Ignore suspension gaps, matching the quality governor; retain real slow-frame times.
     if (dtReal > 0 && dtReal <= 1) { this._acc += dtReal; this._frames++; }
@@ -164,6 +162,8 @@ export class Stage {
     const lvl = this.gov.update(dtReal);
     if (lvl !== null) { this.level = lvl; this.setLevel(lvl); }
     if (this.gov.scale !== this.scale) { this.scale = this.gov.scale; this.resize(); }
+    // Resizing clears the drawing buffer: apply quality changes before drawing this frame.
+    if (this.useBloom) this.composer.render(); else this.renderer.render(this.scene, this.camera);
   }
 
   get qualityLabel() { return `${this.gov.label}${this.scale < 1 ? ` · ${Math.round(this.scale * 100)}%` : ''}`; }

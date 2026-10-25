@@ -88,7 +88,21 @@ export function buildProps(M, room) {
   const vestFold = p.ppeVest = grp(ppe); vestFold.position.set(0, 0.0, -0.22);
   mk(rb(0.34, 0.05, 0.26, 0.02), M.vest, vestFold, 0, 0.025, 0); mk(new THREE.BoxGeometry(0.345, 0.012, 0.05), M.reflect, vestFold, 0, 0.052, 0.04);
   const glovePair = p.ppeGloves = grp(ppe); glovePair.position.set(0, 0.0, 0.08);
-  for (const s of [-1, 1]) { const gl = mk(new THREE.SphereGeometry(0.055, 12, 10), M.glove, glovePair, s * 0.07, 0.03, 0); gl.scale.set(0.9, 0.5, 1.3); mk(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 12), M.glove, glovePair, s * 0.07, 0.03, -0.08).rotation.x = Math.PI / 2; }
+  // Five fingers and an open cuff make the pickup and fitting legible in a hand close-up.
+  p.looseGloves = [-1, 1].map((s) => {
+    const glove = grp(glovePair); glove.position.set(s * 0.065, 0.025, 0);
+    mk(rb(0.065, 0.018, 0.08, 0.008), M.glove, glove, 0, 0, 0);
+    for (let i = 0; i < 4; i++) {
+      const length = [0.055, 0.065, 0.06, 0.045][i];
+      const finger = mk(new THREE.CapsuleGeometry(0.007, length, 4, 8), M.glove, glove, (i - 1.5) * 0.016, 0, 0.035 + length / 2);
+      finger.rotation.x = Math.PI / 2;
+    }
+    const thumb = mk(new THREE.CapsuleGeometry(0.009, 0.04, 4, 8), M.glove, glove, -s * 0.043, 0, 0.008);
+    thumb.rotation.set(Math.PI / 2, 0, s * 0.65);
+    const cuff = mk(new THREE.TorusGeometry(0.027, 0.003, 8, 24), M.glove, glove, 0, 0, -0.06);
+    cuff.scale.y = 0.4;
+    return glove;
+  });
   const specs = p.ppeGlasses = grp(ppe); specs.position.set(0, 0.0, 0.3);
   for (const s of [-1, 1]) { const rim = mk(new THREE.TorusGeometry(0.027, 0.004, 8, 20), M.black, specs, s * 0.04, 0.03, 0); rim.rotation.x = Math.PI / 2; mk(new THREE.CircleGeometry(0.026, 18), M.glass, specs, s * 0.04, 0.03, 0).rotation.x = -Math.PI / 2; }
 

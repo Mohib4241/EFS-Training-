@@ -2,7 +2,7 @@
 // put on protective equipment. Each beat is one narrated sentence or two, with the action beside it.
 import { SHOTS, orbit } from '../scene/shots.js';
 import { PLACES } from '../scene/room.js';
-import { V } from './moves.js';
+import { V, fitGloves, fitGlasses, washHands } from './moves.js';
 
 // a point in front of the worker's chest, for hands that show or hold something
 const front = (c, side = 0, up = 1.25, fwd = 0.38) => () => {
@@ -89,12 +89,7 @@ export const STEPS_1_4 = [
         check: 'wash', cam: 'basin',
         act: function* (c) {
           yield* c.walk(PLACES.basin[0], PLACES.basin[1] - 0.2, { face: Math.PI });
-          c.pose({ lean: 0.2, headPitch: 0.3, armR: [0.9, 0.2, 1.2], armL: [0.9, 0.2, 1.2] });
-          c.w.water = true;
-          const wash = (dx) => () => V(-1.7 + dx + 0.045 * Math.sin(c.w.time * 9), 1.02, -2.62 + 0.03 * Math.cos(c.w.time * 9));
-          c.worker.setIK('R', wash(-0.04)); c.worker.setIK('L', wash(0.04));
-          yield* c.wait(3.6);
-          c.w.water = false; c.release('R'); c.release('L');
+          yield* washHands(c);
         },
       },
       {
@@ -131,20 +126,13 @@ export const STEPS_1_4 = [
       {
         check: 'ppe',
         act: function* (c) {
-          c.adjust({ lean: 0.15, headPitch: 0.3 });
-          yield* c.reach('R', V(-3.45, 0.86, 0.33), 0.9);
-          c.props.ppeGloves.visible = false; c.release('R');
-          c.adjust({ lean: 0, headPitch: 0.25, armR: [0.9, 0.2, 1.6], armL: [0.9, 0.2, 1.6] }); c.worker.setPPE('gloves', true);
-          yield* c.wait(1.8);
+          yield* fitGloves(c);
         },
       },
       {
         check: 'ppe',
         act: function* (c) {
-          c.pose({ lean: 0.15, headPitch: 0.3 });
-          yield* c.reach('R', V(-3.45, 0.86, 0.55), 0.9);
-          c.props.ppeGlasses.visible = false; c.release('R');
-          c.pose('idle'); c.worker.setPPE('glasses', true);
+          yield* fitGlasses(c);
           c.cam(facing({ dist: 3.2, az: 0.2 }));
           yield* c.walk(-1.8, 0.4, { face: 0 });
           c.pose('wave'); yield* c.wait(1.6); c.pose('idle');

@@ -74,7 +74,10 @@ function geometries(data) {
     g.setAttribute('skinWeight', new THREE.Uint8BufferAttribute(m.skinWeight, 4, true));
     g.setIndex(new THREE.BufferAttribute(m.indices, 1));
     g.setAttribute('uv', new THREE.BufferAttribute(fabricUV(m), 2));
-    if (m.id.startsWith('arm')) g.setAttribute('glove', new THREE.BufferAttribute(gloveMask(m), 1));
+    if (m.id.startsWith('arm')) {
+      g.setAttribute('glove', new THREE.BufferAttribute(gloveMask(m), 1));
+      g.setAttribute('gloveAlong', new THREE.BufferAttribute(gloveMask(m, true), 1));
+    }
     g.computeBoundingSphere();
     out[m.id] = { geo: g, mat: m.mat, side: m.side };
   }
@@ -99,13 +102,14 @@ function fabricUV(m) {
 }
 
 /** Where a glove covers an arm: the hand and a little of the wrist (1), the rest of the arm (0). */
-function gloveMask(m) {
+function gloveMask(m, along = false) {
   const s = m.id.endsWith('L') ? 1 : -1, sh = JOINTS[s > 0 ? 'upperArmL' : 'upperArmR'], d = ARM_DIR(s), P = m.positions, n = P.length / 3;
   const wrist = L.upper + L.fore, out = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = (P[i * 3] - sh[0]) * d[0] + (P[i * 3 + 1] - sh[1]) * d[1] + (P[i * 3 + 2] - sh[2]) * d[2];
     const k = Math.max(0, Math.min(1, (t - (wrist - 0.045)) / 0.012));
-    out[i] = k * k * (3 - 2 * k);
+    // Distance down the hand lets a glove slide from the fingertips toward the cuff during fitting.
+    out[i] = along ? Math.max(0, Math.min(1, (t - (wrist - 0.045)) / 0.24)) : k * k * (3 - 2 * k);
   }
   return out;
 }
