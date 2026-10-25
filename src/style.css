@@ -526,3 +526,5 @@ button:disabled { cursor:default; opacity:.5; }
 .boot-error a,.boot-error button { display:block; padding:12px; color:white; margin:8px; background:#3c5945; border:0; border-radius:6px; }
 @media(max-width:850px){.lab-tasks { top:325px; bottom:auto; left:22px; max-width:calc(100% - 44px); }.task-heading span{font-size:9px}.task-icons button{width:34px;height:39px}.task-icons svg{width:15px;height:15px}.task-status{font-size:9px}.lab-toolbar{top:430px}.lab-parts{top:505px}.lab-caption{top:570px}.lab-panel{top:620px}.lab-orbit{height:620px}.hand-hud{top:135px;left:auto;right:15px;width:200px}.hand-hud canvas{width:172px;height:108px}.hand-hud ul{display:none}.lab-toolbar button{font-size:9px}}
 @media(max-width:850px){.lab-toolbar{bottom:auto;align-items:flex-start}.lab-toolbar button{min-height:34px}.lab-caption{max-width:calc(100% - 44px)}}
+
+.lab button.hand-hover { outline:2px solid #66ffe0; outline-offset:3px; box-shadow:0 0 18px #66ffe055; }

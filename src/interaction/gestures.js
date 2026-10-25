@@ -9,7 +9,7 @@ export class Gestures {
     const h=hands[0],p={x:1-h[8].x,y:h[8].y},palm=Math.max(.025,distance(h[5],h[17]));
     const ratio=distance(h[4],h[8])/palm;
     const pinched=ratio<(this.pinch?.48:.32);
-    const result={pointer:p,hands,mode:'Point · quick pinch to inspect'};
+    const result={pointer:p,hands,mode:'Point · quick pinch to select'};
     if(hands.length===2){
       const gap=distance(hands[0][9],hands[1][9]);
       if(!this.pair)this.pair={gap,explode};
@@ -23,7 +23,7 @@ export class Gestures {
     if(folded===0&&time-this.fistAt<900&&time-this.toggledAt>1400){result.toggle=true;this.toggledAt=time;this.fistAt=-Infinity;}
     if(pinched&&!this.pinch)this.start={...p,time,travel:0};
     if(pinched&&this.last&&this.pinch){const dx=p.x-this.last.x,dy=p.y-this.last.y;this.start.travel+=Math.hypot(dx,dy);result.orbit={x:dx,y:dy};result.mode='Pinch held · orbit';}
-    if(!pinched&&this.pinch&&this.start&&time-this.start.time<450&&this.start.travel<.045)result.select=p;
+    if(!pinched&&this.pinch&&this.start&&time-this.start.time<450&&this.start.travel<.045)result.select={x:this.start.x,y:this.start.y};
     this.pinch=pinched;this.last=p;result.pinched=pinched;return result;
   }
 }

@@ -43,6 +43,20 @@ export class SimulationScreen {
   setTaskStatus(text){this.el.querySelector('.task-status').textContent=text;}
   paintTasks(){const current=Math.min(this.progress.index,this.def.steps.length-1);this.el.querySelector('.task-icons').innerHTML=this.def.steps.map((step,i)=>`<button type="button" data-task="${i}" title="${esc(step.title)}" aria-label="Demonstrate ${esc(step.title)}" ${i>current?'disabled':''} class="${i===current?'current':''}">${ICON[{prepare:'check',inspect:'search',isolate:'power',open:'apart',bag:'vacuum',close:'check',run:'play',finish:'check',pumps:'air','stage-lag':'snow',fault:'info',restore:'reset',bit:'drill',verify:'check'}[step.action]]||ICON.gear}<small>${String(i+1).padStart(2,'0')}</small></button>`).join('');}
   demonstrate(index){if(index<0||index>this.progress.index||index>=this.def.steps.length)return;this.performer.play(index);this.select(this.def.steps[index].focus);}
+  handTargetAt(x,y){
+    const hit=document.elementFromPoint(x,y);
+    if(!hit||!this.el.contains(hit))return null;
+    const button=hit.closest('.task-icons button, .lab-parts button, .lab-toolbar button, .hand-hud button');
+    // Camera start is always an explicit mouse/touch/keyboard action; gestures may stop it.
+    return button&&!button.disabled&&(button.dataset.action!=='hands'||this.hands.active)?button:null;
+  }
+  handSelectAt(x,y){
+    const button=this.handTargetAt(x,y);
+    if(button){button.click();return;}
+    // Do not select geometry through a panel, disabled task, or other foreground control.
+    const hit=document.elementFromPoint(x,y);
+    if(hit?.classList.contains('lab-orbit'))this.pickAt(x,y);
+  }
   pickAt(x,y){const bounds=this.app.host.getBoundingClientRect(),p=new THREE.Vector2((x-bounds.left)/bounds.width*2-1,-(y-bounds.top)/bounds.height*2+1),ray=new THREE.Raycaster();ray.setFromCamera(p,this.app.stage.camera);for(const hit of ray.intersectObject(this.model.root,true)){let o=hit.object;while(o){const id=o.userData.part||o.name;if(this.def.parts.some(p=>p[0]===id)){this.select(id);return;}o=o.parent;}}}
   get total(){return this.def.steps.length+this.def.quiz.length;}
   get complete(){return this.progress.index>=this.total;}
