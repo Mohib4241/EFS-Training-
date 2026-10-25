@@ -18,3 +18,10 @@ test('two hands open the assembly continuously, clamp range, and suppress clicks
  g.update([],200);g.update([hand(.1),hand(.9)],300,.5);
  assert.equal(g.update([hand(.49),hand(.51)],400,.5).explode,0);
 });
+
+test('a quick pinch selects where it began, not where the finger jumps on release',()=>{
+ const g=new Gestures();const start=g.update([hand(.5,true)],100).pointer;
+ const released=g.update([hand(.52)],200);
+ assert.deepEqual(released.select,start);
+ assert.notDeepEqual(released.select,released.pointer);
+});

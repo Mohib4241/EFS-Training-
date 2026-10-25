@@ -41,7 +41,7 @@ async function assemble() {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${TITLE}</title>
 <meta name="color-scheme" content="light dark">
-<meta name="description" content="Explore, practise and learn facility services with narrated 3D training: vacuum cleaning, drilling, electrical safety and cassette HVAC.">
+<meta name="description" content="Explore, practise and learn facility services with narrated 3D training: vacuum cleaning, drilling, electrical safety and cascade chiller systems.">
 ${fontLinks}
 <style>${css}</style>
 </head>

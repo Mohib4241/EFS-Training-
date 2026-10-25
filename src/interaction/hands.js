@@ -4,7 +4,7 @@ export class HandControl {
   constructor(screen){
     this.screen=screen;this.gestures=new Gestures();this.session=0;this.active=false;this.loading=false;
     const host=this.el=document.createElement('aside');host.className='hand-hud';host.hidden=true;
-    host.innerHTML='<div class="hand-hud-top"><b>HAND LINK</b><button type="button" aria-label="Stop hand control">×</button></div><video muted playsinline></video><canvas width="240" height="150"></canvas><p class="hand-state" role="status">Preparing camera…</p><ul><li><b>Pinch + move</b> Rotate equipment</li><li><b>Quick pinch</b> Inspect a component</li><li><b>Two hands apart</b> Open the assembly</li><li><b>Fist → open palm</b> Toggle exploded view</li></ul><small>Camera frames stay on this device.</small>';
+    host.innerHTML='<div class="hand-hud-top"><b>HAND LINK</b><button type="button" aria-label="Stop hand control">×</button></div><video muted playsinline></video><canvas width="240" height="150"></canvas><p class="hand-state" role="status">Preparing camera…</p><ul><li><b>Pinch + move</b> Rotate equipment</li><li><b>Quick pinch</b> Select a task or component</li><li><b>Two hands apart</b> Open the assembly</li><li><b>Fist → open palm</b> Toggle exploded view</li></ul><small>Camera frames stay on this device.</small>';
     screen.el.append(host);this.video=host.querySelector('video');this.canvas=host.querySelector('canvas');this.ctx=this.canvas.getContext('2d');
     host.querySelector('button').onclick=()=>this.stop();
     this.reticle=document.createElement('div');this.reticle.className='hand-reticle';this.reticle.hidden=true;screen.el.append(this.reticle);
@@ -26,7 +26,7 @@ export class HandControl {
       this.stream=stream;this.video.srcObject=stream;await this.video.play();
       if(token!==this.session)return;
       const worker=this.worker=new Worker('hand-worker.js');
-      worker.onerror=()=>this.fail('Hand tracking could not start. Mouse and touch controls remain available.');
+      worker.onerror=()=>{if(token===this.session)this.fail('Hand tracking could not start. Mouse and touch controls remain available.');};
       worker.onmessage=({data})=>{
         if(token!==this.session)return;
         if(data.type==='ready'){this.loading=false;this.active=true;this.paintButton();this.status('Show one or two hands to the camera.');this.frame();}
@@ -38,7 +38,7 @@ export class HandControl {
   }
   fail(message){this.stop();this.el.hidden=false;this.status(message);}
   stop(){
-    ++this.session;this.active=false;this.loading=false;cancelAnimationFrame(this.raf);this.worker?.terminate();this.worker=null;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.video.pause();this.video.srcObject=null;this.busy=false;this.el.hidden=true;this.reticle.hidden=true;this.holograms.visible=false;this.gestures.reset();this.paintButton();
+    ++this.session;this.active=false;this.loading=false;cancelAnimationFrame(this.raf);this.worker?.terminate();this.worker=null;this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.video.pause();this.video.srcObject=null;this.busy=false;this.el.hidden=true;this.reticle.hidden=true;this.holograms.visible=false;this.gestures.reset();this.hovered?.classList.remove('hand-hover');this.hovered=null;this.paintButton();
   }
   paintButton(){const b=this.screen.el.querySelector('[data-action=hands]');if(b){b.textContent=this.loading?'Cancel hand control':this.active?'Stop hand control':'Start hand control';b.setAttribute('aria-pressed',String(this.active||this.loading));}}
   frame(){
@@ -52,7 +52,16 @@ export class HandControl {
     if(result.explode!=null)s.setExplode(result.explode);
     if(result.toggle)s.setExplode(s.model.explodeTarget>.5?0:1);
     if(result.orbit){const offset=s.app.stage.camera.position.clone().sub(s.controls.target),sp=new THREE.Spherical().setFromVector3(offset);sp.theta-=result.orbit.x*5;sp.phi=THREE.MathUtils.clamp(sp.phi+result.orbit.y*4,.2,Math.PI*.8);s.app.stage.camera.position.copy(s.controls.target).add(new THREE.Vector3().setFromSpherical(sp));s.controls.update();}
-    if(result.pointer){const rect=s.el.querySelector('.lab-orbit').getBoundingClientRect(),root=s.el.getBoundingClientRect();const x=rect.left+result.pointer.x*rect.width,y=rect.top+result.pointer.y*rect.height;this.reticle.hidden=false;this.reticle.style.transform=`translate(${x-root.left}px,${y-root.top}px)`;this.reticle.classList.toggle('pinching',!!result.pinched);if(result.select)s.pickAt(x,y);}else this.reticle.hidden=true;
+    if(result.pointer){
+      const rect=s.el.querySelector('.lab-orbit').getBoundingClientRect(),root=s.el.getBoundingClientRect();
+      const x=rect.left+result.pointer.x*rect.width,y=rect.top+result.pointer.y*rect.height;
+      this.reticle.hidden=false;this.reticle.style.transform=`translate(${x-root.left+s.el.scrollLeft}px,${y-root.top+s.el.scrollTop}px)`;
+      this.reticle.classList.toggle('pinching',!!result.pinched);
+      this.hovered?.classList.remove('hand-hover');this.hovered=s.handTargetAt(x,y);this.hovered?.classList.add('hand-hover');
+      if(this.hovered)this.status(`Quick pinch: ${this.hovered.getAttribute('aria-label')||this.hovered.textContent.trim()}`);
+      if(result.select)s.handSelectAt(rect.left+result.select.x*rect.width,rect.top+result.select.y*rect.height);
+    }else{this.reticle.hidden=true;this.hovered?.classList.remove('hand-hover');this.hovered=null;}
+
     const cam=s.app.stage.camera,dist=cam.position.distanceTo(s.controls.target)*.8;
     for(let j=0;j<this.lines.length;j++){
       const line=this.lines[j],hand=hands[j];line.visible=!!hand;if(!hand)continue;
