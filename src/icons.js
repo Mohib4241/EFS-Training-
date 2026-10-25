@@ -3,6 +3,11 @@ const s = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" 
 const f = (d) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor">${d}</svg>`;
 
 export const ICON = {
+  book: s('<path d="M4 4h6a3 3 0 013 3v14a4 4 0 00-4-3H4zM13 7a3 3 0 013-3h5v14h-5a4 4 0 00-3 3"/>'),
+  search: s('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
+  clock: s('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  drill: s('<path d="M3 5h13v7h-6v8H5l1-8H3zM16 7h3v3h-3M19 8.5h3M7 17h3"/>'),
+  chart: s('<path d="M5 20V10h3v10M11 20V4h3v16M17 20v-7h3v7"/>'),
   menu: s('<path d="M4 7h16M4 12h16M4 17h16"/>'),
   close: s('<path d="M6 6l12 12M18 6L6 18"/>'),
   home: s('<path d="M3.5 11L12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/>'),

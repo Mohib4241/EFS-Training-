@@ -17,10 +17,11 @@ import { UI } from './i18n.js';
 import { Shell, store } from './shell.js';
 import { HomeScreen } from './screens/home.js';
 import { LessonScreen } from './screens/lesson.js';
-import { PartsScreen } from './screens/parts.js';
-import { ChillerScreen } from './screens/chiller.js';
+import { SimulationScreen } from './screens/simulation.js';
+import { LibraryScreen } from './screens/library.js';
 
-export const ROUTES = ['home', 'vacuum/sop', 'vacuum/instructions', 'vacuum/parts', 'chiller'];
+
+export const ROUTES = ['home', 'vacuum/sop', 'vacuum/instructions', 'vacuum/parts', 'chiller', 'labs', 'library', 'progress', 'lab/vacuum', 'lab/drill', 'lab/mcb', 'lab/hvac'];
 
 export class App {
   constructor(host) {
@@ -40,8 +41,12 @@ export class App {
       home: () => new HomeScreen(this),
       'vacuum/sop': () => new LessonScreen(this, 'sop'),
       'vacuum/instructions': () => new LessonScreen(this, 'instructions'),
-      'vacuum/parts': () => new PartsScreen(this),
-      chiller: () => new ChillerScreen(this),
+      'vacuum/parts': () => new SimulationScreen(this, 'vacuum'),
+      chiller: () => new SimulationScreen(this, 'hvac'),
+      labs: () => new HomeScreen(this, 'labs'),
+      progress: () => new HomeScreen(this, 'progress'),
+      library: () => new LibraryScreen(this),
+      ...Object.fromEntries(['vacuum', 'drill', 'mcb', 'hvac'].map(kind => [`lab/${kind}`, () => new SimulationScreen(this, kind)])),
     };
     this.shell = new Shell(this);
     this.narrator.onVoices = () => { this.shell._paintSettings(); if (this.unlocked) this.shell.voiceNotice(); };
@@ -77,6 +82,7 @@ export class App {
     s.build();
     s.enter();
     this.shell.paint();
+    this.stage.resize();
     this.hint();
   }
 
@@ -119,7 +125,7 @@ export class App {
   }
 
   _key(e) {
-    if (e.target.closest?.('input, textarea, select')) return;
+    if (e.target.closest?.('input, textarea, select, button, a, summary')) return;
     const k = e.key;
     if (k === 'l' || k === 'L') this.setLang(LANGS[(LANGS.indexOf(this.lang) + 1) % LANGS.length]);
     else if (k === 'm' || k === 'M') this.toggleMute();
@@ -131,7 +137,7 @@ export class App {
   // ───────────── per frame ─────────────
   frame(dt) {
     this.screen?.update(dt);
-    this.stage.render(dt);
+    if (this.host.style.visibility !== 'hidden') this.stage.render(dt);
     this._acc = (this._acc || 0) + dt;
     if (this._acc > 0.5) { this._acc = 0; this.shell.setFps(`${this.stage.fps.toFixed(0)} fps · ${this.stage.qualityLabel}`); }
   }

@@ -18,20 +18,26 @@ export const store = {
 
 // The menu. A section with `sub` is a drop-down.
 export const MENU = [
-  { id: 'home', route: 'home', icon: 'home', key: 'navHome' },
-  {
-    id: 'vacuum', key: 'navVacuum', icon: 'vacuum', sub: [
-      { route: 'vacuum/sop', key: 'subSop', desc: 'subSopD', n: 1 },
-      { route: 'vacuum/instructions', key: 'subInstr', desc: 'subInstrD', n: 2 },
-      { route: 'vacuum/parts', key: 'subParts', desc: 'subPartsD', n: 3 },
-    ],
-  },
-  {
-    id: 'chiller', key: 'navChiller', icon: 'snow', sub: [
-      { route: 'chiller', key: 'subHvac', desc: 'subHvacD', n: 1 },
-    ],
-  },
+  { id: 'home', route: 'home', icon: 'home', key: 'hub' },
+  { id: 'labs', route: 'labs', icon: 'apart', key: 'labs' },
+  { id: 'library', route: 'library', icon: 'book', key: 'library' },
+  { id: 'progress', route: 'progress', icon: 'chart', key: 'progress' },
+  { id: 'vacuum', key: 'soft', icon: 'vacuum', sub: [
+    { route: 'vacuum/sop', key: 'subSop', desc: 'subSopD', n: 1 },
+    { route: 'vacuum/instructions', key: 'subInstr', desc: 'subInstrD', n: 2 },
+    { route: 'lab/vacuum', key: 'vacuumLab', desc: 'explore', n: 3 },
+  ] },
+  { id: 'hard', key: 'hard', icon: 'gear', sub: [
+    { route: 'lab/drill', key: 'drill', desc: 'practice', n: 1 },
+    { route: 'lab/mcb', key: 'mcb', desc: 'practice', n: 2 },
+    { route: 'lab/hvac', key: 'hvac', desc: 'practice', n: 3 },
+  ] },
 ];
+const NAV = {
+  en: { hub: 'Learning hub', labs: 'Simulation lab', library: 'SOP library', progress: 'My learning', presenter: 'Meet your guide', soft: 'Soft services', hard: 'Hard services', vacuumLab: 'Vacuum explorer', explore: 'Open, inspect and practise', drill: 'Drilling essentials', mcb: 'MCB safety', hvac: 'Cascade chillers', practice: 'Interactive practice lab' },
+  hi: { hub: 'लर्निंग हब', labs: 'सिमुलेशन लैब', library: 'SOP लाइब्रेरी', progress: 'मेरा प्रशिक्षण', presenter: 'आपका मार्गदर्शक', soft: 'सॉफ्ट सर्विसेज़', hard: 'हार्ड सर्विसेज़', vacuumLab: 'वैक्यूम एक्सप्लोरर', explore: 'खोलें, जाँचें और अभ्यास करें', drill: 'ड्रिलिंग', mcb: 'MCB सुरक्षा', hvac: 'चिलर संयंत्र', practice: 'अभ्यास लैब' },
+  ne: { hub: 'सिकाइ केन्द्र', labs: 'सिमुलेसन ल्याब', library: 'SOP पुस्तकालय', progress: 'मेरो सिकाइ', presenter: 'तपाईंको मार्गदर्शक', soft: 'सफ्ट सर्भिस', hard: 'हार्ड सर्भिस', vacuumLab: 'भ्याकुम एक्सप्लोरर', explore: 'खोल्नुहोस्, जाँच्नुहोस् र अभ्यास गर्नुहोस्', drill: 'ड्रिलिङ', mcb: 'MCB सुरक्षा', hvac: 'चिलर प्लान्ट', practice: 'अभ्यास ल्याब' },
+};
 
 /** The menu section a route belongs to, or null. */
 export const sectionOf = (route) => (MENU.find((m) => m.sub && m.sub.some((s) => s.route === route)) || {}).id || null;
@@ -57,8 +63,8 @@ export class Shell {
       </header>
       <div id="scrim" hidden></div>
       <nav id="side" aria-label="Menu" aria-hidden="true">
-        <div class="sideHead"><span class="badge" aria-hidden="true">EFS</span><b id="sideT"></b><button id="sideX" class="ico" type="button">${ICON.close}</button></div>
-        <div id="sideList"></div>
+        <div class="sideHead"><span class="academy-logo" aria-hidden="true">EFS<span>▸</span></span><b id="sideT"></b><button id="sideX" class="ico" type="button">${ICON.close}</button></div>
+        <p class="nav-label">WORKSPACE</p><div id="sideList"></div><div class="sidebar-note"><span class="online-dot"></span><div><b>Learn by doing</b><small>Your safe space to practise.</small></div></div><div class="learner-profile"><span>EF</span><div><b>EFS learner</b><small>Personal learning space</small></div></div>
       </nav>
       <div id="cfgBox" hidden role="dialog" aria-labelledby="cfgT"><h2 id="cfgT"></h2><div id="cfgBody"></div></div>
       <div id="notice" role="status" hidden></div>
@@ -72,7 +78,7 @@ export class Shell {
   }
 
   get lang() { return this.app.lang; }
-  t(k) { return UI[this.lang][k] ?? UI.en[k] ?? k; }
+  t(k) { return NAV[this.lang]?.[k] ?? UI[this.lang][k] ?? UI.en[k] ?? k; }
 
   // ───────────── drawing the texts that depend on the language ─────────────
   paint() {
@@ -88,8 +94,8 @@ export class Shell {
     $('#cfg').title = t('voices'); $('#cfg').setAttribute('aria-label', t('voices'));
     $('#menuBtn').title = t('menu'); $('#menuBtn').setAttribute('aria-label', t('menu'));
     const sel = $('#langSel'); sel.innerHTML = langOptions(lang); sel.setAttribute('aria-label', t('language')); sel.value = lang;
-    $('#langWrap').hidden = a.route === 'home';            // the home page has its own, larger language drop-down
-    $('#sideT').textContent = t('appTitle'); $('#sideX').setAttribute('aria-label', t('close'));
+    $('#langWrap').hidden = false;            // the home page has its own, larger language drop-down
+    $('#sideT').textContent = 'ACADEMY'; $('#sideX').setAttribute('aria-label', t('close'));
     $('#cfgT').textContent = t('voices');
     $('#tapHint').innerHTML = `${ICON.sound}<span>${esc(t('tapToHear'))}</span>`;
     this._paintMenu(); this._paintSettings();
@@ -152,10 +158,11 @@ export class Shell {
       this.closeSettings();
     }
     side.classList.toggle('open', open);
-    side.setAttribute('aria-hidden', String(!open));
-    side.inert = !open;
+    const desktop = window.matchMedia('(min-width: 1100px)').matches;
+    side.setAttribute('aria-hidden', String(!open && !desktop));
+    side.inert = !open && !desktop;
     $('#menuBtn').setAttribute('aria-expanded', String(open));
-    $('#scrim').hidden = !open;
+    $('#scrim').hidden = !open || desktop;
     if (open) setTimeout(() => { const f = side.querySelector('.item.on, .item'); if (f) f.focus({ preventScroll: true }); }, 60);
   }
   get menuOpen() { return $('#side').classList.contains('open'); }
@@ -227,6 +234,8 @@ export class Shell {
     addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { if (this.menuOpen) { this.openMenu(false); $('#menuBtn').focus(); } this.closeSettings(); }
     });
-    $('#side').inert = true;
+    this.rail = window.matchMedia('(min-width: 1100px)');
+    this.rail.addEventListener('change', () => this.openMenu(false));
+    this.openMenu(false);
   }
 }

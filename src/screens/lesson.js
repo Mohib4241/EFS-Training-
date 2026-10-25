@@ -55,11 +55,13 @@ export class LessonScreen {
       <button class="bigPlay" type="button" hidden></button>
       <div class="flash" aria-hidden="true"></div>
       <div class="dip" aria-hidden="true"></div>
+      <div class="lesson-controls"><button data-act="prev" aria-label="Previous step"></button><button data-act="toggle" aria-label="Play or pause"></button><button data-act="next" aria-label="Next step"></button><select aria-label="Choose lesson step"></select><button data-act="lab" class="lesson-open-lab">Open 3D lab ↗</button></div>
       <div class="overlay end" hidden><div class="box"><span class="tick" aria-hidden="true">${ICON.check}</span><h2></h2><p></p><div class="row2"><button data-act="again" class="ghost" type="button"></button><button data-act="other" class="primary" type="button"></button></div></div></div>`;
     a.shell.screensEl.appendChild(el);
     this.$ = (s) => el.querySelector(s);
     this.tagsEl = this.$('.tags'); this.tagMap = new Map(); this._v = new THREE.Vector3();
     el.addEventListener('click', (e) => this._click(e));
+    el.querySelector('.lesson-controls select').addEventListener('change', e => this.jump(+e.target.value));
   }
 
   _ensureDirector() {
@@ -86,7 +88,7 @@ export class LessonScreen {
     if (a.waitsForTouch) this._setPoster(true); else this.play();
     this.paint();
   }
-  leave() { this.active = false; this.el.hidden = true; this.dir.pause(); this.dir.silent = true; this.world().show(false); this.clearTags(); this._setPoster(false); }
+  leave() { clearTimeout(this._dipT); clearTimeout(this._cardTimer); this.$('.dip').classList.remove('on'); this.active = false; this.el.hidden = true; this.dir.pause(); this.dir.silent = true; this.world().show(false); this.clearTags(); this._setPoster(false); }
   pause() { if (this.dir && this.dir.playing) { this.dir.pause(); this._flash('pause'); this.paint(); } }
   onLang(l) { this.dir.setLang(l); this.paint(); }
   onMute(m) { this.dir.silent = !this.app.canSpeak; this.dir.setMuted(m); }
@@ -136,7 +138,7 @@ export class LessonScreen {
     const d = this.$('.dip');
     d.classList.add('on');
     clearTimeout(this._dipT);
-    this._dipT = setTimeout(() => { fn(); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.remove('on'))); }, 260);
+    this._dipT = setTimeout(() => { if (!this.active) return; fn(); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.remove('on'))); }, 260);
   }
 
   _click(e) {
@@ -144,6 +146,10 @@ export class LessonScreen {
     if (!b) { if (e.target.closest('.hit')) this.togglePlay(); return; }
     if (b.classList.contains('bigPlay')) { this.play(); this._flash('play'); return; }
     const act = b.dataset.act;
+    if (act === 'toggle') return this.togglePlay();
+    if (act === 'prev') return this.jump(this.dir.stepIdx - 1);
+    if (act === 'next') return this.jump(this.dir.stepIdx + 1);
+    if (act === 'lab') return this.app.go('lab/vacuum');
     if (act === 'again') { this.$('.end').hidden = true; this._dip(() => { this.dir.silent = !this.app.canSpeak; this.dir.goto(0, { play: true }); this.paint(); }); return; }
     if (act === 'other') { this.$('.end').hidden = true; this.app.go(this.cfg.next); }
   }
@@ -162,13 +168,19 @@ export class LessonScreen {
     $('.end h2').textContent = t(this.cfg.done); $('.end p').textContent = t(this.cfg.doneSub);
     $('[data-act=again]').innerHTML = `${ICON.replay}<span>${esc(t('again'))}</span>`;
     $('[data-act=other]').innerHTML = `<span>${esc(t(this.cfg.nextKey))}</span>${ICON.next}`;
+    $('[data-act=prev]').innerHTML = ICON.prev; $('[data-act=next]').innerHTML = ICON.next;
+    $('[data-act=toggle]').innerHTML = this.dir?.playing ? ICON.pause : ICON.play;
+    $('[data-act=toggle]').setAttribute('aria-label', t(this.dir?.playing ? 'pause' : 'play'));
+    const select = $('.lesson-controls select');
+    select.innerHTML = this.steps.map((s, i) => `<option value="${i}"${i === this.dir?.stepIdx ? ' selected' : ''}>${s.n.toString().padStart(2, '0')} · ${esc(s.title[lang])}</option>`).join('');
+    $('[data-act=prev]').disabled = this.dir?.stepIdx === 0; $('[data-act=next]').disabled = this.dir?.stepIdx === this.steps.length - 1;
     if (this.poster) this._setPoster(true);
     this.el.classList.toggle('paused', !!this.dir && !this.dir.playing && !this.poster && !this.dir.ended);
   }
 
   _onStep(i, s) {
     if (!this.active) return;
-    this.app.shell.paint();                          // the step number and title in the top bar, and the list in the menu
+    this.app.shell.paint(); this.paint();            // the step number and title in the top bar, and the list in the menu
     if (this.dir.playing) this._chapter(s);
   }
   /** The step's title, shown at the bottom left for a few seconds like a chapter title in a video. */

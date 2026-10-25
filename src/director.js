@@ -71,7 +71,7 @@ export class Director {
     this.stepIdx = -1; this.beatIdx = -1;
     this.gen = null; this.genDone = true;
     this.speech = null; this.speechDone = true; this.speechWait = 0; this.speechFor = 0;
-    this.gap = 0;
+    this.gap = 0; this.between = false;
     this.playing = false; this.ended = false;
     this.on = {};                   // onStep(i), onBeat(step, beat), onEnd()
     this._ff = false;
@@ -119,6 +119,8 @@ export class Director {
   }
 
   _startStep(i) {
+    // A jump or replay must not inherit the previous chapter's pending transition.
+    this.between = false; this.gap = 0;
     this.stepIdx = i; this.beatIdx = -1;
     this.on.step?.(i, this.steps[i]);
     this._nextBeat();
