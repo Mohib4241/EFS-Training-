@@ -504,8 +504,7 @@ button:disabled { cursor:default; opacity:.5; }
 .hand-hud { position:absolute; z-index:5; left:24px; top:180px; width:240px; border:1px solid #3ab2a6; background:#061e23ed; box-shadow:0 0 30px #00dab51a,inset 0 0 35px #00b8a40a; border-radius:12px; padding:13px; color:#9bded6; backdrop-filter:blur(15px); }
 .hand-hud-top { display:flex; align-items:center; justify-content:space-between; font-size:10px; letter-spacing:2px; }
 .hand-hud-top button { border:0; background:transparent; color:#90dbcf; font-size:22px; width:28px; height:28px; }
-.hand-hud video { width:100%; aspect-ratio:1.6; object-fit:cover; opacity:.24; transform:scaleX(-1); border-radius:6px; display:block; margin-top:8px; }
-.hand-hud canvas { position:absolute; left:13px; top:49px; width:212px; height:133px; }
+.hand-hud canvas { position:relative; display:block; left:auto; top:auto; width:100%; height:auto; aspect-ratio:1.6; margin-top:8px; border-radius:6px; background:radial-gradient(ellipse at center,#123a41,#071b26); }
 .hand-state { font-size:11px; line-height:1.6; color:#88f4dc; }
 .hand-hud ul { list-style:none; padding:0; margin:10px 0; }
 .hand-hud li { font-size:9px; line-height:1.9; color:#779e96; }
@@ -528,3 +527,20 @@ button:disabled { cursor:default; opacity:.5; }
 @media(max-width:850px){.lab-toolbar{bottom:auto;align-items:flex-start}.lab-toolbar button{min-height:34px}.lab-caption{max-width:calc(100% - 44px)}}
 
 .lab button.hand-hover { outline:2px solid #66ffe0; outline-offset:3px; box-shadow:0 0 18px #66ffe055; }
+
+/* Task demonstrations are directly selectable and labelled, independently of practice scoring. */
+.lab-tasks { right:calc(var(--lab-panel-width) + 24px); max-width:none; }
+.task-icons { flex-wrap:nowrap; overflow-x:auto; padding:4px 4px 10px; scrollbar-color:#6d998b #142e29; }
+.task-icons button { flex:0 0 132px; width:132px; min-height:66px; height:auto; flex-direction:row; justify-content:flex-start; padding:10px; text-align:left; }
+.task-icons button>span { font-size:11px; line-height:1.35; }
+.task-icons small { display:block; margin-bottom:3px; color:#88a89e; }
+.task-icons svg { flex-shrink:0; }
+.task-stop { margin-top:8px; padding:7px 12px; border:1px solid #52776b; border-radius:6px; background:#19352b; color:#d6eee5; font-size:11px; }
+.task-status { font-size:11px; max-width:none; }
+@media(max-width:850px){
+ .lab-tasks{left:22px;right:22px;top:325px;max-width:none;}
+ .task-heading{align-items:flex-start;flex-direction:column;gap:4px;}
+ .task-icons button{width:132px;height:auto;min-height:66px;}
+ .lab-toolbar{top:510px;}.lab-parts{top:590px;}.lab-caption{top:665px;}.lab-panel{top:715px;}.lab-orbit{height:715px;}
+ .hand-hud canvas{width:100%;height:auto;}
+}

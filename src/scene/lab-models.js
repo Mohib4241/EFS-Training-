@@ -54,6 +54,12 @@ export class LabModel {
     p=this.part('trigger',[0,.1,.55]);this.box(p,.13,.15,.17,C.black,.08,.84,.02,.025);this.box(p,.14,.045,.5,C.red,-.02,.97,0,.015);
     p=this.part('workpiece',[.5,0,.3]);this.box(p,.1,1.6,1.0,mat(0xb7a27e),1.85,.84,0,.01);
     this.hole=this.cyl(p,.04,.04,.006,C.black,1.795,1.13,0);this.hole.rotation.z=Math.PI/2;this.hole.visible=false;
+    // Explorer anatomy is enlarged; demonstrations bring the equipment to operator scale.
+    this.toolRoot=new THREE.Group();this.root.add(this.toolRoot);
+    for(const part of Object.values(this.parts))this.toolRoot.add(part.group);
+    const support=this.drillSupport=new THREE.Group();this.root.add(support);support.visible=false;
+    const top=new THREE.Mesh(new RoundedBoxGeometry(.65,.06,.85,2,.02),C.dark);top.position.set(1.03,.54,0);support.add(top);
+    for(const z of [-.3,.3]){const leg=new THREE.Mesh(new THREE.BoxGeometry(.06,.52,.06),C.silver);leg.position.set(1.03,.26,z);support.add(leg);}
     this.center=V(.25,.85,0);this.camera=V(3.25,2.1,4.4);
   }
   _mcb(){
@@ -102,6 +108,11 @@ export class LabModel {
   setHologram(on){
     this.root.traverse(o=>{if(!o.isMesh||!o.material?.color)return;const m=o.material;if(!m.userData.original)m.userData.original={color:m.color.clone(),wireframe:m.wireframe,transparent:m.transparent,opacity:m.opacity};const base=m.userData.original;if(on){m.color.setHex(0x48e9d2);m.wireframe=true;m.transparent=true;m.opacity=.5;}else{m.color.copy(base.color);m.wireframe=base.wireframe;m.transparent=base.transparent;m.opacity=base.opacity;}});
   }
+  setDemonstration(on){
+    if(!this.toolRoot)return;
+    this.toolRoot.scale.setScalar(on?.45:1);this.toolRoot.position.set(on?.2:0,on?.55:0,0);
+    this.drillSupport.visible=on;this.root.updateMatrixWorld(true);
+  }
   setActions(actions){this.actions=new Set(actions);}
   setFocus(id){this.focus=id;for(const [key,p]of Object.entries(this.parts))for(const m of p.meshes||[])if(m.material.emissive)m.material.emissive.setHex(key===id?0x114a48:0x000000);}
   anchor(id){const p=this.parts[id];if(!p)return this.center.clone();const b=new THREE.Box3().setFromObject(p.group);return b.getCenter(new THREE.Vector3());}
@@ -121,7 +132,7 @@ export class LabModel {
       }
       if(this.kind==='drill'){
         this.parts.bit.group.rotation.x=running?t*12:0;
-        this.hole.visible=A.has('run');
+        this.hole.visible=A.has('run')||A.has('drilled');
       }
       if(this.kind==='mcb'){
         this.parts.lock.group.visible=A.has('isolate')||e>.1;

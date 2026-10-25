@@ -25,7 +25,7 @@ export class SimulationScreen {
     el.innerHTML=`<div class="lab-orbit" aria-label="Rotate the 3D equipment" tabindex="0"></div>
       <div class="lab-heading"><a class="lab-back" href="#/home">← Training studio</a><p class="eyebrow">${d.category} / INTERACTIVE LAB</p><h2>${esc(d.title)}</h2><p>${esc(d.subtitle)}</p><span class="lab-status">${esc(d.status)}</span></div>
       <div class="lab-toolbar"><button data-action="explode" aria-pressed="false">◇ Exploded view</button><button data-action="reset-view">↺ Reset view</button><button data-action="hands" aria-pressed="false">Start hand control</button><button data-action="hologram" aria-pressed="false">Hologram</button>${['vacuum','hvac'].includes(this.kind)?`<button data-action="airflow" aria-pressed="false">${this.kind==='hvac'?'≈ Water flow':'≈ Airflow'}</button>`:''}</div>
-      <div class="lab-part-label" hidden></div><div class="lab-tasks"><div class="task-heading"><b>TASK ACTIONS</b><span>Choose an icon. Watch your trainer.</span></div><div class="task-icons"></div><p class="task-status" role="status"></p></div>
+      <div class="lab-part-label" hidden></div><div class="lab-tasks"><div class="task-heading"><b>TASK ACTIONS</b><span>Select any task to watch its demonstration.</span></div><div class="task-icons"></div><p class="task-status" role="status">Demonstrations are previews. Complete guided practice separately.</p><button class="task-stop" data-action="stop-demo" hidden>Stop demonstration</button></div>
       <div class="lab-parts" aria-label="Inspect a component">${d.parts.map(([id,name])=>`<button data-part="${id}" aria-pressed="false">${esc(name)}</button>`).join('')}</div>
       <aside class="lab-panel" aria-label="Guided practice"><div class="lab-panel-top"><span>GUIDED PRACTICE</span><span class="lab-step-count"></span></div><progress class="lab-progress" max="${this.total}" value="0" aria-label="Simulation progress"></progress><div class="lab-content"></div>${this.kind==='hvac'?'<div class="plant-controls"><label>Simulated demand <output>40%</output><input aria-label="Simulated plant demand" type="range" min="0" max="100" value="40"></label><p class="plant-readout"></p><small>Illustrative capacity thresholds; not site setpoints.</small></div>':''}<div class="lab-feedback" role="status" aria-live="polite"></div><div class="lab-footer"><button data-action="narrate">${playIcon} Hear guidance</button><button data-action="restart">Restart</button></div><p class="lab-language" hidden>New simulation guidance is currently in English. The vacuum SOP lesson supports all three languages.</p><details class="lab-source"><summary>Safety & source notes</summary><p>${esc(d.safety)}</p>${d.sources.map(s=>`<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join('')}</details></aside>
       <div class="lab-caption"><span class="lab-live-dot"></span> LIVE 3D <span>Drag to rotate · Scroll to zoom</span><small>${esc(d.modelNote)}</small></div>`;
@@ -40,13 +40,21 @@ export class SimulationScreen {
     this.restoreModel();this.paint();
   }
   setExplode(value){this.model.explodeTarget=THREE.MathUtils.clamp(value,0,1);this.el.querySelector('[data-action=explode]').setAttribute('aria-pressed',String(value>.05));}
-  setTaskStatus(text){this.el.querySelector('.task-status').textContent=text;}
-  paintTasks(){const current=Math.min(this.progress.index,this.def.steps.length-1);this.el.querySelector('.task-icons').innerHTML=this.def.steps.map((step,i)=>`<button type="button" data-task="${i}" title="${esc(step.title)}" aria-label="Demonstrate ${esc(step.title)}" ${i>current?'disabled':''} class="${i===current?'current':''}">${ICON[{prepare:'check',inspect:'search',isolate:'power',open:'apart',bag:'vacuum',close:'check',run:'play',finish:'check',pumps:'air','stage-lag':'snow',fault:'info',restore:'reset',bit:'drill',verify:'check'}[step.action]]||ICON.gear}<small>${String(i+1).padStart(2,'0')}</small></button>`).join('');}
-  demonstrate(index){if(index<0||index>this.progress.index||index>=this.def.steps.length)return;this.performer.play(index);this.select(this.def.steps[index].focus);}
+  setTaskStatus(text){this.el.querySelector('.task-status').textContent=text;this.paintTasks();}
+
+  paintTasks(){
+    const running=this.performer?.running,active=running?this.performer.index:-1;
+    this.el.querySelector('.task-icons').innerHTML=this.def.steps.map((step,i)=>`<button type="button" data-task="${i}" title="${esc(step.title)}" aria-label="Demonstrate ${esc(step.title)}" aria-pressed="${i===active}" class="${i===active?'current':''}">${ICON[{prepare:'check',inspect:'search',isolate:'power',open:'apart',bag:'vacuum',close:'check',run:'play',finish:'check',pumps:'air','stage-lag':'snow',fault:'info',restore:'reset',bit:'drill',verify:'check'}[step.action]]||ICON.gear}<span><small>${String(i+1).padStart(2,'0')}</small>${esc(step.title)}</span></button>`).join('');
+    this.el.querySelector('.task-stop').hidden=!running;
+  }
+  demonstrate(index){
+    if(!Number.isInteger(index)||index<0||index>=this.def.steps.length)return;
+    this.performer.play(index);this.selected='';this.select(this.def.steps[index].focus);
+  }
   handTargetAt(x,y){
     const hit=document.elementFromPoint(x,y);
     if(!hit||!this.el.contains(hit))return null;
-    const button=hit.closest('.task-icons button, .lab-parts button, .lab-toolbar button, .hand-hud button');
+    const button=hit.closest('.task-icons button, .lab-parts button, .lab-toolbar button, .task-stop, .hand-hud button');
     // Camera start is always an explicit mouse/touch/keyboard action; gestures may stop it.
     return button&&!button.disabled&&(button.dataset.action!=='hands'||this.hands.active)?button:null;
   }
@@ -62,7 +70,7 @@ export class SimulationScreen {
   get complete(){return this.progress.index>=this.total;}
   get current(){return this.def.steps[this.progress.index]||this.def.quiz[this.progress.index-this.def.steps.length];}
   restoreModel(){this.model.setActions(this.def.steps.slice(0,Math.min(this.progress.index,this.def.steps.length)).map(s=>s.action));}
-  enter(){this.restoreModel();this.group.visible=true;this.el.hidden=false;this.controls.enabled=true;this.app.stage.setLook({bg:new THREE.Color(0x0c1c28),fog:'none',hemi:.45,key:1.7,fill:.55,rim:1.2,env:.4,exposure:.85,bloom:0,keyPos:[-3,6,5],keyColor:0xfff7e7,rimColor:0x69d9cb,shift:innerWidth>850?-.13:0,shadow:[4,4]});this.resetView();this.paint();}
+  enter(){this.model.setDemonstration(false);this.restoreModel();this.group.visible=true;this.el.hidden=false;this.controls.enabled=true;this.app.stage.setLook({bg:new THREE.Color(0x0c1c28),fog:'none',hemi:.45,key:1.7,fill:.55,rim:1.2,env:.4,exposure:.85,bloom:0,keyPos:[-3,6,5],keyColor:0xfff7e7,rimColor:0x69d9cb,shift:innerWidth>850?-.13:0,shadow:[4,4]});this.resetView();this.paint();}
   leave(){this.hands.stop();this.performer.stop();this.group.visible=false;this.el.hidden=true;this.controls.enabled=false;this.app.narrator.stop();this.presenter.stop();}
   resetView(){const s=this.app.stage;s.camera.position.copy(this.model.camera);s.fov=38;s.camera.fov=38;this.controls.target.copy(this.model.center);if(innerWidth<850){this.controls.target.y-=.7;this.controls.target.x-=.3;s.camera.position.multiplyScalar(1.5);}s.camera.updateProjectionMatrix();this.controls.update();}
   onLang(){this.paint();this.app.narrator.stop();}
@@ -70,11 +78,12 @@ export class SimulationScreen {
   pause(){this.app.narrator.stop();this.presenter.stop();this.performer.stop();this.hands.stop();}
   select(id){const p=this.def.parts.find(p=>p[0]===id);if(!p)return;this.selected=this.selected===id?'':id;this.model.setFocus(this.selected);const label=this.el.querySelector('.lab-part-label');label.hidden=!this.selected;label.innerHTML=this.selected?`<b>${esc(p[1])}</b><span>${esc(p[2])}</span>`:'';this.el.querySelectorAll('[data-part]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.part===this.selected)));}
   action(name){
-    if(name==='explode')this.setExplode(this.model.explodeTarget>.5?0:1);
+    if(name==='stop-demo'){this.performer.stop();this.restoreModel();this.setTaskStatus('Demonstration stopped. Choose a task to replay it.');}
+    if(name==='explode'){this.performer.stop();this.model.setDemonstration(false);this.setTaskStatus('Exploring equipment anatomy. Select a task to return to a demonstration.');this.setExplode(this.model.explodeTarget>.5?0:1);}
     if(name==='hands'){if(this.hands.active||this.hands.loading)this.hands.stop();else this.hands.start();}
     if(name==='hologram'){this.hologram=!this.hologram;this.model.setHologram(this.hologram);this.el.querySelector('[data-action=hologram]').setAttribute('aria-pressed',String(this.hologram));}
     if(name==='airflow'){this.model.flowOn=!this.model.flowOn;this.el.querySelector('[data-action=airflow]').setAttribute('aria-pressed',String(this.model.flowOn));}
-    if(name==='reset-view')this.resetView();
+    if(name==='reset-view'){this.performer.stop();this.model.setDemonstration(false);this.restoreModel();this.setTaskStatus('Explorer view restored. Select a task to watch the guide.');this.resetView();}
     if(name==='restart'){this.performer.stop();this.app.narrator.stop();this.presenter.stop();this.progress={index:0,mistakes:0};this.pending=false;this.feedback='New practice started. Your previous progress for this module has been reset.';this.model.explodeTarget=0;this.model.flowOn=false;this.restoreModel();this.persist();this.paint();}
     if(name==='narrate')this.speak();
     if(name==='continue'){this.performer.stop();this.restoreModel();this.pending=false;this.feedback='';this.paint();this.speak();}

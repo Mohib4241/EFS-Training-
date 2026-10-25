@@ -4,8 +4,8 @@ export class HandControl {
   constructor(screen){
     this.screen=screen;this.gestures=new Gestures();this.session=0;this.active=false;this.loading=false;
     const host=this.el=document.createElement('aside');host.className='hand-hud';host.hidden=true;
-    host.innerHTML='<div class="hand-hud-top"><b>HAND LINK</b><button type="button" aria-label="Stop hand control">×</button></div><video muted playsinline></video><canvas width="240" height="150"></canvas><p class="hand-state" role="status">Preparing camera…</p><ul><li><b>Pinch + move</b> Rotate equipment</li><li><b>Quick pinch</b> Select a task or component</li><li><b>Two hands apart</b> Open the assembly</li><li><b>Fist → open palm</b> Toggle exploded view</li></ul><small>Camera frames stay on this device.</small>';
-    screen.el.append(host);this.video=host.querySelector('video');this.canvas=host.querySelector('canvas');this.ctx=this.canvas.getContext('2d');
+    host.innerHTML='<div class="hand-hud-top"><b>HAND LINK</b><button type="button" aria-label="Stop hand control">×</button></div><canvas width="240" height="150"></canvas><p class="hand-state" role="status">Preparing camera…</p><ul><li><b>Pinch + move</b> Rotate equipment</li><li><b>Quick pinch</b> Select a task or component</li><li><b>Two hands apart</b> Open the assembly</li><li><b>Fist → open palm</b> Toggle exploded view</li></ul><small>Tracking only · camera image is never displayed.</small>';
+    screen.el.append(host);this.video=document.createElement('video');this.video.muted=true;this.video.playsInline=true;this.canvas=host.querySelector('canvas');this.ctx=this.canvas.getContext('2d');
     host.querySelector('button').onclick=()=>this.stop();
     this.reticle=document.createElement('div');this.reticle.className='hand-reticle';this.reticle.hidden=true;screen.el.append(this.reticle);
     this.holograms=new THREE.Group();screen.group.add(this.holograms);this.lines=[];
