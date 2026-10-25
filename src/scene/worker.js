@@ -198,7 +198,9 @@ export class Worker {
 
     // the head: the shared face rig, without its own neck (the body has one)
     this.face = new Head(M, { neck: false });
-    this.head = this.face.group; this.head.scale.setScalar(1.24); this.head.position.y = -0.035;
+    // Slightly smaller than the early prototype: it gives the shared guide the adult proportions of
+    // the supplied reference while preserving the same fully-rigged face in all lessons and labs.
+    this.head = this.face.group; this.head.scale.setScalar(1.16); this.head.position.y = -0.025;
     this.bones.head.add(this.head);
 
     // polo details on the chest: the blue collar, the placket with two buttons, and the EFS mark
