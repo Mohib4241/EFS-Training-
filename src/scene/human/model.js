@@ -92,14 +92,14 @@ function bodyParts() {
   const part = (id, bone, f, soft = 0.016) => P.push({ id, bone, f, soft });
   // torso
   part('pelvis', 'hips', ellipsoid([0, 0.952, -0.006], [0.157, 0.108, 0.112]), 0.03);
-  part('glutes', 'hips', (x, y, z) => ellipsoid([Math.sign(x || 1) * 0.07, 0.902, -0.058], [0.085, 0.092, 0.075])(x, y, z), 0.03);
-  part('belly', 'spine', ellipsoid([0, 1.07, 0.008], [0.139, 0.135, 0.1]), 0.035);
+  part('glutes', 'hips', (x, y, z) => ellipsoid([Math.sign(x || 1) * 0.07, 0.902, -0.052], [0.077, 0.092, 0.067])(x, y, z), 0.03);
+  part('belly', 'spine', ellipsoid([0, 1.07, 0.008], [0.148, 0.135, 0.1]), 0.035);
   part('ribs', 'chest', ellipsoid([0, 1.258, -0.008], [0.173, 0.168, 0.114]), 0.035);
   part('pecs', 'chest', (x, y, z) => ellipsoid([Math.sign(x || 1) * 0.07, 1.302, 0.058], [0.077, 0.056, 0.046])(x, y, z), 0.03);
   part('lats', 'chest', (x, y, z) => ellipsoid([Math.sign(x || 1) * 0.118, 1.25, -0.034], [0.068, 0.12, 0.074])(x, y, z), 0.03);
   part('traps', 'chest', capsule([-0.105, 1.392, -0.05], [0.105, 1.392, -0.05], 0.052), 0.03);
-  part('neckBase', 'neck', roundCone([0, 1.37, -0.036], [0, 1.47, -0.028], 0.066, 0.06), 0.02);
-  part('neck', 'head', roundCone([0, 1.47, -0.028], [0, 1.56, -0.012], 0.06, 0.056), 0.02);
+  part('neckBase', 'neck', roundCone([0, 1.37, -0.036], [0, 1.47, -0.028], 0.061, 0.053), 0.02);
+  part('neck', 'head', roundCone([0, 1.47, -0.028], [0, 1.56, -0.012], 0.053, 0.046), 0.02);
   for (const [s, n] of [[1, 'L'], [-1, 'R']]) {
     const sh = J[`upperArm${n}`], el = J[`foreArm${n}`], wr = J[`hand${n}`], d = ARM_DIR(s);
     part(`shoulder${n}`, `clavicle${n}`, ellipsoid([s * 0.158, 1.392, -0.038], [0.058, 0.052, 0.058]), 0.025);
@@ -207,7 +207,9 @@ export function armSDF(s) {
   const fingers = [];
   for (const f of HAND.fingers) fingers.push(U([`${f.id}1${n}`, `${f.id}2${n}`, `${f.id}3${n}`], 0.003));
   const thumb = U([`thumb1${n}`, `thumb2${n}`, `thumb3${n}`], 0.003);
-  const cut = halfSpace(add(J[`upperArm${n}`], mul(ARM_DIR(s), 0.035)), mul(ARM_DIR(s), -1));    // starts inside the sleeve
+  // Start just inside the sleeve hem. Extra shoulder skin used to poke through the polo when
+  // the arms crossed for glove fitting because skin and cloth have different blended weights.
+  const cut = halfSpace(add(J[`upperArm${n}`], mul(ARM_DIR(s), 0.12)), mul(ARM_DIR(s), -1));
   return (x, y, z) => {
     let d = smin(arm(x, y, z), hand(x, y, z), 0.022);
     let fd = fingers[0](x, y, z);
@@ -239,11 +241,11 @@ export function soleSDF(x, y, z) {
 // The meshes to build, with their boxes (world, bind pose) and cube sizes. `mirror` builds one half
 // and copies it; `side` meshes are built for the left and mirrored for the right.
 export const MESHES = [
-  { id: 'shirt', mat: 'shirt', sdf: shirtSDF, box: [[-0.36, 0.95, -0.18], [0.36, 1.49, 0.16]], h: 0.0055, mirror: true, simplify: 0.0006 },
+  { id: 'shirt', mat: 'shirt', sdf: shirtSDF, box: [[-0.36, 0.95, -0.18], [0.36, 1.49, 0.16]], h: 0.0045, mirror: true, simplify: 0.00018 },
   { id: 'trousers', mat: 'trousers', sdf: trousersSDF, box: [[-0.24, 0.06, -0.2], [0.24, 1.02, 0.16]], h: 0.0065, mirror: true, simplify: 0.0008 },
   { id: 'belt', mat: 'belt', sdf: beltSDF, box: [[-0.2, 0.955, -0.16], [0.2, 1.005, 0.15]], h: 0.004, mirror: true, simplify: 0.0005 },
-  { id: 'neck', mat: 'skin', sdf: neckSDF, box: [[-0.085, 1.35, -0.105], [0.085, 1.6, 0.06]], h: 0.004, mirror: true, simplify: 0.0004 },
-  { id: 'arm', mat: 'skin', side: true, sdf: () => armSDF(1), frame: 'arm', h: 0.0028, simplify: 0.00035 },
+  { id: 'neck', mat: 'skin', sdf: neckSDF, box: [[-0.085, 1.35, -0.105], [0.085, 1.6, 0.06]], h: 0.0035, mirror: true, simplify: 0.00015 },
+  { id: 'arm', mat: 'skin', side: true, sdf: () => armSDF(1), frame: 'arm', h: 0.0025, simplify: 0.00012 },
   { id: 'shoe', mat: 'shoe', side: true, sdf: () => shoeSDF, box: [[J.footL[0] - 0.065, 0.0, -0.1], [J.footL[0] + 0.07, 0.2, 0.225]], h: 0.0035, simplify: 0.0005 },
   { id: 'sole', mat: 'sole', side: true, sdf: () => soleSDF, box: [[J.footL[0] - 0.065, -0.005, -0.1], [J.footL[0] + 0.07, 0.05, 0.225]], h: 0.0035, simplify: 0.0005 },
 ];

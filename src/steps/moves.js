@@ -1,6 +1,7 @@
 // Movements used by several steps.
 import * as THREE from 'three';
 import { orbit } from '../scene/shots.js';
+import { FACE } from '../scene/character.js';
 
 export const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
@@ -53,7 +54,7 @@ export function* fitGlasses(c) {
   c.w.content.attach(glasses); c.carry(glasses, { hand: 'R', off: [0.04, 0, 0] });
   c.cam(orbit(() => w.head.localToWorld(V(0, 0.12, 0.08)), { dist: 1.5, az: () => w.heading + 0.4, el: 0.12, fov: 34 }));
   const move = { t: 0 }, from = w.handPos('R');
-  const atFace = () => w.head.localToWorld(V(-0.04, 0.128, 0.16));
+  const atFace = () => w.head.localToWorld(V(-0.04, FACE.eyeY, w.face.zAt(-0.04, FACE.eyeY) + 0.055));
   w.setIK('R', () => from.clone().lerp(atFace(), move.t));
   yield* c.tween(1.2, (t) => { move.t = t; });
   yield* c.wait(0.35);

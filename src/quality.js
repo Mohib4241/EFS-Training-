@@ -1,7 +1,7 @@
 // Chooses how much graphics work the scene does, from how long frames really take. Pure logic, so
 // it can be tested without a GPU.
 //
-//   level 2  high    bloom, sharp pixels (up to 1.5x), big shadow map
+//   level 2  high    contact occlusion, bloom, sharp pixels (up to 1.5x), big shadow map
 //   level 1  medium  no bloom, normal pixels, smaller shadow map
 //   level 0  low     no post-processing and no shadows
 //
