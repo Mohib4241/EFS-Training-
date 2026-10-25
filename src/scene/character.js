@@ -49,7 +49,7 @@ export function characterMaterials() {
     g.putImageData(d, 0, 0);
   }, { repeat: [10, 10], srgb: false });
   const hairTex = canvasTex(512, 256, (g, w, h) => {
-    g.fillStyle = '#c29b5a'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b99362'; g.fillRect(0, 0, w, h);
     const r = rng(31);
     for (let i = 0; i < 900; i++) {
       const x = r() * w, y0 = r() * h * 0.5, len = 40 + r() * h * 0.7, l = 36 + r() * 32;
@@ -72,15 +72,16 @@ export function characterMaterials() {
     }
     g.fillStyle = 'rgba(8,14,26,.45)'; g.beginPath(); g.arc(c, c * 0.34, c * 0.95, 0.15, Math.PI - 0.15); g.fill();   // the lid's shade on the top of the eye
   }, { aniso: 4 });
-  const skinBase = 0xefb190;
+  // Tuned from the supplied EFS presenter clip: a warm, natural complexion under the studio lights.
+  const skinBase = 0xe6a385;
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...o });
   return {
     skin: new THREE.MeshPhysicalMaterial({ color: skinBase, roughness: 0.52, sheen: 1, sheenColor: new THREE.Color(0xff9d84), sheenRoughness: 0.45 }),
-    noseTip: new THREE.MeshStandardMaterial({ color: 0xeba08a, roughness: 0.5 }),
-    lid: new THREE.MeshStandardMaterial({ color: 0xeeb596, roughness: 0.55 }),
-    skinWarm: new THREE.MeshPhysicalMaterial({ color: 0xe9988a, roughness: 0.5, sheen: 1, sheenColor: new THREE.Color(0xff8a78), sheenRoughness: 0.5 }),
+    noseTip: new THREE.MeshStandardMaterial({ color: 0xe4a084, roughness: 0.5 }),
+    lid: new THREE.MeshStandardMaterial({ color: 0xe7aa8d, roughness: 0.55 }),
+    skinWarm: new THREE.MeshPhysicalMaterial({ color: 0xe49a82, roughness: 0.5, sheen: 1, sheenColor: new THREE.Color(0xff8a78), sheenRoughness: 0.5 }),
     hair: std(0xffffff, { map: hairTex, roughness: 0.55 }),
-    brow: std(0x7c4f28, { roughness: 0.7 }),
+    brow: std(0x6f4c2c, { roughness: 0.7 }),
     lash: std(0x4b3426, { roughness: 0.6 }),
     sclera: std(0xf6f4f0, { roughness: 0.18 }),
     iris: new THREE.MeshPhysicalMaterial({ map: iris, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.08 }),
