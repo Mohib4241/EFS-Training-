@@ -11,6 +11,7 @@ export class TaskPerformer {
     this.support=kind==='drill'&&action==='run'?'body':null;
     this.twoHands=!this.observing&&kind!=='hvac'&&['open','bag','close','bit','run'].includes(action);
     s.presenter.stop();const w=s.worker;w.setFolded(false);w.setPose('idle');
+    s.model.setDemonstration(true);
     s.model.explodeTarget=0;s.model.setActions(s.def.steps.slice(0,index).map(v=>v.action));s.model.root.updateMatrixWorld(true);
     const part=s.model.anchor(this.contact);
     // Approach from the accessible front face; keep the operator outside the equipment envelope.
@@ -48,7 +49,10 @@ export class TaskPerformer {
     }else if(this.phase==='perform'){
       this.updateTargets();
       if(this.step.action==='inspect')w.adjust({headPitch:.15+Math.sin(this.elapsed*2)*.1,headYaw:Math.sin(this.elapsed*2)*.2});
-      if(this.elapsed>2.4){this.stop();s.setTaskStatus('Demonstration finished · make your decision to save progress');}
+      if(this.elapsed>(s.model.kind==='drill'&&this.step.action==='run'?4:2.4)){
+        if(s.model.kind==='drill'&&this.step.action==='run')s.model.setActions([...s.model.actions].filter(a=>a!=='run').concat('drilled'));
+        this.stop();s.setTaskStatus(`Finished: ${this.step.title} · select any task to replay`);
+      }
     }
   }
   updateTargets(){

@@ -56,6 +56,11 @@ test('task choreography uses operating controls and keeps observations clear of 
       assert.equal(performer.contact,'panel');assert.equal(worker.ik.L,null);
       assert.ok(worker.pos.distanceTo(screen.model.anchor('panel').setY(0))<.9,'controller is within approach distance');
     }
+    if(kind==='drill'){
+      for(let i=0;i<360&&performer.running;i++){screen.model.update(1/60,i/60);performer.update(1/60);worker.update(1/60);}
+      assert.equal(performer.running,false);assert.equal(screen.model.actions.has('run'),false);
+      assert.equal(screen.model.actions.has('drilled'),true,'finished hole remains after the operator releases the trigger');
+    }
     performer.stop();assert.equal(worker.pointT.R,0);
   }
 });
