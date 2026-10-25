@@ -6,7 +6,7 @@ import { build } from 'esbuild';
 import fs from 'node:fs';
 import { writeHuman } from './tools/human.mjs';
 
-const TITLE = 'Soft Services Training';
+const TITLE = 'EFS Academy | Facility Services Training';
 
 // Shown in the page so you can tell which build you are looking at (Render sets RENDER_GIT_COMMIT).
 function buildStamp() {
@@ -15,7 +15,7 @@ function buildStamp() {
   return sha ? `Render build ${sha.slice(0, 7)} · ${when}` : `Local build · ${when}`;
 }
 // Noto has Latin and Devanagari, so English, Hindi and Nepali share one look.
-const FONTS = 'https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap';
+const FONTS = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap';
 const fontLinks = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS}">`;
 
 function copyWasm() {
@@ -41,6 +41,7 @@ async function assemble() {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${TITLE}</title>
 <meta name="color-scheme" content="light dark">
+<meta name="description" content="Explore, practise and learn facility services with narrated 3D training: vacuum cleaning, drilling, electrical safety and cassette HVAC.">
 ${fontLinks}
 <style>${css}</style>
 </head>
@@ -52,6 +53,7 @@ ${body}
 `);
   if (fs.existsSync('src/media')) fs.cpSync('src/media', 'dist/media', { recursive: true });
   copyWasm();
+  await build({ entryPoints: ['src/interaction/hand-worker.js'], bundle: true, minify: true, format: 'iife', target: 'es2020', outfile: 'dist/hand-worker.js', logLevel: 'warning' });
   await writeHuman('dist/human.bin');
   console.log(`built dist/index.html (${(fs.statSync('dist/index.html').size / 1024).toFixed(0)} KB)`);
 }

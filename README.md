@@ -1,6 +1,12 @@
-# EFS-Training-
+# EFS Training
 
-A 3D training for **vacuum cleaning** in soft services. An animated worker goes through the whole procedure, step by step, while a narrator speaks in **English, Hindi or Nepali**. There are no subtitles, only the voice, and you can switch language at any time. Each step shows the checks it needs (the PAT test label, the cable, the dust bag, and so on) and points out the vacuum parts it uses: only the parts you need to operate the machine, never its insides.
+An interactive facility services training hub with a source-linked vacuum SOP and practice labs for vacuum cleaning, drilling, MCB safety, and cascade chiller systems.
+
+The vacuum SOP includes the supplied procedure and job card PDFs, searchable steps, and local learning progress. The hard-services labs are draft training scenarios requiring company review; no hard-services SOP documents were supplied.
+
+Each lab includes selectable parts, exploded views, task demonstrations, guided decisions, and optional hand controls. Hand tracking starts only on request, processes camera frames on device in a worker, and stops when leaving the lab. The camera-free model initialization and inference were verified; real-hand tracking still needs device testing. The procedural worker is an approximation, not an exact replica of the supplied video character.
+
+The original 3D **vacuum cleaning** lesson remains available. An animated worker goes through the whole procedure, step by step, while a narrator speaks in **English, Hindi or Nepali**. There are no subtitles, only the voice, and you can switch language at any time. Each step shows the checks it needs (the PAT test label, the cable, the dust bag, and so on) and points out the vacuum parts it uses: only the parts you need to operate the machine, never its insides.
 
 It is a static web page. It runs in the browser, needs WebGL, and has no server.
 
@@ -39,7 +45,7 @@ Jumping to a step rebuilds the scene and runs every earlier step at once without
 
 ```bash
 npm install
-npm run build     # writes dist/index.html (one file)
+npm run build     # writes dist/index.html plus media, model and worker assets
 npm run serve     # builds and serves it on http://localhost:5173
 npm test
 ```
