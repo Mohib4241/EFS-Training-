@@ -280,7 +280,7 @@ button:disabled { cursor:default; opacity:.5; }
 .hero-facts>span { display:flex; gap:5px; align-items:center; }
 .hero-facts svg { width:12px; height:12px; }
 .welcome-visual { position:absolute; top:0; bottom:0; right:0; width:39%; overflow:hidden; background:#d4dcda; }
-.welcome-visual img { height:100%; width:100%; object-fit:cover; object-position:50% 50%; }
+.welcome-visual :is(img,video) { display:block; height:100%; width:100%; object-fit:cover; object-position:50% 50%; }
 .guide-caption { position:absolute; bottom:18px; left:12px; right:12px; display:flex; align-items:center; gap:9px; border:1px solid #d5dfd888; padding:10px; border-radius:9px; color:#fff; background:#1a2f28dd; backdrop-filter:blur(12px); text-align:left; }
 .guide-play { border-radius:50%; background:#d6ed65; color:#32432b; width:26px; height:26px; display:grid; place-items:center; flex:none; }
 .guide-play svg { width:12px; height:12px; }
