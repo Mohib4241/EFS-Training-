@@ -17,9 +17,9 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 // Where the features are on the head.
-export const FACE = { eyeX: 0.033, eyeY: 0.128, eyeR: 0.0245, browY: 0.166, noseY: 0.09, mouthY: 0.051, top: 0.236 };
+export const FACE = { eyeX: 0.033, eyeY: 0.128, eyeR: 0.022, browY: 0.154, noseY: 0.09, mouthY: 0.051, top: 0.236 };
 
-export const BRAND = { blue: '#20468f', blueHex: 0x20468f, collar: 0x4b6dad };
+export const BRAND = { blue: '#20468f', blueHex: 0x20468f, collar: 0x365975 };
 
 /**
  * The EFS mark: the three letters in navy blue with a small arrow after them, green going to yellow.
@@ -89,12 +89,12 @@ export function characterMaterials() {
     crease: new THREE.MeshBasicMaterial({ color: 0xb86a58, transparent: true, opacity: 0.55, depthWrite: false }),
     teeth: std(0xfaf6ee, { roughness: 0.25 }),
     tongue: std(0xd9707a, { roughness: 0.5 }),
-    lipTop: std(0xc9706a, { roughness: 0.45 }),
-    lipBottom: std(0xd9827a, { roughness: 0.45 }),
+    lipTop: std(0xbb806b, { roughness: 0.45 }),
+    lipBottom: std(0xd49a84, { roughness: 0.45 }),
     blush: new THREE.MeshBasicMaterial({ color: 0xff7f86, transparent: true, opacity: 0.0, depthWrite: false }),
     // clothes
     poloWhite: std(0xdfe1e3, { bumpMap: grain, bumpScale: 0.35, roughness: 0.85 }),
-    poloBlue: std(0x4b6dad, { bumpMap: grain, bumpScale: 0.5, roughness: 0.78 }),
+    poloBlue: std(BRAND.collar, { bumpMap: grain, bumpScale: 0.05, roughness: 0.78 }),
     capWhite: std(0xffffff, { roughness: 0.82 }),
     capBlue: std(0x20468f, { roughness: 0.7 }),
     button: std(0xdfe7f2, { roughness: 0.3 }),
@@ -106,7 +106,7 @@ export function characterMaterials() {
 // firm jaw and a rounded chin.
 function shapeHead(x, y, z) {
   const low = smooth(0.05, -0.95, y);
-  let X = x * 0.082 * (1 - 0.2 * Math.pow(low, 1.3));
+  let X = x * 0.082 * (1 - 0.12 * Math.pow(low, 1.3));
   let yy = y;
   if (y < -0.72) yy = -0.72 + (y + 0.72) * 0.5;                                          // a broad, flat-bottomed chin
   let Y = 0.118 + yy * 0.118;
@@ -192,25 +192,26 @@ export class Head {
     this.eyes = [];
     const lidR = R * 1.03;
     for (const s of [-1, 1]) {
-      const z = this.zAt(s * FACE.eyeX, FACE.eyeY) - 0.0075;
-      const grp = new THREE.Group(); grp.position.set(s * FACE.eyeX, FACE.eyeY, z); grp.scale.z = 0.66; this.group.add(grp);   // a shallow dome rather than a ball
+      const z = this.zAt(s * FACE.eyeX, FACE.eyeY) - 0.011;
+      const grp = new THREE.Group(); grp.position.set(s * FACE.eyeX, FACE.eyeY, z); grp.scale.set(1, .82, .66); this.group.add(grp);   // a shallow dome rather than a ball
       const ball = new THREE.Group(); grp.add(ball);
       this._mesh(new THREE.SphereGeometry(R, 32, 24), M.sclera, ball, 0, 0, 0, false);
       // the iris is a cap on the front of the ball, mapped flat so the drawing is not stretched
-      const ir = 0.0128, ang = Math.asin(ir / R);
+      const ir = 0.0108, ang = Math.asin(ir / R);
       const cap = new THREE.SphereGeometry(R * 1.004, 32, 8, 0, Math.PI * 2, 0, ang);
       const cp = cap.attributes.position, uv = new Float32Array(cp.count * 2);
       for (let i = 0; i < cp.count; i++) { uv[i * 2] = cp.getX(i) / (2 * ir) + 0.5; uv[i * 2 + 1] = 0.5 - cp.getZ(i) / (2 * ir); }
       cap.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
       const irisMesh = this._mesh(cap, M.iris, ball, 0, 0, 0, false); irisMesh.rotation.x = Math.PI / 2;
-      this._mesh(new THREE.SphereGeometry(0.0042, 12, 8), M.catchlight, ball, -0.0052, 0.0064, R * 0.97, false);
-      this._mesh(new THREE.SphereGeometry(0.002, 10, 6), M.catchlight, ball, 0.0058, -0.005, R * 0.985, false);
+      this._mesh(new THREE.SphereGeometry(0.0024, 12, 8), M.catchlight, ball, -0.0052, 0.0064, R * 0.97, false);
+      this._mesh(new THREE.SphereGeometry(0.0012, 10, 6), M.catchlight, ball, 0.0058, -0.005, R * 0.985, false);
       // lids: skin shells over the ball. The upper one turns up to open and down to blink.
       const upper = new THREE.Group(); grp.add(upper);
       this._mesh(new THREE.SphereGeometry(lidR, 32, 16, 0, Math.PI * 2, 0, 1.95), M.lid, upper, 0, 0, 0, false);
-      const lash = this._mesh(new THREE.TorusGeometry(lidR * Math.sin(1.95), 0.0019, 6, 28, Math.PI), M.lash, upper, 0, lidR * Math.cos(1.95), 0, false);
+      const lash = this._mesh(new THREE.TorusGeometry(lidR * Math.sin(1.95), 0.0009, 6, 28, Math.PI), M.lash, upper, 0, lidR * Math.cos(1.95), 0, false);
       lash.rotation.x = Math.PI / 2;
       const lower = new THREE.Group(); grp.add(lower);
+      this._mesh(new THREE.SphereGeometry(lidR, 32, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), M.lid, lower, 0, 0, 0, false);
       this.eyes.push({ side: s, ball, upper, lower, grp });
     }
   }
@@ -225,17 +226,21 @@ export class Head {
       const x = s * 0.038, y = FACE.browY;
       const pivot = new THREE.Group(); pivot.position.set(x, y, this.zAt(x, y) + 0.0008); this.group.add(pivot);
       const b = this._mesh(geo, M.brow, pivot, 0, 0, 0, false);
-      b.scale.set(s * 1.1, 1.45, 1); b.rotation.y = s * 0.42; b.rotation.z = -s * 0.08;       // follows the curve of the forehead; the outer end a little lower
+      b.scale.set(s * .92, 1.15, 1); b.rotation.y = s * 0.42; b.rotation.z = -s * 0.08;       // follows the curve of the forehead; the outer end a little lower
       this.brows.push({ pivot, base: y, side: s });
     }
   }
 
   _nose() {
-    const M = this.M, z = this.zAt(0, FACE.noseY);
-    this._mesh(new THREE.SphereGeometry(0.0118, 24, 18), M.skin, this.group, 0, FACE.noseY, z + 0.0012);
-    const bridge = this._mesh(new THREE.CapsuleGeometry(0.0068, 0.018, 6, 12), M.skin, this.group, 0, FACE.noseY + 0.02, this.zAt(0, FACE.noseY + 0.02) + 0.0005); bridge.rotation.x = -0.12;
-    this._mesh(new THREE.SphereGeometry(0.0085, 16, 12), M.noseTip, this.group, 0, FACE.noseY - 0.0008, z + 0.0056, false);        // the pink tip
-    for (const s of [-1, 1]) { const wing = this._mesh(new THREE.SphereGeometry(0.0062, 14, 10), M.skin, this.group, s * 0.0082, FACE.noseY - 0.0045, z - 0.0025); wing.scale.set(0.9, 0.8, 0.8); }
+    // One continuous surface avoids seams between the bridge, tip and nostril wings.
+    const geo = new THREE.SphereGeometry(1, 32, 24), p = geo.attributes.position;
+    const z = this.zAt(0, FACE.noseY);
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), depth = p.getZ(i), t = (y + 1) / 2;
+      p.setXYZ(i, x * .013 * (1 - .45 * t), FACE.noseY + .011 + y * .026, z - .004 + depth * .014 + .007 * (1 - t));
+    }
+    geo.computeVertexNormals();
+    this._mesh(geo, this.M.skin, this.group);
   }
 
   _cheeks() {
@@ -283,14 +288,14 @@ export class Head {
   /** Rebuild the mouth shapes for the current open / wide / round / smile. */
   _drawMouth() {
     const { open, wide, round } = this.mouth, smile = this.smile, N = this.mN;
-    const hw = (0.025 + 0.014 * wide - 0.011 * round) * (0.94 + 0.12 * smile), cy = FACE.mouthY;
+    const hw = (0.024 + 0.010 * wide - 0.009 * round) * (0.94 + 0.12 * smile), cy = FACE.mouthY;
     const up = [], lo = [];
     for (let i = 0; i < N; i++) {
       const t = (i / (N - 1)) * 2 - 1, x = t * hw, c = t * t;
       const corner = 0.0125 * smile * c - 0.0035 * round * (1 - c);
       const upper = cy + corner + 0.0028 * (1 - c) * (1 - 0.5 * round);
-      const gap = open * 0.034 * Math.pow(1 - c, 0.7) * (1 - 0.35 * round) + 0.0016 * (1 - c);
-      const lower = cy + corner - 0.0018 - gap - 0.0012 * (1 - c);
+      const gap = open * 0.034 * Math.pow(1 - c, 0.7) * (1 - 0.35 * round) + 0.0005 * (1 - c);
+      const lower = cy + corner - 0.0006 - gap;
       up.push(V(x, upper, 0)); lo.push(V(x, lower, 0));
     }
     const fit = (arr, dz) => arr.map((q) => V(q.x, q.y, this._z(q.x, q.y) + dz));
@@ -329,7 +334,7 @@ export class Head {
       m.geometry.dispose(); m.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 8, 0.0011 + 0.0006 * smile, 5, false);
     });
     // the lips: a thin tube along each edge
-    this._tube(this.mLipTop, U, 0.0028); this._tube(this.mLipBottom, L, 0.0035);
+    this._tube(this.mLipTop, U, 0.0013); this._tube(this.mLipBottom, L, 0.0018);
   }
 
   _setGeo(mesh, pos, idx) {
@@ -400,7 +405,7 @@ export class Head {
         c.setLineDash([7, 5]); c.strokeStyle = 'rgba(150,165,190,0.5)'; c.beginPath(); c.moveTo(x + 7, 0); c.lineTo(x + 7, h); c.stroke(); c.setLineDash([]);
       }
       // the EFS mark on the front panel, drawn narrow because the dome stretches it sideways
-      c.save(); c.translate(w * 0.25, h * 0.4); c.scale(0.8, 1); drawEFS(c, 0, 0, 50); c.restore();
+      c.save(); c.translate(w * 0.25, h * 0.4); c.scale(0.8, 1); drawEFS(c, 0, 0, 68); c.restore();
     }, { aniso: 8 });
     const crownMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tex, roughness: 0.8, side: THREE.DoubleSide });
     const crown = this._mesh(geo, crownMat, g); crown.castShadow = true;
@@ -445,7 +450,7 @@ export class Head {
     const base = (0.9 - 0.14 * this.smile) + this.brow * 0.08;
     for (const e of this.eyes) {
       e.upper.rotation.x = -0.95 * base * (1 - closed) - 0.0;
-      e.lower.rotation.x = 0.08 * this.smile + 0.5 * closed;
+      e.lower.rotation.x = 0.38 + 0.08 * this.smile - 0.25 * closed;
       e.ball.rotation.y = this.lookYaw; e.ball.rotation.x = -this.lookPitch;
     }
     for (const b of this.brows) { b.pivot.position.y = b.base + 0.0085 * this.brow - 0.002 * closed; b.pivot.rotation.z = b.side * -0.05 * this.brow; }
