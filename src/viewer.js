@@ -4,8 +4,9 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {parts} from './content.js';
 import {openingFromPixels} from './machine-state.js';
+import {createDust,collectDust} from './cleaning-state.js';
 
-export function createViewer(canvas,onSelect,onOpenChange){
+export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{}){
  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'default'});
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
@@ -21,6 +22,19 @@ export function createViewer(canvas,onSelect,onOpenChange){
  const key=new THREE.DirectionalLight(0xfff7eb,4);key.position.set(-3,7,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);key.shadow.camera.left=-5;key.shadow.camera.right=5;key.shadow.camera.top=6;key.shadow.camera.bottom=-4;key.shadow.normalBias=.025;scene.add(key);
  const fill=new THREE.DirectionalLight(0xbfdedc,1.7);fill.position.set(4,3,-4);scene.add(fill);
  const floor=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshStandardMaterial({color:0xe6ece9,roughness:.95}));floor.rotation.x=-Math.PI/2;floor.position.y=-.012;floor.receiveShadow=true;scene.add(floor);
+ const tileCanvas=document.createElement('canvas');tileCanvas.width=512;tileCanvas.height=512;
+ const tileContext=tileCanvas.getContext('2d');tileContext.fillStyle='#b4c5bb';tileContext.fillRect(0,0,512,512);
+ for(let row=0;row<6;row++)for(let col=0;col<6;col++){tileContext.fillStyle=(row+col)%2?'#e3e9df':'#e9ede5';tileContext.fillRect(col*512/6+1.5,row*512/6+1.5,512/6-3,512/6-3);}
+ const tilesTexture=new THREE.CanvasTexture(tileCanvas);tilesTexture.colorSpace=THREE.SRGBColorSpace;tilesTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+ const tiles=new THREE.Mesh(new THREE.PlaneGeometry(5.8,4.5),new THREE.MeshStandardMaterial({map:tilesTexture,roughness:.82}));tiles.rotation.x=-Math.PI/2;tiles.position.set(.4,-.007,.65);tiles.receiveShadow=true;scene.add(tiles);
+ let dust=createDust(),lastPicked=-1,cleaningTime=0,manualOffset=null,singlePass=false,passProgress=0,previousNozzle=null,lastHoseOffset=0,floorView=false;
+ const dustGeometry=new THREE.DodecahedronGeometry(.032,0),paperGeometry=new THREE.BoxGeometry(.055,.008,.044);
+ const dustMaterial=new THREE.MeshStandardMaterial({color:0x8c6845,roughness:1}),paperMaterial=new THREE.MeshStandardMaterial({color:0xd7bd83,roughness:1});
+ const dustMeshes=dust.map((point,index)=>{const marker=new THREE.Mesh(index%5===0?paperGeometry:dustGeometry,index%5===0?paperMaterial:dustMaterial);marker.position.set(point.x,index%5===0?.012:.025,point.z);marker.rotation.y=index*.7;marker.scale.setScalar(.8+(index%4)*.15);scene.add(marker);return marker;});
+ function publishDust(){const picked=dust.filter(point=>point.collected).length;if(picked!==lastPicked){lastPicked=picked;onPickup({picked,total:dust.length});}}
+ function pickupAt(x,z,depth=.3){const next=collectDust(dust,{x,z,width:.65,depth,active:state.connected&&state.running&&state.open===0&&state.condition==='clear'});if(next!==dust){dust=next;dustMeshes.forEach((marker,index)=>marker.visible=!dust[index].collected);publishDust();}}
+ function resetDust(){dust=createDust();dustMeshes.forEach(marker=>marker.visible=true);cleaningTime=0;manualOffset=null;singlePass=false;previousNozzle=null;publishDust();schedule();}
+ function makeCleaningPass(){if(!state.connected||!state.running||state.open!==0||state.condition!=='clear')return false;previousNozzle=null;manualOffset=-.55;passProgress=0;singlePass=!reduced.matches;if(reduced.matches){manualOffset=.55;pickupAt(1.28,1.5,1.4);}schedule();return true;}
  const rig=new THREE.Group();scene.add(rig);const groups={};const pickables=[];const wheels=[];
  const mat=(color,metalness=.1,roughness=.48)=>new THREE.MeshStandardMaterial({color,metalness,roughness});
  const dark=mat('#17272d',.24,.34),edge=mat('#34464b',.35,.34),metal=mat('#b9c6c7',.87,.22),orange=mat('#f67a25',.12,.42),rubber=mat('#142023',0,.87),cream=mat('#dfd9be',0,.9),teal=mat('#148e91',.3,.35),white=mat('#f4f4e9',.1,.6);
@@ -52,8 +66,8 @@ export function createViewer(canvas,onSelect,onOpenChange){
  const inlet=part('inlet',[.49,1.02,.5],[.17,.2,.18]);cyl(inlet,.13,.13,.23,dark,[0,0,0],[Math.PI/2,0,-Math.PI/4]);ring(inlet,.125,.018,metal,[0,0,.13],[0,0,0]);
  const hose=part('hose',[0,0,0],[.67,.32,0]);
  const hosePoints=[[.5,1.02,.66],[.93,1.02,.9],[1.4,.55,.65],[1.93,.45,-.02],[2.0,1.4,-.25],[1.66,1.6,.15],[1.42,1.15,.75]];
- const hosePath=tube(hose,hosePoints,.088,rubber,120).curve;const ribGeo=new THREE.TorusGeometry(.093,.013,5,14);const ribOrientation=new THREE.Vector3(0,0,1);
- for(let i=0;i<96;i++){const t=i/95;const m=mesh(hose,ribGeo,edge);m.position.copy(hosePath.getPointAt(t));m.quaternion.setFromUnitVectors(ribOrientation,hosePath.getTangentAt(t).normalize());}
+ const hoseTube=tube(hose,hosePoints,.088,rubber,120),hosePath=hoseTube.curve;const ribGeo=new THREE.TorusGeometry(.093,.013,5,14);const ribOrientation=new THREE.Vector3(0,0,1),hoseRibs=[];
+ for(let i=0;i<96;i++){const t=i/95;const m=mesh(hose,ribGeo,edge);m.position.copy(hosePath.getPointAt(t));m.quaternion.setFromUnitVectors(ribOrientation,hosePath.getTangentAt(t).normalize());hoseRibs.push(m);}
  const wand=part('wand',[1.42,1.12,.8],[1,.32,.1]);box(wand,[.13,.22,.13],dark,[0,0,0],.04);tube(wand,[[0,0,0],[-.08,-.2,.12],[-.13,-.68,.43],[-.14,-.9,.61]],.035,metal,22);
  const tool=part('tool',[1.28,.11,1.5],[1.28,0,.25]);box(tool,[.65,.15,.28],dark,[0,0,0],.055);box(tool,[.65,.02,.3],edge,[0,-.07,0],.008);cyl(tool,.07,.07,.13,dark,[0,.1,-.05],[.45,0,0]);box(tool,[.18,.025,.14],orange,[.17,.088,0],.008);
  const cable=part('cable',[0,0,0],[0,0,0]);const cableCurve=new THREE.CatmullRomCurve3([new THREE.Vector3(0,1.56,-.63),new THREE.Vector3(-.7,.08,-.6),new THREE.Vector3(-1.6,.04,.65),new THREE.Vector3(-2.0,.2,.5)]);const wire=mesh(cable,new THREE.TubeGeometry(cableCurve,72,.025,8,false),orange);wire.frustumCulled=false;
@@ -142,19 +156,27 @@ export function createViewer(canvas,onSelect,onOpenChange){
  function update(time){frame=0;const dt=Math.min((time-previous)/1000||.016,.05);previous=time;tick+=dt;const blend=reduced.matches?1:Math.min(1,dt*9);animated.open=THREE.MathUtils.lerp(animated.open,state.open/100,blend);animated.plug=THREE.MathUtils.lerp(animated.plug,state.connected?1:0,blend);
  for(const [id,g] of Object.entries(groups)){g.position.copy(g.userData.base).addScaledVector(g.userData.offset,animated.open);if(id==='clips'||id==='wheels')g.children.forEach(o=>{if(o.userData.originX===undefined)o.userData.originX=o.position.x;o.position.x=o.userData.originX*(1+animated.open*.7);});}
  const framing=1+animated.open*.22;camera.position.sub(controls.target).multiplyScalar(framing/lastFraming).add(controls.target);lastFraming=framing;
- const targetY=1.25+animated.open*.55;camera.position.y+=targetY-controls.target.y;controls.target.y=targetY;
+ const targetY=(floorView?.75:1.25)+animated.open*.55;camera.position.y+=targetY-controls.target.y;controls.target.y=targetY;
  const t=animated.plug;plug.position.set(THREE.MathUtils.lerp(-2,-2.15,t),THREE.MathUtils.lerp(.12,.76,t),THREE.MathUtils.lerp(.5,-.33,t));
  if(Math.abs(lastPlug-t)>.00001||Math.abs(lastOpen-animated.open)>.00001){lastPlug=t;lastOpen=animated.open;cableCurve.points[0].set(0,groups.cover.position.y-.07,-.63);cableCurve.points[3].copy(plug.position).add(new THREE.Vector3(0,-.09,.02));const wirePositions=wire.geometry.attributes.position;const tempGeometry=new THREE.TubeGeometry(cableCurve,72,.025,8,false);wirePositions.copy(tempGeometry.attributes.position);wirePositions.needsUpdate=true;wire.geometry.attributes.normal.copy(tempGeometry.attributes.normal);wire.geometry.attributes.normal.needsUpdate=true;tempGeometry.dispose();}
  rocker.rotation.x=state.running?-.2:.2;const operating=state.running&&!reduced.matches;if(operating){rotor.rotation.y+=dt*6;blades.rotation.y+=dt*9;}
- const strokeAngle=state.stroke&&!reduced.matches?Math.sin(tick*1.8)*.06:0;wand.rotation.x=strokeAngle;tool.position.z+=Math.cos(strokeAngle)*.7-Math.sin(strokeAngle)*1.01-.7;
+ const canPick=state.connected&&state.running&&state.open===0&&state.condition==='clear';
+ if(singlePass&&!canPick)singlePass=false;
+ if(singlePass){passProgress=Math.min(1,passProgress+dt*.6);manualOffset=-.55+passProgress*1.1;if(passProgress===1)singlePass=false;}
+ if(state.stroke&&state.open===0&&!reduced.matches){manualOffset=null;cleaningTime+=dt;}
+ const cleaningOffset=state.open===0?(manualOffset??(state.stroke&&!reduced.matches?Math.sin(cleaningTime*.9)*.55:0)):0;
+ wand.position.z+=cleaningOffset;tool.position.z+=cleaningOffset;
+ if(Math.abs(lastHoseOffset-cleaningOffset)>.00001){lastHoseOffset=cleaningOffset;hosePath.points[6].z=.75+cleaningOffset;hosePath.updateArcLengths();const shape=new THREE.TubeGeometry(hosePath,120,.088,9,false);hoseTube.mesh.geometry.attributes.position.copy(shape.attributes.position);hoseTube.mesh.geometry.attributes.position.needsUpdate=true;hoseTube.mesh.geometry.attributes.normal.copy(shape.attributes.normal);hoseTube.mesh.geometry.attributes.normal.needsUpdate=true;hoseTube.mesh.frustumCulled=false;shape.dispose();flowCurve.points[0].z=1.53+cleaningOffset;flowCurve.points[1].z=1.14+cleaningOffset;flowCurve.points[2].z=.75+cleaningOffset;flowCurve.updateArcLengths();staticFlow.geometry.setFromPoints(flowCurve.getPoints(110));staticFlow.computeLineDistances();hoseRibs.forEach((rib,index)=>{rib.position.copy(hosePath.getPointAt(index/95));rib.quaternion.setFromUnitVectors(ribOrientation,hosePath.getTangentAt(index/95).normalize());});}
+ if(canPick){const from=previousNozzle?.active?previousNozzle.z:tool.position.z;pickupAt(tool.position.x,(from+tool.position.z)/2,.3+Math.abs(from-tool.position.z));}
+ previousNozzle={z:tool.position.z,active:canPick};
  const shellSeeThrough=state.xray;for(const id of ['cover','tank'])groups[id].traverse(o=>{if(o.isMesh){o.material.transparent=shellSeeThrough;o.material.opacity=shellSeeThrough?.065:1;o.material.depthWrite=!shellSeeThrough;o.castShadow=!shellSeeThrough;}});
  flow.visible=state.air&&state.open===0;for(let i=0;i<dots.length;i++){dots[i].visible=state.running;dots[i].position.copy(flowCurve.getPointAt((i/dots.length+(reduced.matches?0:tick*.16))%1));}
- render();const moving=Math.abs(animated.open-state.open/100)>.0005||Math.abs(animated.plug-(state.connected?1:0))>.0005||((state.running||state.stroke)&&!reduced.matches);if(moving)schedule();}
- function setState(next){state={...next};paintHighlights();schedule();}
+ render();const moving=Math.abs(animated.open-state.open/100)>.0005||Math.abs(animated.plug-(state.connected?1:0))>.0005||singlePass||((state.running||(state.stroke&&state.open===0))&&!reduced.matches);if(moving)schedule();}
+ function setState(next){state={...next};if(state.open>0&&floorView)cameraAction('reset');paintHighlights();schedule();}
  const resize=new ResizeObserver(()=>{tipId=null;const rect=canvas.parentElement.getBoundingClientRect();if(rect.width&&rect.height){renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();schedule();}});resize.observe(canvas.parentElement);
  const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)schedule();else clearHover();});observer.observe(canvas);
  controls.addEventListener('change',()=>{render();});document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHover();else schedule();});reduced.addEventListener('change',schedule);
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();document.getElementById('viewer-fallback').hidden=false;});
- function cameraAction(action){const offset=camera.position.clone().sub(controls.target);if(action==='reset'){camera.position.set(4.8,3.6,7.4);controls.target.set(0,1.25,0);lastFraming=1;schedule();}else if(action.startsWith('rotate')){offset.applyAxisAngle(new THREE.Vector3(0,1,0),action==='rotate-left'?-.28:.28);camera.position.copy(controls.target).add(offset);}else{const distance=THREE.MathUtils.clamp(offset.length()*(action==='zoom-in'?.85:1.15),controls.minDistance,controls.maxDistance);offset.setLength(distance);camera.position.copy(controls.target).add(offset);}controls.update();render();}
- controls.update();schedule();return {setState,cameraAction,clearHover};
+ function cameraAction(action){const offset=camera.position.clone().sub(controls.target);if(action==='reset'){floorView=false;camera.position.set(4.8,3.6,7.4);controls.target.set(0,1.25,0);lastFraming=1;schedule();}else if(action==='floor'){floorView=true;camera.position.set(3.8,3.8,5.7);controls.target.set(.65,.75,.7);lastFraming=1;schedule();}else if(action.startsWith('rotate')){offset.applyAxisAngle(new THREE.Vector3(0,1,0),action==='rotate-left'?-.28:.28);camera.position.copy(controls.target).add(offset);}else{const distance=THREE.MathUtils.clamp(offset.length()*(action==='zoom-in'?.85:1.15),controls.minDistance,controls.maxDistance);offset.setLength(distance);camera.position.copy(controls.target).add(offset);}controls.update();render();}
+ publishDust();controls.update();schedule();return {setState,cameraAction,clearHover,resetDust,makeCleaningPass};
 }

@@ -1,4 +1,4 @@
-# EFS Learning Hub — Junior 103 equipment lab
+# EFS Learning Academy — Junior 103 equipment and maintenance practice
 
 Soft Services is the implemented learning area. Hard Services contains the requested catalogue names only.
 
@@ -28,7 +28,7 @@ A locally bundled Three.js model replaces the SVG. Hover to identify and highlig
 
 The orange cable follows a plug that moves into a schematic UK-style socket. Connecting leaves the motor off. Running requires a connection and a fully assembled model. Opening switches off and disconnects automatically. The operating cutaway shows motor/fan rotation; a separate control demonstrates a short tool/tube stroke. Reduced-motion users receive static states. Leaving the module stops the motor.
 
-The checklist is a session-only learning aid with six basic operator checks, progress, and reset. It does not claim to be an approved maintenance schedule, certificate or permanent maintenance record.
+The Maintenance Checklist now opens three interactive practices: dust-bag replacement, hands-only handwashing, and an isolated external connector observation. The original six operator checks remain in an optional collapsible practice record. Progress is session-only. None of these activities is an approved maintenance schedule, certificate or permanent maintenance record.
 
 All supplied photo images and their UI controls were removed from source and build output. Nameplate transcriptions retain source attribution. The original uploaded files outside the application are untouched.
 
@@ -96,3 +96,41 @@ The renderer reuses a raycaster, coalesces mouse movement into scheduled renderi
 Verification: nine Node tests, syntax checks and build executed successfully. Browser checks confirmed scroll-up reveal to 73%, reverse scroll to assembled, a hover name without changing selection, continued operation while hovering at the assembled limit, and opening a running machine switching off/disconnecting it. The actual Phantas reference was inspected: its scroll-up reveal and cursor part tooltip were observed. Physical multi-touch/pinch testing on a touch device and broad performance benchmarking were not performed.
 
 Files for this update: `src/viewer.js`, `src/machine-state.js`, `src/app.js`, `src/index.html`, `src/style.css`, `tests/content.test.mjs`, and this README. Scientific content, taxonomy and model fidelity are unchanged.
+
+
+## Academy and maintenance increment
+
+### Entry points and focus
+
+The default welcome page is `#home`, titled “Welcome to EFS Learning Academy”. Clicking the official EFS logo returns home. Cards lead to the Junior 103 equipment lab (`#junior-103`), cleaning practice or Maintenance Checklist (`#maintenance`). The left navigation collapses when opening equipment or maintenance, and expands again on home; a mobile drawer remains available. Browser Back/Forward restores the routed page. Hard Services remains a names-only catalogue.
+
+### Interactive practices
+
+- **Dust bag:** an 80% full schematic bag exceeds the user-supplied 70% training trigger. The sequence gates isolation → head open → lift used bag → seal → bin at bottom right → clean bag from top left → fit → close. HTML drag/drop, source-then-destination taps and explicit keyboard-accessible actions all use the same reducer. The actual fitted bag and manufacturer service threshold remain unverified. Disposal follows the actual waste stream and site procedure.
+- **Handwashing:** only hands are rendered, with a tap, handwash dispenser and towel. Wet → tap off → soap → all four named areas and at least 20,000 ms scrubbing → running-water rinse → clean towel → dry → towel tap-off. Timing uses monotonic `performance.now()`, pauses off-page/hidden, and resumes accumulated time. Repeated clicks cannot replace elapsed time. This is a conceptual sequence, not a real hygiene assessment or a germ-count simulation.
+- **Connector observation:** isolation first; inspect pins/casing, cable entry and visible heat damage; choose removal from use/reporting. A “no concern” answer cannot pass the illustrated defect. This teaches external observation only; internal terminals, wiring, tightening, repairs and live tests are excluded and require task-appropriate competence and the correct equipment instructions.
+
+Sources for the educational sequence: [CDC handwashing](https://www.cdc.gov/clean-hands/about/index.html), [CDC tap/towel FAQ](https://www.cdc.gov/clean-hands/faq/), [WHO handwashing poster](https://www.who.int/docs/default-source/patient-safety/how-to-handwash-poster.pdf), and [HSE electrical equipment checks](https://www.hse.gov.uk/electricity/electricequip.htm). CDC's **20 seconds is the scrub interval**; WHO's **40–60 seconds is its entire procedure**. The simplified practice does not claim WHO healthcare-procedure compliance. HSE is an educational source, not a statement of local UAE law.
+
+### Tiled-floor pickup model contract
+
+Fidelity A — conceptual scene interaction. Forty deterministic virtual debris markers are placed near the nozzle lane (x 1.05–1.51, z 1–2.05, in arbitrary scene coordinates). The nozzle footprint is 0.65 × 0.3 scene units. Its previous-to-current swept rectangle collects intersecting markers only when the virtual machine is assembled, connected, running and in the clear-air-path scenario. Fault-specific pickup performance is not modelled. The grip and rigid tube move with the tool; the flexible hose and displayed air route follow them.
+
+Initial state: all 40 markers on the tiles, machine off/unplugged, no cleaning motion. Moving the tool manually while off does not collect debris. The pickup display counts virtual markers, not dust mass, cleanliness, efficiency, suction, hygiene or a measured cleaning rate. Rendering coordinates are not manufacturer dimensions. Reset restores the identical dust pattern. A full-pass button provides a discrete result for reduced-motion users and an animated pass otherwise. Scene motion is paused offscreen/hidden; rAF steps are capped at 0.05 s. No engineering-performance validation is claimed.
+
+### Bounded tasks and ownership
+
+| Objective | Specialist / skill | Inputs | Output | Dependency | Acceptance and validation |
+|---|---|---|---|---|---|
+| Academy welcome, routes and focused layout | Architecture + frontend / Engineering Intelligence Platform, Ponytail, existing local Sites workflow | Current layout, official logo, user hierarchy | Home cards, logo home link, collapsed machine navigation | Existing application | Browser home/machine/maintenance navigation, visible layouts, no existing feature removal |
+| Maintenance practice | Education + interaction specialist / Engineering Intelligence Platform | User scenarios, CDC/WHO/HSE evidence | Separate state/UI/style files for three practices | DOM integration | Correct sequence gates, accessible alternatives, reset; ten state tests and browser completion checks |
+| Dust pickup | Scientific computing + 3D frontend / Engineering Intelligence Platform | Existing Three.js scene and fixed debris lane | Deterministic state helper, tiles, visible pickup and reset | Nozzle state/position | Five footprint/invalid-input tests; browser off/on comparison and 40/40 virtual marker result |
+| Independent review | Domain/QA specialists | State transitions and primary sources | Safety/sequence and integration review | Implementation | Scrub timing and towel order, fault decision, sweep gating, airflow synchronisation, paused/offscreen behavior |
+
+Files added: `src/maintenance.js`, `src/maintenance-state.js`, `src/maintenance.css`, `src/cleaning-state.js`, `tests/maintenance.test.mjs`, `tests/cleaning.test.mjs`. Existing UI, viewer, styles, build, server asset allowlist and syntax-check script were updated. No new runtime dependencies or framework migration.
+
+### Verification and remaining limits
+
+Executed: syntax checks, all 24 Node tests, static bundle build. Browser checks completed the bag sequence through disposal/clean replacement/closure, rejected an incorrect connector outcome and completed the report decision, observed 0/40 pickup while moving unplugged and 40/40 after powered movement, and inspected the academy home, practice layouts and hands-only scene. Browser verification also completed the real-time handwashing sequence: all named areas plus a genuine20-second scrub gate, running-water rinse, clean towel, drying, then towel tap-off. Native drag-and-drop was verified for both the sealed used bag into the bin and the fresh bag into the machine, alongside the tap-source/destination alternative. No browser errors were observed during these checks.
+
+Not established: exact Junior 103 bag/terminal internals, manufacturer-approved 70% service threshold, real equipment safety, hygiene effectiveness, quantitative cleaning performance, broad device FPS benchmarks or full assistive-technology certification. No publication or production deployment is part of this increment. The next evidence needed for equipment-specific service lessons is the correct manual and fitted collection-system identification.

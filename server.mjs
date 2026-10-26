@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 const port=Number(process.env.PORT||5173);
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error('PORT must be between 1 and 65535');
 const root=new URL(process.argv.includes('--dev')?'./src/':'./dist/',import.meta.url);
-const files=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/content.js','content.js'],['/style.css','style.css'],['/assets/efs-logo.svg','assets/efs-logo.svg']]);
+const files=new Map([['/','index.html'],['/index.html','index.html'],['/app.js','app.js'],['/style.css','style.css'],['/maintenance.css','maintenance.css'],['/assets/efs-logo.svg','assets/efs-logo.svg']]);
 const types={html:'text/html; charset=utf-8',js:'text/javascript; charset=utf-8',css:'text/css; charset=utf-8',svg:'image/svg+xml'};
 createServer(async(req,res)=>{
  if(!['GET','HEAD'].includes(req.method)){res.writeHead(405,{'Allow':'GET, HEAD'});res.end();return;}
