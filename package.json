@@ -3,12 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Blank EFS application starter",
+  "description": "EFS Learning Hub \u2014 Junior 103 equipment explorer",
   "scripts": {
     "build": "node build.mjs",
-    "dev": "node server.mjs --dev",
+    "dev": "node build.mjs && node server.mjs",
     "serve": "node build.mjs && node server.mjs",
-    "check": "node --check build.mjs && node --check server.mjs"
+    "check": "node --check build.mjs && node --check server.mjs && node --check src/app.js && node --check src/content.js && node --check src/machine-state.js && node --check src/viewer.js",
+    "test": "node --test tests/*.test.mjs"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }
