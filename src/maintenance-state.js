@@ -1,7 +1,7 @@
 export const SCRUB_DURATION_MS=20_000;
 export const HAND_AREAS=['palms','backs','fingers','nails'];
 export function initialPractice(kind){
- if(kind==='bag')return {kind,phase:'isolate',isolated:false,headOpen:false,usedBag:'fitted',newBag:'shelf',selected:null,fill:80,complete:false};
+ if(kind==='bag')return {kind,phase:'isolate',isolated:false,clips:{left:true,right:true},headOpen:false,usedBag:'fitted',newBag:'shelf',selected:null,fill:80,complete:false};
  if(kind==='hands')return {kind,phase:'water',tapOn:false,wet:false,soap:false,surfaces:[],rubElapsedMs:0,rubBaseMs:0,rubStartedAt:null,towel:false,dried:false,complete:false};
  if(kind==='terminals')return {kind,phase:'isolate',isolated:false,checks:[],activeCheck:null,complete:false};
  throw new RangeError('Unknown maintenance practice');
@@ -27,6 +27,19 @@ export function reducePractice(previous,action){
   if(action.type==='transfer'&&!s.selected)return result(s,'Select a bag first, then choose the machine or bin.');
   if(action.type==='transfer')return reducePractice(s,{type:action.target==='bin'?'dispose':action.target==='machine'?'fit':'invalid-transfer',item:s.selected});
   if(s.complete)return result(s,'Bag replacement practice is complete. Reset to try again.');
+  if(action.type==='unclip'||action.type==='secure'){
+   if(!['left','right'].includes(action.clip))throw new RangeError('Unknown retaining clip');
+   if(!s.isolated)return result(s,'Switch off and unplug before releasing the retaining clips.');
+   if(action.type==='unclip'&&s.phase==='release'){
+    s.clips={...s.clips,[action.clip]:false};if(!s.clips.left&&!s.clips.right)s.phase='open';
+    return result(s,s.phase==='open'?'Both clips released. Hold the handle and lift the head onto the head-rest area.':'One clip released. Release the other clip before lifting.');
+   }
+   if(action.type==='secure'&&s.phase==='secure'){
+    s.clips={...s.clips,[action.clip]:true};if(s.clips.left&&s.clips.right){s.phase='done';s.complete=true;}
+    return result(s,s.complete?'Practice complete: used bag contained and binned, clean bag fitted, head closed and both clips secured. Power stays isolated.':'One clip secured. Secure the other to finish.');
+   }
+   return result(s,action.type==='secure'?'Fit the clean bag and return the head before securing the clips.':'Complete the current step before releasing clips.');
+  }
   const expected={isolate:'isolate',open:'open',remove:'remove',seal:'seal',dispose:'dispose',fit:'fit',close:'close'};
   if(!Object.hasOwn(expected,action.type))throw new RangeError('Unsupported bag action');
   if(action.type!==s.phase){
@@ -35,7 +48,7 @@ export function reducePractice(previous,action){
    if(action.type==='dispose'&&s.usedBag!=='sealed')return result(s,'Remove and seal the used bag before putting it in the bin.');
    return result(s,'Complete the highlighted step before continuing.');
   }
-  if(action.type==='isolate'){s.isolated=true;s.phase='open';return result(s,'Virtual power isolated. Open the motor head to access the schematic bag.');}
+  if(action.type==='isolate'){s.isolated=true;s.phase='release';return result(s,'Virtual power isolated. Release the two retaining clips on the machine.');}
   if(action.type==='open'){s.headOpen=true;s.phase='remove';return result(s,'Head open. The training bag is 80% full, above this scenario’s 70% trigger.');}
   if(action.type==='remove'){s.usedBag='removed';s.selected='used';s.phase='seal';return result(s,'Used bag lifted out. Seal its opening to help contain dust.');}
   if(action.type==='seal'){s.usedBag='sealed';s.phase='dispose';return result(s,'Used bag sealed. Drag it to the bin or use “Put used bag in bin”.');}
@@ -47,7 +60,7 @@ export function reducePractice(previous,action){
    if(action.item&&action.item!=='new')return result(s,'Fit the clean replacement bag, not the used bag.');
    s.newBag='fitted';s.fill=0;s.selected=null;s.phase='close';return result(s,'Clean bag fitted in the teaching model. Close and secure the head.');
   }
-  s.headOpen=false;s.phase='done';s.complete=true;return result(s,'Practice complete: the used bag is contained and binned, a clean bag is fitted, and the head is closed.');
+  s.headOpen=false;s.phase='secure';return result(s,'Head returned to the tank. Secure both retaining clips to finish the practice.');
  }
  if(s.kind==='hands'){
   if(action.type==='pause'){
@@ -125,4 +138,24 @@ export function reducePractice(previous,action){
   throw new RangeError('Unsupported inspection action');
  }
  throw new RangeError('Unknown practice state');
+}
+
+// Coordinates belong to the schematic game board, not the real machine.
+export const BAG_ZONES={rest:{x:675,y:55,width:310,height:175},tray:{x:190,y:330,width:150,height:220},bin:{x:820,y:410,width:160,height:190},machine:{x:350,y:300,width:300,height:235},head:{x:340,y:215,width:325,height:110}};
+export function bagObjectPose(state,id){
+ if(id==='head')return {x:state.headOpen?680:350,y:state.headOpen?105:240,width:300,height:90,scale:1};
+ if(id==='used'&&state.usedBag==='disposed')return {x:845,y:410,width:125,height:155,scale:.7};
+ if(id==='used'){const removed=['removed','sealed'].includes(state.usedBag);return {x:removed?205:430,y:removed?350:320,width:125,height:155,scale:1};}
+ if(id==='fresh')return {x:state.newBag==='fitted'?430:55,y:state.newBag==='fitted'?320:75,width:125,height:155,scale:1};
+ throw new RangeError('Unknown bag-game object');
+}
+export function bagDropAction(state,id,point){
+ if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))throw new RangeError('Invalid drop position');
+ const inside=zone=>point.x>=zone.x&&point.x<=zone.x+zone.width&&point.y>=zone.y&&point.y<=zone.y+zone.height;
+ if(id==='head'&&state.phase==='open'&&inside(BAG_ZONES.rest))return {type:'open'};
+ if(id==='head'&&state.phase==='close'&&inside(BAG_ZONES.head))return {type:'close'};
+ if(id==='used'&&state.phase==='remove'&&inside(BAG_ZONES.tray))return {type:'remove'};
+ if(id==='used'&&state.phase==='dispose'&&inside(BAG_ZONES.bin))return {type:'dispose',item:'used'};
+ if(id==='fresh'&&state.phase==='fit'&&inside(BAG_ZONES.machine))return {type:'fit',item:'new'};
+ return null;
 }

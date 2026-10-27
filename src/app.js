@@ -65,7 +65,7 @@ function showPage(next,path=[],historyMode='push'){
  document.title=next==='home'?'EFS Learning Academy':`${next==='module'?'Junior 103':next==='soft-checklist'?'Maintenance practice':'Hard Services'} · EFS Learning Academy`;
  for(const b of document.querySelectorAll('[data-page]')){const selected=b.dataset.page===next;b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
  if(historyMode!=='none')history[historyMode==='replace'?'replaceState':'pushState']({page:next,path},'',`#${pageHashes[next]}`);
- closeMenu();window.scrollTo({top:0,behavior:'instant'});
+ closeMenu();window.scrollTo({top:0,behavior:'instant'});if(next==='soft-checklist')maintenance?.enter();
 }
 $('vacuum-nav').addEventListener('click',()=>showPage('module'));document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();showPage('home');});
 for(const b of document.querySelectorAll('[data-page]'))b.addEventListener('click',()=>showPage(b.dataset.page));

@@ -1,22 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialPractice,reducePractice,SCRUB_DURATION_MS,HAND_AREAS} from '../src/maintenance-state.js';
+import {initialPractice,reducePractice,SCRUB_DURATION_MS,HAND_AREAS,BAG_ZONES,bagObjectPose,bagDropAction} from '../src/maintenance-state.js';
 const act=(state,type,extra={})=>reducePractice(state,{type,...extra}).state;
 function readyToScrub(){let s=initialPractice('hands');for(const type of ['tap','wet','tap','soap'])s=act(s,type);return s;}
-function bagToDispose(){let s=initialPractice('bag');for(const type of ['isolate','open','remove','seal'])s=act(s,type);return s;}
+function openBag(){let s=act(initialPractice('bag'),'isolate');for(const clip of ['left','right'])s=act(s,'unclip',{clip});return act(s,'open');}
+function bagToDispose(){let s=openBag();for(const type of ['remove','seal'])s=act(s,type);return s;}
 test('dust bag scenario starts above the user training trigger and cannot open before isolation',()=>{
  const s=initialPractice('bag');assert.equal(s.fill,80);assert.ok(s.fill>70);assert.equal(s.newBag,'shelf');assert.equal(s.usedBag,'fitted');
  const blocked=reducePractice(s,{type:'open'});assert.equal(blocked.state.headOpen,false);assert.equal(blocked.state.phase,'isolate');assert.match(blocked.message,/unplug/);
  assert.equal(act(s,'fit').newBag,'shelf');
 });
 test('a bag cannot be binned before sealing or replaced before the old one is disposed',()=>{
- let s=initialPractice('bag');s=act(s,'isolate');s=act(s,'open');s=act(s,'remove');assert.equal(act(s,'dispose').usedBag,'removed');assert.equal(act(s,'fit').newBag,'shelf');
+ let s=openBag();s=act(s,'remove');assert.equal(act(s,'dispose').usedBag,'removed');assert.equal(act(s,'fit').newBag,'shelf');
  s=act(s,'seal');s=act(s,'select',{item:'new'});const blocked=reducePractice(s,{type:'transfer',target:'bin'});assert.equal(blocked.state.usedBag,'sealed');assert.match(blocked.message,/clean bag/);
 });
 test('bag source/destination actions complete the correct isolated replacement sequence',()=>{
  let s=bagToDispose();s=act(s,'select',{item:'used'});s=act(s,'transfer',{target:'bin'});assert.equal(s.usedBag,'disposed');assert.equal(s.phase,'fit');
  assert.equal(act(s,'transfer',{target:'machine'}).newBag,'shelf');
- s=act(s,'select',{item:'new'});s=act(s,'transfer',{target:'machine'});assert.equal(s.fill,0);assert.equal(s.newBag,'fitted');s=act(s,'close');
+ s=act(s,'select',{item:'new'});s=act(s,'transfer',{target:'machine'});assert.equal(s.fill,0);assert.equal(s.newBag,'fitted');s=act(s,'close');assert.equal(s.complete,false);for(const clip of ['left','right'])s=act(s,'secure',{clip});
  assert.equal(s.complete,true);assert.equal(s.headOpen,false);assert.equal(s.isolated,true);assert.equal(s.usedBag,'disposed');assert.deepEqual(act(s,'reset'),initialPractice('bag'));
 });
 test('soap and rinse cannot bypass wetting or the scrub stage',()=>{
@@ -48,4 +49,20 @@ test('connector inspection requires isolation, all observations and a fault repo
  let s=initialPractice('terminals');assert.equal(act(s,'inspect',{area:'heat'}).checks.length,0);s=act(s,'isolate');s=act(s,'inspect',{area:'heat'});assert.equal(act(s,'decide',{choice:'report'}).complete,false);
  s=act(s,'inspect',{area:'pins'});s=act(s,'inspect',{area:'cable'});assert.equal(s.phase,'decide');const wrong=reducePractice(s,{type:'decide',choice:'clear'});assert.equal(wrong.state.complete,false);assert.match(wrong.message,/heat mark/);
  s=act(s,'decide',{choice:'report'});assert.equal(s.complete,true);assert.equal(s.isolated,true);assert.deepEqual(act(s,'reset'),initialPractice('terminals'));
+});
+
+test('head requires two released clips and completion requires two secured clips',()=>{
+ const initial=initialPractice('bag');let s=act(initial,'isolate');s=act(s,'unclip',{clip:'left'});assert.equal(act(s,'open').headOpen,false);assert.equal(initial.clips.left,true);
+ s=act(s,'unclip',{clip:'right'});s=act(s,'open');assert.equal(s.headOpen,true);assert.equal(act(s,'secure',{clip:'left'}).clips.left,false);
+ assert.throws(()=>act(s,'unclip',{clip:'unknown'}),RangeError);
+});
+test('drag targets accept only the correct object and phase',()=>{
+ let s=act(initialPractice('bag'),'isolate');for(const clip of ['left','right'])s=act(s,'unclip',{clip});
+ assert.equal(bagDropAction(s,'head',{x:450,y:470}),null);
+ let drop=bagDropAction(s,'head',{x:825,y:150});assert.deepEqual(drop,{type:'open'});s=reducePractice(s,drop).state;
+ assert.equal(bagDropAction(s,'used',{x:900,y:500}),null);drop=bagDropAction(s,'used',{x:265,y:425});assert.deepEqual(drop,{type:'remove'});s=reducePractice(s,drop).state;s=act(s,'seal');
+ assert.deepEqual(bagDropAction(s,'used',{x:900,y:500}),{type:'dispose',item:'used'});assert.equal(bagDropAction(s,'fresh',{x:500,y:400}),null);
+ s=act(s,'dispose',{item:'used'});drop=bagDropAction(s,'fresh',{x:500,y:400});assert.deepEqual(drop,{type:'fit',item:'new'});s=reducePractice(s,drop).state;
+ assert.deepEqual(bagDropAction(s,'head',{x:500,y:270}),{type:'close'});assert.equal(bagObjectPose(s,'head').x,680);
+ assert.throws(()=>bagDropAction(s,'head',{x:NaN,y:20}),RangeError);
 });
