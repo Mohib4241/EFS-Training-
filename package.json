@@ -8,7 +8,7 @@
     "build": "node build.mjs",
     "dev": "node build.mjs && node server.mjs",
     "serve": "node build.mjs && node server.mjs",
-    "check": "node --check build.mjs && node --check server.mjs && node --check src/app.js && node --check src/content.js && node --check src/machine-state.js && node --check src/viewer.js && node --check src/cleaning-state.js && node --check src/maintenance-state.js && node --check src/maintenance.js && node --check src/maintenance-lessons.js && node --check src/hard-content.js && node --check src/hard-models.js && node --check src/hard-viewer.js && node --check src/hard-lab.js",
+    "check": "node --check build.mjs && node --check server.mjs && node --check src/app.js && node --check src/content.js && node --check src/machine-state.js && node --check src/viewer.js && node --check src/cleaning-state.js && node --check src/maintenance-state.js && node --check src/maintenance.js && node --check src/maintenance-lessons.js && node --check src/hard-content.js && node --check src/hard-models.js && node --check src/hard-viewer.js && node --check src/hard-lab.js && node --check src/guidance.js && node --check src/soft-content.js && node --check src/scrubber-state.js && node --check src/scrubber.js",
     "test": "node --test tests/*.test.mjs"
   },
   "engines": {

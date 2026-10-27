@@ -14,8 +14,9 @@ function chart(module,s,m){
  else{label='Calculated steady requests for three equal assumed 40 kilowatt stages';body=Array.from({length:3},(_,n)=>{const enabled=m.requested.includes(n),unavailable=s.inputs.unavailable===n+1;return text(10,23+n*34,`Unit ${n+1} · ${[120,70,95][n]} h`)+`<rect x="130" y="9" width="210" height="20" rx="4" fill="none" transform="translate(0 ${n*34})"/><rect x="130" y="${9+n*34}" width="210" height="20" rx="4" fill="#e6eee5"/><rect x="130" y="${9+n*34}" width="${enabled?210*m.modulation:0}" height="20" rx="4" fill="#a8cdc0"/>`+text(350,23+n*34,unavailable?'Unavailable':enabled?`${format(m.delivered/m.requested.length)} kW`:'Standby');}).join('');}
  return `<svg viewBox="0 0 460 125" role="img" aria-label="${escape(label)}">${body}</svg><span>${escape(label)}</span>`;
 }
-export function mountHardLab(container,{onNavigate}){
+export function mountHardLab(container,{onNavigate,guidance}){
  const q=selector=>container.querySelector(selector),all=selector=>[...container.querySelectorAll(selector)],states=new Map(),inspections=new Map();
+ let autoRotate=true;
  let id=null,module=null,state=null,inspection=null,mode='explore',viewer=null,live=false,message='',lessonTimer=null,dischargeTimer=null,lastDischarge=0;
  const reduced=matchMedia('(prefers-reduced-motion: reduce)'),abort=new AbortController(),signal=abort.signal;
  container.innerHTML=`<div class="hl-heading"><div><span class="eyebrow" data-hl="brand"></span><h1 data-hl="title"></h1><p data-hl="intro"></p></div><label class="hl-equipment-select">Choose equipment<select data-hl="equipment" aria-label="Choose equipment">${hardList.map(m=>`<option value="${m.id}">${escape(m.brand)} · ${escape(m.short===m.brand?m.reference.split(' · ')[0]:m.short)}</option>`).join('')}</select></label></div>
@@ -35,9 +36,10 @@ export function mountHardLab(container,{onNavigate}){
  function startDischarge(){stopDischarge();if(!live||document.hidden||state?.testPhase!=='discharging')return;lastDischarge=performance.now();dischargeTimer=setInterval(()=>{const now=performance.now(),dt=Math.min(.25,(now-lastDischarge)/1000);lastDischarge=now;const out=reduceHard(state,{type:'tick',dt});state=out.state;if(out.message)message=out.message;paint();if(state.testPhase==='idle')stopDischarge();},100);}
  function dispatch(action){if(mode==='maintenance'&&['connect','run'].includes(action.type)){message='Maintenance learning keeps the virtual equipment isolated. Use Experiment to run it.';paint();return;}if(action.type==='reset'){stopLesson();inspection=initialInspection();}const out=reduceHard(state,action);state=out.state;if(out.message)message=out.message;paint();startDischarge();}
  function selectPart(part){
+  guidance?.showDetails();
   const keyboardObservation=document.activeElement?.dataset.observe;
   state=reduceHard(state,{type:'select',id:part}).state;
-  if(mode==='maintenance'&&inspection.phase==='practice'&&part!=='overview'){if(state.connected||state.running||state.residualV>0){inspection={...inspection,isolated:false,checked:[],complete:false};put('inspection-feedback','Isolate the virtual equipment and allow its illustrative discharge before recording observations.');}else{const out=reduceInspection(inspection,{type:'check',id:part},module);inspection=out.state;put('inspection-feedback',out.message);}}
+  if(mode==='maintenance'&&inspection.phase==='practice'&&part!=='overview'){if(state.connected||state.running||state.residualV>0){inspection={...inspection,isolated:false,checked:[],complete:false};put('inspection-feedback','Isolate the virtual equipment and allow its illustrative discharge before recording observations.');guidance?.notify('Complete the previous step: isolate the equipment and allow discharge first.');}else{const out=reduceInspection(inspection,{type:'check',id:part},module);inspection=out.state;put('inspection-feedback',out.message);if(out.blocked)guidance?.notify('Complete the previous step. '+out.message);else guidance?.clearNotice();}}
   else if(mode!=='maintenance'&&['stator','windings','rotor','avr','exciter-rotor','rectifier','pcb','battery','discharge','fuses','auxiliary','terminal-board'].includes(part)&&!state.running&&state.open<55){const out=reduceHard(state,{type:'open',value:55});state=out.state;if(out.message)message=out.message;}
   paint();if(keyboardObservation){(q('.hl-inspection-work li.current button')||q('.hl-report-buttons button'))?.focus({preventScroll:true});}
  }
@@ -57,7 +59,7 @@ export function mountHardLab(container,{onNavigate}){
   q('.hl-lesson-controls').hidden=!lesson;q('.hl-inspection-work').hidden=lesson;
   q('[data-inspection="play"]').textContent=inspection.playing?'Pause guide':inspection.reviewed?'Replay guide':'Play animated guide';q('[data-inspection="previous"]').disabled=inspection.step===0;q('[data-inspection="practice"]').disabled=!inspection.reviewed;
   q('.hl-inspection-work [data-inspection="isolate"]').disabled=inspection.isolated;q('.hl-inspection-work [data-inspection="isolate"]').textContent=inspection.isolated?'Virtual isolation recorded ✓':'Isolate virtual equipment';
-  q('[data-hl="inspection-steps"]').innerHTML=module.checks.map((c,n)=>`<li class="${n<inspection.checked.length?'done':n===inspection.checked.length?'current':''}"><button data-observe="${c.part}" ${!inspection.isolated||inspection.complete?'disabled':''}>${n<inspection.checked.length?'✓':n+1} · ${escape(c.title)}<small>${escape(module.parts.find(p=>p.id===c.part).name)}</small></button></li>`).join('');
+  q('[data-hl="inspection-steps"]').innerHTML=module.checks.map((c,n)=>`<li class="${n<inspection.checked.length?'done':n===inspection.checked.length?'current':''}"><button data-observe="${c.part}" ${inspection.complete?'disabled':''}>${n<inspection.checked.length?'✓':n+1} · ${escape(c.title)}<small>${escape(module.parts.find(p=>p.id===c.part).name)}</small></button></li>`).join('');
   q('.hl-report-buttons').hidden=inspection.checked.length!==module.checks.length||inspection.complete;put('finding',inspection.checked.length===module.checks.length?module.checks.at(-1).finding:'');if(!lesson){put('overlay-step',inspection.complete?'PRACTICE COMPLETE':`YOUR PRACTICE · ${inspection.checked.length} / ${module.checks.length} OBSERVATIONS`);put('overlay-title',q('[data-hl=lesson-title]').textContent);put('overlay-copy',q('[data-hl=lesson-copy]').textContent);}
  }
  function paint(){
@@ -72,7 +74,7 @@ export function mountHardLab(container,{onNavigate}){
   q('.hl-calculation').hidden=mode==='maintenance';q('.hl-live-guide').hidden=mode!=='maintenance';q('.hl-scene-isolate').hidden=mode!=='maintenance'||inspection.phase!=='practice'||inspection.isolated;if(mode==='maintenance')paintInspection();
   const practice=mode==='maintenance'&&inspection.phase==='practice',expected=practice&&inspection.isolated?module.checks[inspection.checked.length]?.part:null;
   const targetPart=expected||(mode==='maintenance'&&inspection.phase==='lesson'?lessonFrames()[inspection.step].part:null);
-  viewer?.setState({...state,targetPart,inspectionFault:mode==='maintenance'&&(inspection.phase==='practice'||inspection.step===module.checks.length+1),guidePlaying:mode==='maintenance'&&inspection.playing},result);remember();
+  viewer?.setState({...state,autoRotate,targetPart,inspectionFault:mode==='maintenance'&&(inspection.phase==='practice'||inspection.step===module.checks.length+1),guidePlaying:mode==='maintenance'&&inspection.playing},result);remember();
  }
  function populate(){
   put('brand',`HARD SERVICES · ${module.brand.toUpperCase()} · ${module.reference.toUpperCase()}`);put('title',module.name);put('intro',module.intro);put('count',String(module.parts.length));q('[data-hl="equipment"]').value=id;
@@ -81,7 +83,7 @@ export function mountHardLab(container,{onNavigate}){
   q('[data-hl="inputs"]').innerHTML=module.inputs.map(spec=>`<label class="${spec.type==='checkbox'?'hl-checkbox':''}">${escape(spec.label)}${spec.type==='range'?`<output data-value="${spec.key}"></output><input type="range" data-field="${spec.key}" min="${spec.min}" max="${spec.max}" step="${spec.step}" value="${spec.value}" aria-label="${escape(spec.label)}">`:spec.type==='select'?`<select data-field="${spec.key}" aria-label="${escape(spec.label)}">${spec.options.map(([value,text])=>`<option value="${escape(value)}">${escape(text)}</option>`).join('')}</select>`:`<input type="checkbox" data-field="${spec.key}" aria-label="${escape(spec.label)}">`}</label>`).join('');
   put('inspection-feedback','');
  }
- function setupViewer(){try{viewer=createHardViewer(q('canvas'),{onSelect:selectPart,onReveal:value=>dispatch({type:'open',value}),tooltip:q('.hl-tooltip'),labels:q('.hl-callouts')});q('canvas').addEventListener('viewer-unavailable',()=>q('.hl-fallback').hidden=false,{signal});}catch(error){q('.hl-fallback').hidden=false;console.warn('Hard Services 3D unavailable:',error.message);}}
+ function setupViewer(){try{viewer=createHardViewer(q('canvas'),{onSelect:selectPart,onHover:id=>guidance?.hover(id),onReveal:value=>dispatch({type:'open',value}),tooltip:q('.hl-tooltip'),labels:q('.hl-callouts')});q('canvas').addEventListener('viewer-unavailable',()=>q('.hl-fallback').hidden=false,{signal});}catch(error){q('.hl-fallback').hidden=false;console.warn('Hard Services 3D unavailable:',error.message);}}
  function pause(){live=false;stopLesson();stopDischarge();if(state){const out=reduceHard(state,{type:'isolate'});state=out.state;remember();}viewer?.setActive(false);}
  function inspectionAction(command){
   if(command==='play'){if(inspection.playing){stopLesson();paint();}else playGuide();return;}
@@ -89,7 +91,7 @@ export function mountHardLab(container,{onNavigate}){
   if(command==='practice'&&state.residualV>0){put('inspection-feedback','Wait for the illustrative discharge before inspecting.');return;}
   if(command==='isolate')state=reduceHard(state,{type:'isolate'}).state;
   const action=command==='next'||command==='previous'?{type:'step',direction:command==='next'?1:-1}:command==='report'||command==='clear'?{type:'report',choice:command}: {type:command};
-  const out=reduceInspection(inspection,action,module);inspection=out.state;put('inspection-feedback',out.message);
+  const out=reduceInspection(inspection,action,module);inspection=out.state;put('inspection-feedback',out.message);if(out.blocked)guidance?.notify('Complete the previous step. '+out.message);else guidance?.clearNotice();
   if(inspection.phase==='lesson')guideView();else if(command==='practice'){state={...state,open:0,xray:false,part:'overview'};}
   paint();if(command==='practice')viewer?.cameraAction('reset');if(['practice','isolate'].includes(command)){q('.hl-explorer').scrollIntoView({block:'start',behavior:reduced.matches?'instant':'smooth'});(command==='practice'?q('.hl-scene-isolate'):q('.hl-inspection-work li.current button'))?.focus({preventScroll:true});}
  }
@@ -98,5 +100,5 @@ export function mountHardLab(container,{onNavigate}){
  container.addEventListener('change',e=>{if(e.target===q('[data-hl="equipment"]')){onNavigate(e.target.value);return;}const spec=module?.inputs.find(p=>p.key===e.target.dataset.field);if(spec&&spec.type!=='range')dispatch({type:'input',key:spec.key,value:spec.type==='checkbox'?e.target.checked:typeof spec.value==='number'?Number(e.target.value):e.target.value});},{signal});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopLesson();stopDischarge();if(state?.running)state=reduceHard(state,{type:'isolate'}).state;if(state)paint();}else if(live)startDischarge();},{signal});
  const observer=new IntersectionObserver(entries=>{if(!entries[0].isIntersecting){stopLesson();stopDischarge();if(state)paint();}else if(live)startDischarge();});observer.observe(container);
- return {show(next,view='explore'){if(id!==next){pause();id=next;module=getHardModule(id);state=states.get(id)||initialHardState(id);inspection=inspections.get(id)||initialInspection();populate();if(!viewer)setupViewer();viewer?.load(module);}live=true;viewer?.setActive(true);message='Explore the referenced equipment. All geometry and examples are educational.';setMode(view);startDischarge();},pause,destroy(){pause();abort.abort();observer.disconnect();viewer?.destroy();container.replaceChildren();}};
+ return {show(next,view='explore'){if(id!==next){pause();id=next;module=getHardModule(id);state=states.get(id)||initialHardState(id);inspection=inspections.get(id)||initialInspection();populate();if(!viewer)setupViewer();viewer?.load(module);}live=true;viewer?.setActive(true);message='Explore the referenced equipment. All geometry and examples are educational.';setMode(view);guidance?.setMachine(module,{focused:view!=='maintenance',onGuideOpen:()=>{stopLesson();paint();},onSelect:selectPart,onAutoRotate:value=>{autoRotate=value;paint();},onPanels:value=>container.classList.toggle('machine-focused',value)});startDischarge();},pause,destroy(){pause();abort.abort();observer.disconnect();viewer?.destroy();container.replaceChildren();}};
 }

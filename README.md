@@ -1,6 +1,6 @@
-# EFS Learning Academy — Junior 103 equipment and maintenance practice
+# EFS Learning Academy — equipment exploration and maintenance practice
 
-Soft Services and Hard Services both contain implemented learning modules. The earlier names-only Hard Services catalogue is now a six-module equipment library.
+Soft Services now includes the Junior 103 dry vacuum, Junior 429 wet/dry vacuum and HYPER 2000B scrubber dryer. Hard Services includes six electrical/MEP labs. All nine equipment pages share opt-in spoken part guides, Machine Guide and Page Guide, focused/collapsible panels and controlled auto orbit. Read the [current increment, source register, responsibilities and validation record](docs/guides-and-soft-equipment.md) for the latest delivery. The later sections preserve the earlier module implementation records.
 
 ## Run locally
 
@@ -13,8 +13,10 @@ Default address: http://127.0.0.1:5173. Set `PORT=5186` to use the current previ
 
 ## Navigation
 
-- Soft Services → Equipment → Vacuum Cleaner → CleanTech → Junior 103.
-- Soft Services → Maintenance Checklist (all registered Soft Services equipment; currently Junior 103).
+- Soft Services → Equipment → Vacuum Cleaner → Dry → CleanTech → Junior 103.
+- Soft Services → Equipment → Vacuum Cleaner → Wet → CleanTech → Junior 429 (wet & dry).
+- Soft Services → Equipment → Scrubber Dryers → Lavor → HYPER 2000B.
+- Soft Services → Maintenance Checklist → machine selector → lesson-first practice. Each vacuum has its own dry-filter service task; the scrubber opens its isolated observation lesson.
 - Hard Services → Equipment → Motors → Induction → 1 Phase / 3 Phase; Alternator.
 - Hard Services → Equipment → Instruments → Megger / Multimeter.
 - Hard Services → Equipment → HVAC → Cascade.
@@ -77,7 +79,7 @@ Logical specialist roles covered: architecture, engineering education, domain re
 
 ## Performance approach
 
-No network model or texture download is needed at runtime: geometry is procedural, label texture is generated locally, and the logo is local. Device pixel ratio is capped at 1.75; shadows use one 1024 map. Idle scenes render on demand. Animation scheduling stops while the canvas is offscreen or the document is hidden. Cable geometry changes only during connector motion. Motion is disabled for reduced-motion preferences. This describes the implementation, not a device benchmark or guaranteed frame rate.
+No network model or texture download is needed at runtime: geometry is procedural, label texture is generated locally, and the logo is local. Device pixel ratio is capped at 1.75; shadows use one 1024 map. Static scenes render on demand; optional auto orbit renders only while active and visible. Animation scheduling stops while the canvas is offscreen or the document is hidden. Cable geometry changes only during connector motion. Motion is disabled for reduced-motion preferences. This describes the implementation, not a device benchmark or guaranteed frame rate.
 
 ## Verification for this increment
 
@@ -196,3 +198,7 @@ Executed automated checks: all **41 Node tests**, syntax checks and bundled buil
 Executed browser checks: all 77 component buttons opened matching lessons without browser errors. The six models rendered, reference/experiment controls updated, motor opening isolated operation, scroll and keyboard reveal worked, insulation testing rejected a non-isolated item and held reveal until its illustrative discharge ended, multimeter jack/resistance interlocks worked, and the HVAC 100 kW / unavailable-stage example displayed 80 kW served with 20 kW unmet. The HVAC guide unlocked practice after playback, a real 3D pipework selection recorded an observation, keyboard alternatives preserved focus, an incorrect clear decision was rejected and reporting completed the sequence. Manual guide stepping, camera controls, incorrect/correct reasoning feedback, catalogue/checklist entry points, logo/home and Back/Forward navigation were also checked. Existing vacuum operation collected 40/40 virtual markers, and its original bag lesson still gated practice. Narrow responsive layouts were visually inspected. Five local HTTP checks confirmed CSS/HEAD responses, CSP/nosniff headers, POST rejection and rejection of unknown/traversal paths.
 
 Physical multi-touch, broad FPS/device benchmarking, a complete assistive-technology audit, manufacturer CAD or internal instrument circuit validation, site commissioning and production deployment are not claimed. Further engineering depth should use exact selected variants and measured/reference operating data rather than invented performance curves.
+
+## Shared guides and Soft Services equipment — current increment
+
+See [guides-and-soft-equipment.md](docs/guides-and-soft-equipment.md) for the current work packages, changed-file map, reference evidence, executed checks and remaining limits. Direct routes are `#junior-103`, `#junior-429`, `#hyper-2000b`, `#maintenance/junior-103`, `#maintenance/junior-429` and `#hyper-2000b/maintenance`. Sound starts off and requires a user action. Narration uses an available system/browser voice, cancels on navigation or hiding, and has written transcripts. The wet/dry vacuum is a separate teaching configuration, not permission to use dry filters for liquid collection. Supplied photos remain outside the source and build assets.
