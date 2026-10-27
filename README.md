@@ -1,6 +1,6 @@
 # EFS Learning Academy — Junior 103 equipment and maintenance practice
 
-Soft Services is the implemented learning area. Hard Services contains the requested catalogue names only.
+Soft Services and Hard Services both contain implemented learning modules. The earlier names-only Hard Services catalogue is now a six-module equipment library.
 
 ## Run locally
 
@@ -18,7 +18,7 @@ Default address: http://127.0.0.1:5173. Set `PORT=5186` to use the current previ
 - Hard Services → Equipment → Motors → Induction → 1 Phase / 3 Phase; Alternator.
 - Hard Services → Equipment → Instruments → Megger / Multimeter.
 - Hard Services → Equipment → HVAC → Cascade.
-- Hard Services → Maintenance Checklist (category names only; no technical checklist or lessons).
+- Hard Services → Maintenance Checklist → equipment-specific guided observations and practice.
 
 Desktop navigation collapses into a rail. On narrow screens it opens as a drawer with keyboard Escape support and inactive offscreen content. Native details disclose the hierarchy.
 
@@ -102,7 +102,7 @@ Files for this update: `src/viewer.js`, `src/machine-state.js`, `src/app.js`, `s
 
 ### Entry points and focus
 
-The default welcome page is `#home`, titled “Welcome to EFS Learning Academy”. Clicking the official EFS logo returns home. Cards lead to the Junior 103 equipment lab (`#junior-103`), cleaning practice or Maintenance Checklist (`#maintenance`). The left navigation collapses when opening equipment or maintenance, and expands again on home; a mobile drawer remains available. Browser Back/Forward restores the routed page. Hard Services remains a names-only catalogue.
+The default welcome page is `#home`, titled “Welcome to EFS Learning Academy”. Clicking the official EFS logo returns home. Cards lead to the Junior 103 equipment lab (`#junior-103`), cleaning practice or Maintenance Checklist (`#maintenance`). The left navigation collapses when opening equipment or maintenance, and expands again on home; a mobile drawer remains available. Browser Back/Forward restores the routed page. Hard Services now opens researched equipment labs; see the Hard Services expansion below.
 
 ### Interactive practices
 
@@ -158,3 +158,41 @@ Lesson frames are authored from the same permitted state transitions as practice
 Files: `src/maintenance-lessons.js` and `tests/maintenance-lessons.test.mjs` added; `src/maintenance.js`, `src/maintenance-state.js`, `src/maintenance.css`, `src/app.js`, `tests/maintenance.test.mjs`, `package.json` and this README updated. The maintenance learning sequence is the engineering principle involved: isolation, controlled disassembly, dust containment, clean replacement, reassembly and inspection, with a demonstration → practice → feedback learning loop.
 
 Executed validation: all 29 Node regression tests, syntax checks, bundled build and whitespace checks passed. Browser checks reviewed all three lessons and their separate practice gates, pause/resume, manual lesson-step review, all five held-object bag movements, rejection/snap-back of an incorrect head drop, completion only after both clips are secured, and the keyboard/tap disclosure. Handwashing practice was completed using its real 20-second scrub timer after watching the separate preview; connector practice rejected the clear-inspection answer and completed after reporting the illustrated concern. No browser errors were observed. The narrow responsive layout was visually checked. Physical touch input, a full assistive-technology audit, broad FPS benchmarks and manufacturer fitment validation were not performed.
+
+
+## Hard Services expansion — 27 October 2026
+
+Objective: populate every existing Hard Services equipment leaf with the same core exploration features as the Junior 103, plus bounded mathematical experiments and lesson-first observation practice. The user's clarification defines HVAC Cascade as staged plant control. The representative system is a parallel heat-pump cascade.
+
+| Equipment | Reference | Major teaching assemblies | Main experiment |
+|---|---|---:|---|
+| Single-phase induction motor | WEG W22 capacitor-start/run family | 17 | Forward-field speed/slip; failed start-branch inhibition |
+| Three-phase induction motor | ABB M3BP family | 14 | Frequency, poles, slip, rotor power balance and phase-loss interlock |
+| Brushless alternator | STAMFORD UC274 / UCI274H reference | 14 | Four-pole speed/frequency and relative open-circuit EMF |
+| Insulation tester | Megger MIT420/2 | 10 | Ideal leakage current and separately authored RC discharge |
+| Digital multimeter | Fluke 87V | 10 | DC voltage/current/resistance, correct input jack and source isolation |
+| HVAC cascade control | Mitsubishi Electric Ecodan CAHV-R multi-unit reference | 12 | Three assumed 40 kW stages, demand, order, unavailable unit and water-flow balance |
+
+Each lab provides component selection and hover identification, drag orbit, camera rotation/zoom/focus, wheel/pinch reveal, keyboard reveal controls, an opening slider, see-inside view, labels, reset, synchronized component motion, manufacturer reference facts, a causal explanation, model limits, primary-source links and a reasoning question. Major assemblies total **77**; this is not an exhaustive manufacturer spare-parts catalogue.
+
+Routes: `#hard-services` opens the equipment cards; `#equipment/motor-1ph`, `#equipment/motor-3ph`, `#equipment/alternator`, `#equipment/megger`, `#equipment/multimeter` and `#equipment/cascade` open labs directly. `#hard-maintenance` opens all inspection cards; append `/maintenance` to an equipment route for its guide. Navigation collapses in the labs and the official EFS logo remains the home entry point.
+
+Maintenance learning has five guided stages: isolation, three observations, and response to a concern. The guide highlights components and moves the view; captions are visible on the scene. Playback or step-by-step review unlocks practice without completing it. Practice requires recorded virtual isolation, identification in order, and reporting the illustrated concern. Named controls provide an alternative to selecting the actual 3D part. Re-energising is blocked in maintenance mode. This is an observation lesson, not a live test, terminal service procedure, refrigerant task or maintenance certificate.
+
+### Architecture, responsibilities and model limits
+
+Electrical and power-system domain, MEP, education, scientific computing, graphics/frontend, QA and reliability responsibilities were applied within this task. The [compact working brief](docs/working-brief.md) records work packages, inputs, dependencies, acceptance criteria and preserved context. The [research and model record](docs/hard-services-research.md) includes manufacturer evidence, all parameter ranges/defaults, equations, units, initial states, assumptions, analytical reference cases and remaining limits.
+
+Content lives in `src/hard-content.js`, calculations and transition guards in `src/hard-models.js`, 3D geometry/rendering in `src/hard-viewer.js`, and interaction/lessons in `src/hard-lab.js`. This extends the existing JavaScript/Three.js stack with one reusable Hard Services renderer. Changing equipment releases the previous module's geometry, materials and textures; only the current model is rendered. Pixel ratio is capped at 1.75, shadows at 1024², hover movement is coalesced, static scenes render on demand, and hidden/offscreen scenes stop animation. Reduced-motion settings suppress illustrative movement. No new runtime dependency or remote asset loading was introduced.
+
+The geometry is conceptual (Fidelity A). Stated equations are educational (Fidelity B), checked against analytical examples, with no manufacturer performance validation (Fidelity C). Motor curves, physical transients, product-specific load behaviour, calibrated instrument accuracy, actual insulation acceptance limits, proprietary HVAC sequencing, minimum on/off times, COP prediction, defrost and plant design are not represented. User-selected values are teaching assumptions and never written into real equipment. The correct variant manuals and site procedures remain necessary for real work.
+
+### Files and verification
+
+Added: `src/hard-content.js`, `src/hard-models.js`, `src/hard-viewer.js`, `src/hard-lab.js`, `src/hard-lab.css`, `tests/hard-services.test.mjs`, `docs/working-brief.md`, and `docs/hard-services-research.md`. Updated: `src/app.js`, `src/index.html`, `build.mjs`, `server.mjs`, `package.json`, `tests/content.test.mjs`, and this README.
+
+Executed automated checks: all **41 Node tests**, syntax checks and bundled build passed. Twelve new tests cover six-module completeness, known induction/alternator cases, power conservation, instrument units and interlocks, HVAC stage capacity/flow accounting, invalid inputs, isolation/reveal and all six lesson/practice state machines. The 29 existing Soft Services regressions also pass. The generated JavaScript bundle is about 780 kB before compression; this is a size measurement, not a device frame-rate benchmark.
+
+Executed browser checks: all 77 component buttons opened matching lessons without browser errors. The six models rendered, reference/experiment controls updated, motor opening isolated operation, scroll and keyboard reveal worked, insulation testing rejected a non-isolated item and held reveal until its illustrative discharge ended, multimeter jack/resistance interlocks worked, and the HVAC 100 kW / unavailable-stage example displayed 80 kW served with 20 kW unmet. The HVAC guide unlocked practice after playback, a real 3D pipework selection recorded an observation, keyboard alternatives preserved focus, an incorrect clear decision was rejected and reporting completed the sequence. Manual guide stepping, camera controls, incorrect/correct reasoning feedback, catalogue/checklist entry points, logo/home and Back/Forward navigation were also checked. Existing vacuum operation collected 40/40 virtual markers, and its original bag lesson still gated practice. Narrow responsive layouts were visually inspected. Five local HTTP checks confirmed CSS/HEAD responses, CSP/nosniff headers, POST rejection and rejection of unknown/traversal paths.
+
+Physical multi-touch, broad FPS/device benchmarking, a complete assistive-technology audit, manufacturer CAD or internal instrument circuit validation, site commissioning and production deployment are not claimed. Further engineering depth should use exact selected variants and measured/reference operating data rather than invented performance curves.
