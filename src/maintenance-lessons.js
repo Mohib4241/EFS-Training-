@@ -34,23 +34,28 @@ const scripts={
  ]
 };
 const filterScript=wet=>[
- ['Isolate before filter care','Switch off, unplug and let the motor stop before touching the clips.',1600,[{type:'isolate'}],{at:{x:110,y:535}}],
- ['Release the first clip','Release the left retaining clip.',1100,[{type:'unclip',clip:'left'}],{at:{x:350,y:305}}],
- ['Release the second clip','Both clips must be free before lifting the head.',1100,[{type:'unclip',clip:'right'}],{at:{x:643,y:305}}],
- ['Park the motor head','Hold the handle and move the head to the rest.',2300,[{type:'open'}],{object:'head'}],
- ['Lift the filter by its rim',wet?'Lift the caged dry-filter illustration onto the inspection tray.':'Lift the textile basket filter onto the inspection tray.',2300,[{type:'remove'}],{object:'used'}],
- ['Inspect media, rim and seal','Look for dust loading, tears and a damaged seal. Do not assume the filter is washable or rated for liquids.',2100,[{type:'inspect'}],{at:{x:265,y:365}}],
- ['Select the matching dry filter',wet?'This task restores DRY pickup on the wet/dry unit. Liquid pickup needs the exact approved wet setup, with dry media removed as specified.':'Use a matching clean, dry textile basket. Exact fitment and care follow the correct manual.',2500,[{type:'choose',choice:'correct'}],{at:{x:110,y:135}}],
- ['Refit clean, dry media','Hold the clean filter, seat its rim correctly and check that the seal is not trapped.',2300,[{type:'fit'}],{object:'fresh'}],
- ['Return the head','Return the head without disturbing the seated filter.',2300,[{type:'close'}],{object:'head'}],
- ['Secure the first clip','Lock the left retaining clip.',1000,[{type:'secure',clip:'left'}],{at:{x:350,y:305}}],
- ['Secure the second clip','Lock the right clip. The practice finishes isolated, with dry media fitted for dry pickup.',1200,[{type:'secure',clip:'right'}],{at:{x:643,y:305}}]
+ ['Isolate before weekly filter care','Switch off and unplug. Keep the motor head away from the wash area.',1600,[{type:'isolate'}],{at:{x:110,y:535}},'Weekly filter care se pehle isolate karo','Switch off aur unplug karo. Motor head ko wash area se door rakho.'],
+ ['Release the first clip','Release the left retaining clip.',1100,[{type:'unclip',clip:'left'}],{at:{x:350,y:305}},'Pehla clip kholo','Left retaining clip release karo.'],
+ ['Release the second clip','Both clips must be free before lifting the head.',1100,[{type:'unclip',clip:'right'}],{at:{x:643,y:305}},'Doosra clip kholo','Head uthane se pehle dono clips free hone chahiye.'],
+ ['Park the motor head','Hold the handle and move the head to its dry rest.',2300,[{type:'open'}],{object:'head'},'Motor head ko rest par rakho','Handle hold karke head ko dry rest par rakho.'],
+ ['Lift this filter by its rim',wet?'Lift the caged filter illustration to the tray. Exact washable media must be confirmed.':'Lift the textile basket filter to its inspection tray.',2300,[{type:'remove'}],{object:'filter'},'Isi filter ko rim se uthao','Filter ko hold karke inspection tray par le jao.'],
+ ['Confirm washable media','Check the media, rim and seal. Only an approved washable removable filter is rinsed in this scenario; never paper media.',2600,[{type:'inspect',choice:'washable'}],{at:{x:265,y:365}},'Washable media confirm karo','Media, rim aur seal check karo. Sirf approved washable removable filter rinse karo; paper media ko water se mat dhona.'],
+ ['Turn on clean water','Use the tap. Only the removed filter goes into the wash area.',1500,[{type:'tap'}],{at:{x:110,y:300}},'Clean water on karo','Tap on karo. Sirf nikala hua filter wash area mein jayega.'],
+ ['Rinse the same filter','Hold the filter and move it under the stream. Keep water away from the motor head and electrical parts.',2500,[{type:'wash'}],{object:'filter'},'Isi filter ko rinse karo','Filter hold karke water stream ke neeche le jao. Motor head aur electrical parts ko dry rakho.'],
+ ['Turn the tap off','Stop the water before moving the rinsed filter to the rack.',1400,[{type:'tap'}],{at:{x:110,y:300}},'Tap band karo','Rinsed filter ko rack par le jaane se pehle water off karo.'],
+ ['Place it on the air-drying rack','Move this same filter to the top-left rack.',2300,[{type:'rack'}],{object:'filter'},'Air-drying rack par rakho','Isi filter ko top-left rack par le jao.'],
+ ['Air-drying preview','This short animation illustrates air drying. It does not represent the real drying time.',2200,[{type:'dry'}],{at:{x:115,y:130}},'Air-drying preview dekho','Yeh chhoti animation air drying dikhati hai. Real drying time isse decide nahi hota.'],
+ ['Check that it is completely dry','Do not refit damp media. Confirm a completely dry, undamaged filter before continuing.',2400,[{type:'confirm-dry',choice:'dry'}],{at:{x:115,y:130}},'Puri tarah dry check karo','Damp media wapas mat lagao. Completely dry aur undamaged filter confirm karo.'],
+ ['Refit the same clean filter','Hold it on the rack and seat its rim in the tank without trapping the seal.',2300,[{type:'fit'}],{object:'filter'},'Wahi clean filter wapas lagao','Rack se filter hold karo aur tank mein rim seat karo. Seal ko trap mat karo.'],
+ ['Return the head','Return the dry motor head without disturbing the seated filter.',2300,[{type:'close'}],{object:'head'},'Head wapas rakho','Dry motor head ko wapas rakho. Seated filter disturb mat karo.'],
+ ['Secure the first clip','Lock the left retaining clip.',1000,[{type:'secure',clip:'left'}],{at:{x:350,y:305}},'Pehla clip lock karo','Left retaining clip lock karo.'],
+ ['Secure the second clip','Lock the right clip. Weekly is the site training schedule; the machine stays isolated.',1500,[{type:'secure',clip:'right'}],{at:{x:643,y:305}},'Doosra clip lock karo','Right clip lock karo. Weekly site training schedule hai; machine isolated rahegi.']
 ];
 scripts.filter=filterScript(false);scripts['wet-filter']=filterScript(true);
 export function lessonFrames(kind){
  if(!Object.hasOwn(scripts,kind))throw new RangeError('Unknown lesson');
  let state=initialPractice(kind),start=0;
- return scripts[kind].map(([title,caption,duration,actions,gesture])=>{const from=state;for(const action of actions)state=reducePractice(state,action).state;const frame={title,caption,duration,start,end:start+duration,from,to:state,gesture,actions};start=frame.end;return frame;});
+ return scripts[kind].map(([title,caption,duration,actions,gesture,titleHi,captionHi])=>{const from=state;for(const action of actions)state=reducePractice(state,action).state;const frame={title,caption,titleHi,captionHi,duration,start,end:start+duration,from,to:state,gesture,actions};start=frame.end;return frame;});
 }
 export const LESSONS=Object.fromEntries(Object.keys(scripts).map(kind=>[kind,lessonFrames(kind)]));
 export function initialLesson(){return {elapsed:0,playing:false,started:false,complete:false};}

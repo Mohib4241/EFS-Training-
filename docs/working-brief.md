@@ -1,5 +1,9 @@
 # Compact working brief — 27 October 2026
 
+## Latest correction
+
+The current local increment replaces written Machine/Page Guide catalogues with bilingual visual tours, keeps models central with collapsed panes, moves startup controls into the scene, changes sound to an icon with name-only hover speech, and replaces filter-selection practice with separate weekly same-filter rinse/dry/refit activities for Junior 103 and Junior 429. Dust-bag replacement stays separate. See [the current implementation and validation record](visual-guides-weekly-filter-care.md). Earlier Hard Services research and equations below remain applicable. After local validation the user authorised pushing the latest correction to `main`; deployment verification remains separate.
+
 ## Accepted context
 
 - Repository: `Mohib4241/EFS-Training-`; current increment base main commit `64e20b9`.
