@@ -199,6 +199,15 @@ Executed browser checks: all 77 component buttons opened matching lessons withou
 
 Physical multi-touch, broad FPS/device benchmarking, a complete assistive-technology audit, manufacturer CAD or internal instrument circuit validation, site commissioning and production deployment are not claimed. Further engineering depth should use exact selected variants and measured/reference operating data rather than invented performance curves.
 
-## Shared guides and Soft Services equipment — current increment
+## Shared guides and Soft Services equipment — previous increment
 
 See [guides-and-soft-equipment.md](docs/guides-and-soft-equipment.md) for the current work packages, changed-file map, reference evidence, executed checks and remaining limits. Direct routes are `#junior-103`, `#junior-429`, `#hyper-2000b`, `#maintenance/junior-103`, `#maintenance/junior-429` and `#hyper-2000b/maintenance`. Sound starts off and requires a user action. Narration uses an available system/browser voice, cancels on navigation or hiding, and has written transcripts. The wet/dry vacuum is a separate teaching configuration, not permission to use dry filters for liquid collection. Supplied photos remain outside the source and build assets.
+
+
+## Visual tours and weekly filter care — current correction
+
+Machine Guide and Page Guide are now short animated tours over the working model. Equipment opens with navigation and both side panes collapsed; startup controls sit at the top right. The speaker icon enables immediate part-name narration, with English and conversational Hinglish choices. Tours demonstrate orbit, pinch reveal/assembly and camera zoom, and appear on each equipment visit.
+
+Junior 103 and Junior 429 have separate weekly filter-wash lessons and practice: remove the same filter, confirm washable media, rinse it, turn the tap off, air-dry/check it, refit it and secure the head. Dust-bag replacement is still a separate activity. Weekly is the user's site training schedule; exact filter media/fitment/washability require confirmation. The drying preview does not predict real drying time.
+
+See [the complete correction record](docs/visual-guides-weekly-filter-care.md) for the logical specialist responsibilities, changed files, evidence, validation and remaining limits. This correction passed **51 tests**, syntax/build validation and focused desktop/narrow-browser checks, including complete filter routines and 40/40 virtual floor pickup. The changes were validated locally; publication is recorded in Git history. No production deployment verification is claimed.

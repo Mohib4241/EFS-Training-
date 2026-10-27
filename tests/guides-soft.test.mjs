@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNarrator,speechChunks} from '../src/guidance.js';
+import {createNarrator,speechChunks,voiceForLanguage} from '../src/guidance.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.js';
 import {initialState,transition} from '../src/machine-state.js';
 import {initialPractice,reducePractice,bagDropAction} from '../src/maintenance-state.js';
+import {FILTER_CARE_INTERVAL,FILTER_ZONES,filterCareSteps,filterObjectPose,filterDropAction,filterInstruction} from '../src/filter-care.js';
+import {guideFrames,moveGuide,partNameSpeech} from '../src/guide-content.js';
 import {LESSONS} from '../src/maintenance-lessons.js';
 import {initialInspection,reduceInspection} from '../src/hard-models.js';
 import {initialScrubber,reduceScrubber,scrubberResult} from '../src/scrubber-state.js';
@@ -17,7 +19,7 @@ test('voice is opt-in, debounced, deduplicated and cancelled on off or navigatio
  const speech=calls.filter(c=>typeof c==='object');assert.equal(speech.length,1);assert.equal(speech[0].text,'Second part');assert.equal(speech[0].voice.name,'local');n.hover('Second part','second');assert.equal(pending.size,0);
  n.setEnabled(false);const count=calls.length;speech[0].onend();assert.equal(calls.length,count);assert.equal(statuses.at(-1),'Sound off');n.setEnabled(true);n.hover('Pending','pending');n.stop();assert.equal(pending.size,0);
 });
-test('voice failures leave written guides usable and long speech advances in short chunks',()=>{
+test('voice failures leave visual guides usable and long speech advances in short chunks',()=>{
  const fallback=[];const none=createNarrator({synth:null,Utterance:null,onStatus:v=>fallback.push(v)});assert.equal(none.setEnabled(true),false);assert.match(fallback[0],/unavailable/);
  const text=Array(300).fill('filter').join(' '),chunks=speechChunks(text);assert.ok(chunks.length>1);assert.ok(chunks.every(s=>s.length<=260));assert.equal(chunks.join(' '),text);
  const calls=[],statuses=[];const n=createNarrator({synth:{cancel(){},getVoices:()=>[],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}},onStatus:v=>statuses.push(v)});n.setEnabled(true);n.speak(text);assert.equal(calls.length,1);calls[0].onend();assert.equal(calls.length,2);calls[1].onerror({error:'synthesis-unavailable'});assert.match(statuses.at(-1),/Audio unavailable/);n.stop();
@@ -33,15 +35,45 @@ test('wet and dry references have separate tool/filter lessons and no invented b
 test('changing wet/dry configuration stops and isolates; floor settings and reset remain authoritative',()=>{
  let s=initialState('junior-429');assert.equal(s.pickupMode,'wet');s=transition(s,{type:'plug'}).state;s=transition(s,{type:'power'}).state;assert.equal(s.running,true);s=transition(s,{type:'pickup',value:'dry'}).state;assert.equal(s.running,false);assert.equal(s.connected,false);assert.equal(s.pickupMode,'dry');s=transition(s,{type:'floor',value:'soft'}).state;assert.equal(s.floorMode,'soft');s=transition(s,{type:'reset'}).state;assert.equal(s.variant,'junior-429');assert.equal(s.pickupMode,'wet');assert.throws(()=>transition(initialState(),{type:'pickup',value:'wet'}),RangeError);assert.throws(()=>transition(s,{type:'floor',value:'other'}),RangeError);
 });
-test('both filter tasks require ordered isolation, clip release, inspection and correct selection',()=>{
+test('weekly filter care rinses and refits the same filter, with washability and dry gates',()=>{
+ assert.equal(FILTER_CARE_INTERVAL.days,7);assert.match(FILTER_CARE_INTERVAL.source,/not an OEM/);
  for(const kind of ['filter','wet-filter']){
   let s=initialPractice(kind);const early=reducePractice(s,{type:'open'});assert.equal(early.blocked,true);assert.deepEqual(early.state,s);
-  for(const a of [{type:'isolate'},{type:'unclip',clip:'left'},{type:'unclip',clip:'right'},{type:'open'},{type:'remove'},{type:'inspect'}])s=reducePractice(s,a).state;
-  const wrong=reducePractice(s,{type:'choose',choice:'wrong'});assert.equal(wrong.blocked,true);assert.equal(wrong.state.phase,'choose');s=reducePractice(s,{type:'choose',choice:'correct'}).state;
-  assert.deepEqual(bagDropAction(s,'fresh',{x:500,y:450}),{type:'fit',item:'new'});
-  for(const a of [{type:'fit'},{type:'close'},{type:'secure',clip:'left'},{type:'secure',clip:'right'}])s=reducePractice(s,a).state;
-  assert.equal(s.complete,true);assert.equal(s.isolated,true);assert.equal(s.newBag,'fitted');assert.equal(s.headOpen,false);assert.equal(LESSONS[kind].at(-1).to.complete,true);
+  const apply=a=>{const before=structuredClone(s),out=reducePractice(s,a);assert.deepEqual(s,before,'reducer must not mutate previous state');s=out.state;return out;};
+  for(const a of [{type:'isolate'},{type:'unclip',clip:'left'},{type:'unclip',clip:'right'},{type:'open'},{type:'remove'}])apply(a);
+  assert.equal(s.filter,'tray');assert.equal(apply({type:'inspect',choice:'paper'}).blocked,true);assert.equal(s.phase,'inspect');assert.equal(apply({type:'tap'}).blocked,true);
+  apply({type:'inspect',choice:'washable'});assert.equal(apply({type:'wash'}).blocked,true);apply({type:'tap'});apply({type:'wash'});
+  assert.equal(s.filter,'sink');assert.equal(s.wet,true);assert.equal(apply({type:'rack'}).blocked,true);apply({type:'tap'});apply({type:'rack'});
+  assert.equal(s.filter,'rack');assert.equal(apply({type:'fit'}).blocked,true);apply({type:'dry'});assert.equal(s.wet,true,'preview alone does not declare a dry filter');
+  assert.equal(apply({type:'confirm-dry',choice:'wet'}).blocked,true);apply({type:'confirm-dry',choice:'dry'});assert.equal(s.dryConfirmed,true);assert.equal(s.wet,false);
+  apply({type:'fit'});assert.equal(s.filter,'tank');assert.equal(apply({type:'secure',clip:'left'}).blocked,true);
+  for(const a of [{type:'close'},{type:'secure',clip:'left'},{type:'secure',clip:'right'}])apply(a);
+  assert.equal(s.complete,true);assert.equal(s.isolated,true);assert.equal(s.waterOn,false);assert.equal(s.headOpen,false);assert.equal('newBag' in s,false);assert.equal('usedBag' in s,false);
+  assert.equal(LESSONS[kind].at(-1).to.complete,true);assert.equal(reducePractice(s,{type:'reset'}).state.filter,'tank');
  }
+});
+test('filter holding targets follow the washing sequence, without replacement or waste-bin targets',()=>{
+ const actions={remove:['tray','remove'],wash:['sink','wash'],drain:['rack','rack'],fit:['machine','fit']};
+ for(const [phase,[zone,type]] of Object.entries(actions)){
+  const r=FILTER_ZONES[zone],s={...initialPractice('filter'),phase};assert.deepEqual(filterDropAction(s,'filter',{x:r.x+r.width/2,y:r.y+r.height/2}),{type});assert.equal(filterDropAction(s,'filter',{x:999,y:624}),null);
+ }
+ assert.equal(filterDropAction(initialPractice('filter'),'filter',{x:100,y:100}),null);assert.throws(()=>filterDropAction(initialPractice('filter'),'filter',{x:NaN,y:2}),RangeError);
+ assert.deepEqual(filterObjectPose({...initialPractice('filter'),filter:'rack'},'filter'),{x:55,y:75,width:125,height:155,scale:1});assert.throws(()=>filterObjectPose(initialPractice('filter'),'fresh'),RangeError);
+ assert.equal(filterCareSteps('hinglish').length,12);assert.match(filterInstruction({phase:'fit'},'hinglish')[0],/Wahi clean filter/);
+});
+test('visual tours explain actual controls in English and conversational Hinglish',()=>{
+ const m=vacuumModules['junior-103'],en=guideFrames('page',m),hi=guideFrames('page',m,'hinglish');
+ assert.deepEqual(en.map(f=>f.gesture),['drag','pinch-out','pinch-in','zoom-in','zoom-out','point']);assert.match(hi[1].caption,/Do fingers door karo/);assert.match(hi[1].spokenHi,/fingers/);assert.match(hi[1].spokenHi,/[\u0900-\u097f]/);
+ for(const kind of ['page','machine'])for(const language of ['english','hinglish'])for(const f of guideFrames(kind,m,language))assert.ok(f.caption&&f.title&&f.duration>=5200&&f.target);
+ const hard=guideFrames('machine',{id:'motor-3ph',kind:'motor'});assert.match(hard.find(f=>f.id==='identify').title,/component/);assert.doesNotMatch(hard.find(f=>f.id==='mechanism').caption,/suction/);const inspection=guideFrames('page',{id:'motor-3ph'},'english',true);assert.doesNotMatch(inspection.map(f=>f.caption).join(' '),/bag|filter|Hold/);assert.equal(inspection.at(-1).gesture,'point');
+ assert.deepEqual(moveGuide(0,-1,6),{index:0,complete:false});assert.deepEqual(moveGuide(5,1,6),{index:5,complete:true});assert.throws(()=>moveGuide(6,1,6),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
+ const part={name:'Motor head',body:'Long explanation is not a hover name'};assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head',spokenHi:null});assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai.');
+});
+test('Hinglish uses mixed-script speech with a Hindi voice and Roman speech when unavailable',()=>{
+ const calls=[],voices=[{name:'Hindi',lang:'hi-IN',localService:true},{name:'UK',lang:'en-GB',localService:true}];
+ const n=createNarrator({synth:{cancel(){},getVoices:()=>voices,speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}}});n.setEnabled(true);n.setLanguage('hinglish');n.speak('Yeh motor head hai.','Motor head','यह motor head है।');assert.equal(calls[0].text,'यह motor head है।');assert.equal(calls[0].lang,'hi-IN');
+ voices.shift();n.speak('Yeh motor head hai.','Motor head','यह motor head है।');assert.equal(calls[1].text,'Yeh motor head hai.');
+ assert.equal(voiceForLanguage([{lang:'en-US'},{lang:'en-IN'}],'hinglish').lang,'en-IN');assert.equal(voiceForLanguage([{lang:'fr-FR'}],'english'),null);assert.throws(()=>n.setLanguage('hindi'),RangeError);
 });
 test('blocked maintenance feedback covers the existing bag, hand and connector paths',()=>{
  for(const [kind,action] of [['bag',{type:'fit'}],['hands',{type:'soap'}],['terminals',{type:'inspect',area:'pins'}]])assert.equal(reducePractice(initialPractice(kind),action).blocked,true);

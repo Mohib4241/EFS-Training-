@@ -1,92 +1,97 @@
-const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-// Short utterances avoid the long-utterance limits of some system speech engines.
-export function speechChunks(text){
- const words=String(text).trim().split(/\s+/),chunks=[];let chunk='';
- for(const word of words){if(chunk.length+word.length>260&&chunk){chunks.push(chunk);chunk='';}chunk+=(chunk?' ':'')+word;}
- if(chunk)chunks.push(chunk);return chunks;
+import {GUIDE_LANGUAGES,guideFrames,moveGuide,partNameSpeech} from './guide-content.js';
+export function speechChunks(text){const words=String(text).trim().split(/\s+/),chunks=[];let chunk='';for(const word of words){if(chunk.length+word.length>260&&chunk){chunks.push(chunk);chunk='';}chunk+=(chunk?' ':'')+word;}if(chunk)chunks.push(chunk);return chunks;}
+export function voiceForLanguage(voices,language){
+ const local=voices.filter(v=>v.localService),preferred=language==='hinglish'?[/^hi[-_]/i,/^en[-_]IN$/i,/^en[-_]/i]:[/^en[-_]GB$/i,/^en[-_]/i];
+ for(const pattern of preferred){const voice=local.find(v=>pattern.test(v.lang))||voices.find(v=>pattern.test(v.lang));if(voice)return voice;}return null;
 }
 export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},delay=setTimeout,clearDelay=clearTimeout}={}){
- const supported=Boolean(synth&&Utterance);let enabled=false,token=0,timer=null,lastKey=null,current=null;
+ const supported=Boolean(synth&&Utterance);let enabled=false,language='english',token=0,timer=null,lastKey=null,current=null;
  function stop(){token++;if(timer!==null)clearDelay(timer);timer=null;current=null;if(supported)synth.cancel();}
- function speak(text,key='guide'){
-  if(!enabled||!supported)return false;stop();lastKey=key;const run=token,chunks=speechChunks(text);let index=0;
-  function next(){
-   if(run!==token||!enabled)return;
-   if(index===chunks.length){current=null;onStatus('Ready · hover a part to hear its guide.');return;}
-   current=new Utterance(chunks[index++]);current.lang='en-GB';current.rate=.94;
-   const voices=synth.getVoices?.()||[];current.voice=voices.find(v=>v.localService&&/^en[-_]/i.test(v.lang))||voices.find(v=>/^en[-_]/i.test(v.lang))||null;
-   current.onstart=()=>{if(run===token)onStatus('Speaking · '+key);};
-   current.onend=next;current.onerror=event=>{if(run!==token)return;current=null;if(!['canceled','interrupted'].includes(event.error))onStatus('Audio unavailable. Read the guide text or try Sound again.');};
-   onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The guide text is available.');}
-  }
-  next();return true;
+ function speak(text,key='guide',spokenHi=null){
+  if(!enabled||!supported)return false;stop();lastKey=key;const run=token,voice=voiceForLanguage(synth.getVoices?.()||[],language),useHindi=language==='hinglish'&&/^hi[-_]/i.test(voice?.lang||''),chunks=speechChunks(useHindi&&spokenHi?spokenHi:text);let index=0;
+  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;onStatus('Ready · hover a part to hear its name.');return;}
+   current=new Utterance(chunks[index++]);current.lang=voice?.lang||(language==='hinglish'?'en-IN':'en-GB');current.rate=.96;current.voice=voice;
+   current.onstart=()=>{if(run===token)onStatus('Speaking · '+key);};current.onend=next;current.onerror=e=>{if(run!==token)return;current=null;if(!['canceled','interrupted'].includes(e.error))onStatus('Audio unavailable. The visual guide still works.');};
+   onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The visual guide still works.');}
+  }next();return true;
  }
- function hover(text,key){
-  if(!enabled||!supported||key===lastKey)return;
-  stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its guide.');return;}
-  timer=delay(()=>{timer=null;speak(text,key);},450);
- }
- return {supported,get enabled(){return enabled;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its guide.':'Sound off');},setEnabled(value){enabled=Boolean(value)&&supported;stop();lastKey=null;onStatus(!supported?'Voice is unavailable in this browser. Read the guides.':enabled?'Sound on · hover or focus a part.':'Sound off');return enabled;}};
+ function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},220);}
+ return {supported,get enabled(){return enabled;},get language(){return language;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its name.':'Sound off');},setLanguage(value){if(!GUIDE_LANGUAGES.includes(value))throw new RangeError('Unknown guide language');stop();lastKey=null;language=value;},setEnabled(value){enabled=Boolean(value)&&supported;stop();lastKey=null;onStatus(!supported?'Voice unavailable in this browser. The visual guide still works.':enabled?'Sound on · point to a part.':'Sound off');return enabled;}};
 }
-
+const icons={
+ sound:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 8q5 4 0 8M20 5q8 7 0 14"/>',
+ muted:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="m17 9 5 6m0-6-5 6"/>',
+ rotate:'<path d="M19 8A8 8 0 1 0 20 15M19 3v5h-5"/>',panels:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M16 4v16"/>'
+};
+const icon=id=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[id]}</svg>`;
 export function mountGuidance(container){
- const reduced=matchMedia('(prefers-reduced-motion: reduce)');let machine=null,callbacks={},autoRotate=!reduced.matches,focused=true,guide='machine',toastTimer=null;
- container.innerHTML=`<div class="machine-toolbar" hidden><div class="guide-context"><span class="eyebrow">LEARN WITH A GUIDE</span><span data-guide-status role="status">Sound off</span></div><div class="machine-guide-buttons"><button data-guide-command="sound" aria-pressed="false">♬ Sound off</button><button data-guide-command="rotate" aria-pressed="${autoRotate}">Auto rotate ${autoRotate?'on':'off'}</button><button data-guide-command="panels" aria-pressed="true">Show parts & details</button><button data-guide-command="machine">Machine Guide</button><button data-guide-command="page">Page Guide</button></div></div><dialog class="machine-guide-dialog" aria-labelledby="machine-guide-title"><div class="guide-dialog-top"><span class="eyebrow">EFS LEARNING ACADEMY</span><button data-guide-command="close" aria-label="Close guide">✕</button></div><h2 id="machine-guide-title"></h2><div class="guide-dialog-tabs"><button data-guide-command="machine">Machine Guide</button><button data-guide-command="page">Page Guide</button></div><div class="guide-audio-controls"><button data-guide-command="read">▶ Read this guide</button><button data-guide-command="stop">■ Stop audio</button></div><p data-dialog-status role="status">Sound off</p><p class="guide-voice-note">Uses your browser’s available voice. Turn Sound on for hover narration. All guidance is also written below.</p><div data-guide-body></div></dialog>`;
- const toolbar=container.querySelector('.machine-toolbar'),dialog=container.querySelector('dialog'),status=container.querySelector('[data-guide-status]');
- const narrator=createNarrator({onStatus:text=>{status.textContent=text;container.querySelector('[data-dialog-status]').textContent=text;}});
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');let machine=null,callbacks={},autoRotate=!reduced.matches,focused=true,language='english',tour=null,timer=null,entryTimer=null,toastTimer=null,opener=null,positionRAF=0;
+ try{const saved=localStorage.getItem('efs-guide-language');if(GUIDE_LANGUAGES.includes(saved))language=saved;}catch{}
+ container.innerHTML=`<div class="equipment-toolbar" hidden aria-label="Machine guides and viewing controls"><button class="guide-icon" data-guide-command="sound" aria-label="Turn sound on" title="Turn sound on" aria-pressed="false">${icon('muted')}</button><label class="guide-language"><span class="sr-only">Guide language</span><select aria-label="Guide language"><option value="english">English</option><option value="hinglish">Hinglish</option></select></label><button class="guide-icon" data-guide-command="rotate" aria-label="Pause auto rotation" title="Pause auto rotation" aria-pressed="true">${icon('rotate')}</button><button class="guide-icon" data-guide-command="panels" aria-label="Show parts and details" title="Show parts and details" aria-expanded="false">${icon('panels')}</button><button data-guide-command="machine">Machine Guide</button><button data-guide-command="page">Page Guide</button><span class="sr-only" data-guide-status role="status">Sound off</span></div><div class="guided-tour" hidden><div class="tour-spotlight" aria-hidden="true"></div><section class="tour-card" role="dialog" aria-modal="false" aria-labelledby="tour-title" aria-describedby="tour-copy"><button class="tour-close" data-guide-command="close" aria-label="Close visual guide">×</button><div class="tour-main"><div class="tour-gesture" aria-hidden="true"><svg viewBox="0 0 90 58"><path class="gesture-track" d="M10 30H80"/><circle class="gesture-finger finger-a" cx="30" cy="29" r="9"/><circle class="gesture-finger finger-b" cx="60" cy="29" r="9"/><path class="gesture-arrow" d="m8 30 9-6m-9 6 9 6m65-6-9-6m9 6-9 6"/><text class="gesture-zoom" x="45" y="39" text-anchor="middle">+</text><path class="gesture-pointer" d="m35 9 1 31 9-9 9 17 7-4-9-17 13-1z"/></svg></div><div><span class="tour-kind"></span><h2 id="tour-title"></h2><p id="tour-copy"></p></div></div><div class="tour-controls"><button data-guide-command="previous" aria-label="Previous guide action">‹</button><div class="tour-dots" aria-label="Guide progress"></div><button data-guide-command="play" aria-label="Pause visual guide">Ⅱ</button><button data-guide-command="next" aria-label="Next guide action">›</button></div></section></div>`;
+ const toolbar=container.querySelector('.equipment-toolbar'),overlay=container.querySelector('.guided-tour'),card=container.querySelector('.tour-card'),spotlight=container.querySelector('.tour-spotlight'),status=toolbar.querySelector('[data-guide-status]');
+ const narrator=createNarrator({onStatus:text=>{status.textContent=text;}});narrator.setLanguage(language);toolbar.querySelector('select').value=language;
  const toast=document.createElement('div');toast.className='top-notification';toast.hidden=true;toast.setAttribute('role','alert');toast.innerHTML='<span></span><button aria-label="Dismiss notification">✕</button>';document.body.append(toast);
- function notify(message){clearTimeout(toastTimer);toast.querySelector('span').textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,7000);}
- toast.querySelector('button').addEventListener('click',()=>toast.hidden=true);
- const partSpeech=p=>`${p.name}. ${p.body} Why it matters: ${p.why} ${p.motion||''}`;
- function hover(id){if(dialog.open||!machine)return;const p=machine.parts.find(p=>p.id===id);narrator.hover(p?partSpeech(p):'',p?.name||null);}
- function pageCopy(){if(callbacks.maintenance)return [
- ['Choose a machine and task','Use Choose machine to switch between the dry vacuum, wet/dry vacuum and scrubber dryer. Choose a maintenance task, then watch its own lesson.'],
- ['Learn before practice','Use Play, Pause and Replay, or review every action with Next lesson step. Practice unlocks only after the lesson has been reviewed. Watching does not complete the practice.'],
- ['Hold, move and release','For a bag or filter task, isolate the cleaner and release both clips. Hold the head and move it to its rest. Move the bag or filter to the highlighted target and release. Wrong drops return the object. Use Keyboard / tap alternative for the same ordered actions.'],
- ['Complete each step in order','Follow the highlighted step. Trying a later step shows a top notification without advancing practice. Dust bags must be sealed before disposal. Filter service uses matching clean, dry media for dry pickup; wet pickup needs the exact approved configuration.'],
- ['Other essential checks','Handwashing practice requires every named hand area and a real 20-second scrub. Connector inspection is external and isolated: recognise visible damage and report it. Completion records this virtual sequence only.'],
- ['Explore the equipment','Open Machine Guide to read or hear any part. Show on model takes you to that machine’s 3D explorer, where you can rotate, zoom and reveal the assemblies.']
- ];return [
-  ['Start with the machine','The model starts assembled with the side panels collapsed. Auto rotate slowly shows its outside. Hover or touch a part to identify it. Turn Sound on to hear the part guide; use the parts list and keyboard focus for the same narration.'],
-  ['Rotate and zoom','Drag with one finger or the mouse to rotate. Use the minus and plus camera buttons to zoom out and in. Use the curved arrows to rotate in small steps and the target button to reset the camera. Auto rotate pauses while your cursor is over the model or you are dragging.'],
-  ['Look inside','Scroll up over the model or pinch out to reveal the assemblies. Scroll down or pinch in to assemble it. The reveal slider and named view buttons do the same. With the canvas focused, Arrow Up and Down reveal, Home assembles and End explodes. Opening isolates the virtual machine.'],
-  ['Learn what a part does','Choose Show parts & details to open the component list and explanations. Select a part in the list or on the model. Read what it does, why it matters and what moves. Machine Guide contains every component explanation.'],
-  ['Try it, then practise','Follow the operation controls in order. Maintenance begins with an animated lesson or a step-by-step review. Then practise each task in order. A top notification explains any missed step. These are conceptual training models, not manufacturer service instructions.']
- ];}
- function guideText(){return guide==='page'?`${machine.name}. Page Guide. ${pageCopy().map(([title,body])=>title+'. '+body).join(' ')}`:`${machine.name}. ${machine.intro||''} ${machine.principle||''} ${machine.parts.filter(p=>p.id!=='overview').map(partSpeech).join(' ')}`;}
- function drawGuide(){
-  container.querySelector('#machine-guide-title').textContent=`${machine.name} · ${guide==='machine'?'Machine Guide':'Page Guide'}`;
-  for(const b of container.querySelectorAll('.guide-dialog-tabs button'))b.setAttribute('aria-pressed',String(b.dataset.guideCommand===guide));
-  container.querySelector('[data-guide-body]').innerHTML=guide==='page'?pageCopy().map(([title,body])=>`<section><h3>${escape(title)}</h3><p>${escape(body)}</p></section>`).join(''):`<p>${escape(machine.intro||machine.principle||'Explore each assembly and understand its purpose.')}</p>${machine.parts.filter(p=>p.id!=='overview').map(p=>`<details><summary>${escape(p.name)}</summary><p>${escape(p.body)}</p><p><strong>Why:</strong> ${escape(p.why)}</p><p>${escape(p.motion||'')}</p><button data-read-part="${escape(p.id)}">Read ${escape(p.name)}</button><button data-find-part="${escape(p.id)}">Show on model →</button></details>`).join('')}`;
- }
+ function clearNotice(){clearTimeout(toastTimer);toast.hidden=true;}
+ function notify(message){clearNotice();toast.querySelector('span').textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,7000);}
+ toast.querySelector('button').addEventListener('click',clearNotice);
+ function clearTimer(){clearTimeout(timer);timer=null;}
  function sync(){
-  for(const name of ['rotate','panels'])container.querySelector(`[data-guide-command=${name}]`).hidden=Boolean(callbacks.maintenance);
-  const sound=container.querySelector('[data-guide-command=sound]');sound.textContent=narrator.enabled?'♬ Sound on':'♬ Sound off';sound.setAttribute('aria-pressed',String(narrator.enabled));
-  const rotate=container.querySelector('[data-guide-command=rotate]');rotate.textContent=`Auto rotate ${autoRotate?'on':'off'}`;rotate.setAttribute('aria-pressed',String(autoRotate));
-  const panels=container.querySelector('[data-guide-command=panels]');panels.textContent=focused?'Show parts & details':'Collapse parts & details';panels.setAttribute('aria-pressed',String(focused));callbacks.onAutoRotate?.(autoRotate&&!dialog.open);callbacks.onPanels?.(focused);
+  const sound=toolbar.querySelector('[data-guide-command=sound]');sound.innerHTML=icon(narrator.enabled?'sound':'muted');sound.setAttribute('aria-pressed',String(narrator.enabled));sound.setAttribute('aria-label',narrator.enabled?'Turn sound off':'Turn sound on');sound.title=sound.getAttribute('aria-label');
+  const rotate=toolbar.querySelector('[data-guide-command=rotate]');rotate.hidden=Boolean(callbacks.maintenance);rotate.setAttribute('aria-pressed',String(autoRotate));rotate.setAttribute('aria-label',autoRotate?'Pause auto rotation':'Resume auto rotation');rotate.title=rotate.getAttribute('aria-label');
+  const panels=toolbar.querySelector('[data-guide-command=panels]');panels.hidden=Boolean(callbacks.maintenance);panels.setAttribute('aria-expanded',String(!focused));panels.setAttribute('aria-label',focused?'Show parts and details':'Collapse parts and details');panels.title=panels.getAttribute('aria-label');
+  callbacks.onAutoRotate?.(autoRotate&&!tour);callbacks.onPanels?.(focused);
  }
- function close(){narrator.stop();dialog.close();sync();}
- container.addEventListener('click',event=>{
-  const button=event.target.closest('button');if(!button)return;
-  if(button.dataset.readPart){narrator.setEnabled(true);sync();const p=machine.parts.find(p=>p.id===button.dataset.readPart);narrator.speak(partSpeech(p),p.name);return;}
-  if(button.dataset.findPart){close();focused=false;sync();callbacks.onSelect?.(button.dataset.findPart);return;}
-  const command=button.dataset.guideCommand;
-  if(command==='sound'){const enabled=narrator.setEnabled(!narrator.enabled);sync();if(enabled)narrator.speak('Sound is on. Hover over a component, or focus its name in the parts list, to hear what it does.','Sound on');}
+ function targetFor(frame){if(frame.target==='sound')return toolbar.querySelector('[data-guide-command=sound]');return callbacks.targets?.[frame.target]||callbacks.targets?.canvas;}
+ function position(){
+  positionRAF=0;if(!tour)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index],target=targetFor(f),canvas=callbacks.targets?.canvas||target;
+  if(!target||!canvas){spotlight.hidden=true;card.style.left='20px';card.style.top='90px';return;}
+  const r=target.getBoundingClientRect(),v=canvas.getBoundingClientRect(),padding=5,width=Math.min(390,innerWidth-28,Math.max(260,v.width-24));
+  spotlight.hidden=!r.width||!r.height;Object.assign(spotlight.style,{left:`${Math.max(3,r.left-padding)}px`,top:`${Math.max(67,r.top-padding)}px`,width:`${Math.min(innerWidth-6,r.width+padding*2)}px`,height:`${Math.max(30,Math.min(innerHeight-72,r.height+padding*2))}px`});
+  const left=Math.max(14,Math.min(innerWidth-width-14,f.target==='startup'||v.width>950?v.left+16:v.left+(v.width-width)/2));
+  const height=card.getBoundingClientRect().height||140,top=f.target==='startup'?v.bottom-height-16:v.top+16;
+  card.style.width=`${width}px`;card.style.left=`${left}px`;card.style.top=`${Math.max(76,Math.min(innerHeight-height-12,top))}px`;
+ }
+ function schedulePosition(){if(tour&&!positionRAF)positionRAF=requestAnimationFrame(position);}
+ function queue(){clearTimer();if(!tour?.playing||document.hidden)return;const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];timer=setTimeout(()=>move(1),f.duration);}
+ function paintTour(apply=false){
+  if(!tour||!machine)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index];
+  overlay.hidden=false;overlay.classList.toggle('tour-paused',!tour.playing);overlay.classList.toggle('tour-reduced',reduced.matches);card.lang=language==='hinglish'?'hi-Latn':'en';
+  card.querySelector('.tour-kind').textContent=`${tour.kind==='machine'?'Machine Guide':'Page Guide'} · ${machine.name}`;card.querySelector('h2').textContent=f.title;card.querySelector('p').textContent=f.caption;card.querySelector('.tour-gesture').dataset.gesture=f.gesture;
+  card.querySelector('.gesture-zoom').textContent=f.gesture==='zoom-out'?'−':'+';card.querySelector('[data-guide-command=previous]').disabled=tour.index===0;
+  const play=card.querySelector('[data-guide-command=play]');play.textContent=tour.playing?'Ⅱ':'▶';play.setAttribute('aria-label',tour.playing?'Pause visual guide':'Play visual guide');
+  card.querySelector('[data-guide-command=next]').textContent=tour.index===frames.length-1?'✓':'›';card.querySelector('[data-guide-command=next]').setAttribute('aria-label',tour.index===frames.length-1?'Finish visual guide':'Next guide action');
+  card.querySelector('.tour-dots').innerHTML=frames.map((_,i)=>`<i class="${i===tour.index?'active':''}" aria-label="Action ${i+1}${i===tour.index?', current':''}"></i>`).join('');
+  if(apply){callbacks.onTourFrame?.(f,tour.kind);narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}
+  schedulePosition();sync();queue();
+ }
+ function closeTour(restore=true){
+  clearTimer();clearTimeout(entryTimer);entryTimer=null;if(positionRAF)cancelAnimationFrame(positionRAF);positionRAF=0;const active=tour;tour=null;overlay.hidden=true;narrator.stop();if(active)callbacks.onTourEnd?.(Boolean(active.interacted));sync();
+  if(restore&&active){const focus=opener&&document.contains(opener)&&!opener.disabled?opener:callbacks.targets?.canvas;focus?.focus({preventScroll:true});}opener=null;
+ }
+ function startGuide(kind){
+  if(!machine)return;if(tour)closeTour(false);clearTimeout(entryTimer);opener=document.activeElement;tour={kind,index:0,playing:!reduced.matches&&!document.hidden,waitingForVisibility:!reduced.matches&&document.hidden};callbacks.onGuideOpen?.();callbacks.onTourStart?.(kind);clearNotice();
+  paintTour(true);card.querySelector('.tour-close').focus({preventScroll:true});
+ }
+ function move(direction){if(!tour)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),next=moveGuide(tour.index,direction,frames.length);if(next.complete){closeTour();return;}tour.index=next.index;paintTour(true);}
+ function pauseTour(user=false){if(tour)tour.waitingForVisibility=false;if(tour&&user)tour.interacted=true;if(!tour||!tour.playing)return;tour.playing=false;narrator.stop();clearTimer();overlay.classList.add('tour-paused');const play=card.querySelector('[data-guide-command=play]');play.textContent='▶';play.setAttribute('aria-label','Play visual guide');}
+ function hover(id){if(!machine)return;const part=machine.parts.find(p=>p.id===id);if(!part){if(!tour)narrator.hover('',null);return;}if(tour)pauseTour(true);const spoken=partNameSpeech(part,language);narrator.hover(spoken.text,part.name,spoken.spokenHi);}
+ function click(event){
+  const b=event.target.closest('[data-guide-command]');if(!b)return;const command=b.dataset.guideCommand;
+  if(command==='sound'){narrator.setEnabled(!narrator.enabled);sync();if(narrator.enabled&&tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}}
   if(command==='rotate'){autoRotate=!autoRotate;sync();}
   if(command==='panels'){focused=!focused;sync();}
-  if(command==='machine'||command==='page'){guide=command;narrator.stop();drawGuide();if(!dialog.open){callbacks.onGuideOpen?.();dialog.showModal();}sync();}
-  if(command==='close')close();
-  if(command==='read'){narrator.setEnabled(true);sync();narrator.speak(guideText(),guide==='machine'?'Machine Guide':'Page Guide');}
-  if(command==='stop')narrator.stop();
- });
- dialog.addEventListener('cancel',()=>{narrator.stop();queueMicrotask(sync);});dialog.addEventListener('close',()=>{narrator.stop();sync();});
- const partId=target=>target.closest('[data-part],[data-hl-part],[data-soft-part]');
- document.addEventListener('pointerover',e=>{const b=partId(e.target);if(b&&!b.contains(e.relatedTarget))hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});
- document.addEventListener('pointerout',e=>{const b=partId(e.target);if(b&&!b.contains(e.relatedTarget))hover(null);});
- document.addEventListener('focusin',e=>{const b=partId(e.target);if(b)hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});
- document.addEventListener('focusout',e=>{if(partId(e.target))hover(null);});
- document.addEventListener('visibilitychange',()=>{if(document.hidden)narrator.stop();});
- reduced.addEventListener('change',()=>{if(reduced.matches){autoRotate=false;sync();}});
- return {hover,notify,updateMachine(next){machine=next;narrator.stop();if(dialog.open)drawGuide();},clearNotice(){clearTimeout(toastTimer);toast.hidden=true;},narrator,get autoRotate(){return autoRotate;},get focused(){return focused;},setMachine(next,options={}){narrator.stop();if(dialog.open)dialog.close();machine=next;focused=options.focused??true;callbacks=options;toolbar.hidden=!next;toast.hidden=true;if(next)sync();},speakLesson(text,key){narrator.speak(text,key);},stop(){narrator.stop();},showDetails(){focused=false;sync();}};
+  if(command==='machine'||command==='page')startGuide(command);
+  if(command==='close')closeTour();if(command==='next')move(1);if(command==='previous')move(-1);
+  if(command==='play'&&tour){tour.playing=!tour.playing;tour.waitingForVisibility=false;if(!tour.playing)narrator.stop();paintTour();if(tour.playing){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}}
+ }
+ toolbar.addEventListener('click',e=>{e.stopPropagation();click(e);});container.addEventListener('click',click);
+ toolbar.querySelector('select').addEventListener('change',event=>{language=event.target.value;narrator.setLanguage(language);try{localStorage.setItem('efs-guide-language',language);}catch{}document.dispatchEvent(new CustomEvent('efs-guide-language',{detail:{language}}));if(tour){paintTour();const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}sync();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tour){e.preventDefault();closeTour();}});
+ document.addEventListener('pointerdown',e=>{if(tour&&!card.contains(e.target)&&!toolbar.contains(e.target))pauseTour(true);},{capture:true});
+ const partButton=target=>target.closest('[data-part],[data-hl-part],[data-soft-part]');
+ document.addEventListener('pointerover',e=>{const b=partButton(e.target);if(b&&!b.contains(e.relatedTarget))hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});document.addEventListener('pointerout',e=>{const b=partButton(e.target);if(b&&!b.contains(e.relatedTarget))hover(null);});
+ document.addEventListener('focusin',e=>{const b=partButton(e.target);if(b)hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});document.addEventListener('focusout',e=>{if(partButton(e.target))hover(null);});
+ document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseTour();narrator.stop();}else if(tour?.waitingForVisibility){tour.waitingForVisibility=false;tour.playing=!reduced.matches;paintTour(true);}});addEventListener('resize',schedulePosition);addEventListener('scroll',schedulePosition,{passive:true,capture:true});
+ reduced.addEventListener('change',()=>{if(reduced.matches){autoRotate=false;pauseTour();overlay.classList.add('tour-reduced');sync();}});
+ return {hover,notify,clearNotice,narrator,get language(){return language;},get autoRotate(){return autoRotate&&!tour;},get focused(){return focused;},get tourActive(){return Boolean(tour);},startGuide,updateMachine(next){machine=next;narrator.stop();if(tour)paintTour();},setMachine(next,options={}){closeTour(false);machine=next;callbacks=options;focused=true;toolbar.hidden=!next;clearNotice();if(!next){container.prepend(toolbar);return;}(options.toolbarHost||container).append(toolbar);sync();if(options.autoGuide!==false&&!options.maintenance)entryTimer=setTimeout(()=>startGuide('page'),160);},speakLesson(text,key,spokenHi){narrator.speak(text,key,spokenHi);},stop(){narrator.stop();},showDetails(){focused=false;sync();}};
 }
