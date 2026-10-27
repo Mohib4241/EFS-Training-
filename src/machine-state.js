@@ -1,4 +1,4 @@
-export function initialState(){return {part:'overview',open:0,connected:false,running:false,xray:false,air:false,callouts:true,condition:'clear',stroke:false};}
+export function initialState(variant='junior-103'){return {variant,pickupMode:variant==='junior-429'?'wet':'dry',floorMode:'hard',part:'overview',open:0,connected:false,running:false,xray:false,air:false,callouts:true,condition:'clear',stroke:false};}
 // Positive pixels reveal parts; wheel-up and outward pinch map to this direction.
 export function openingFromPixels(open,pixels){
  if(!Number.isFinite(open)||open<0||open>100||!Number.isFinite(pixels))throw new RangeError('Invalid reveal gesture');
@@ -19,7 +19,13 @@ export function transition(state,action){
   next.open=action.value;
   if(next.open>0){next.running=false;next.connected=false;message='Model isolated: switched off and unplugged for the exploded view.';}
   else message='Machine assembled. Connect the plug to try operation.';break;
- case 'reset':return {state:initialState(),message:'View reset. Machine assembled, switched off and unplugged.'};
+ case 'floor':
+  if(!['hard','soft'].includes(action.value))throw new RangeError('Unknown floor mode');
+  next.floorMode=action.value;message=action.value==='hard'?'Hard-floor setting: bristles extended.':'Soft-floor setting: bristles retracted.';break;
+ case 'pickup':
+  if(state.variant!=='junior-429'||!['wet','dry'].includes(action.value))throw new RangeError('Unsupported pickup mode');
+  next.pickupMode=action.value;next.running=false;next.connected=false;next.stroke=false;message='Virtual machine isolated for a configuration change. Confirm the correct fitted media and wet/dry setup in the exact manual.';break;
+ case 'reset':return {state:initialState(state.variant),message:'View reset. Machine assembled, switched off and unplugged.'};
  default:throw new RangeError('Unsupported machine action');
  }
  return {state:next,message};

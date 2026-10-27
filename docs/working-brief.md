@@ -2,7 +2,7 @@
 
 ## Accepted context
 
-- Repository: `Mohib4241/EFS-Training-`; baseline main commit `7905169`.
+- Repository: `Mohib4241/EFS-Training-`; current increment base main commit `64e20b9`.
 - Native HTML/CSS/JavaScript, Three.js, esbuild and Node tests. Keep this stack.
 - Keep the official EFS logo, welcome academy, Junior 103 lab, pickup exercise and lesson-first maintenance games working.
 - Navigation collapses on equipment. Hover identifies parts; drag or camera buttons rotate; wheel/pinch opens assemblies; buttons zoom independently. Text and keyboard alternatives are required.
@@ -36,3 +36,9 @@ All six requested leaves now open functional equipment labs, with 77 selectable 
 Executed checks: 41 Node tests, syntax, bundle build, all 77 browser component selections, six-module navigation, instrument and opening interlocks, HVAC duty shortfall, full guided HVAC observation/report flow, manual lesson-step review, keyboard/focus controls, browser history, home/logo navigation, 40/40 vacuum pickup and the original bag-lesson gate. Five local HTTP/security-header/allowlist checks passed. No browser errors were observed in these checks. The implementation was validated locally on port 5186. Release commits are tracked in Git history.
 
 The detailed research/model contract is [hard-services-research.md](hard-services-research.md); the updated README records file ownership, source layout and remaining limits. Recommended next engineering evidence is exact installed variants/nameplates and manuals plus measured operating data for deeper performance models.
+
+## Current guides / Soft Services increment
+
+User confirmed adding **both** Junior 429 under Wet Vacuum Cleaners and Lavor HYPER 2000B under Scrubber Dryers. Shared sound on/off, hover/focus narration, Machine Guide, Page Guide, collapsed initial side panels and controllable auto orbit cover all nine equipment pages. Vacuum navigation now includes Dry and Wet. Junior 103 shows a textile basket and orange hard/soft-floor rocker; Junior 429 shows twin motors, a larger recovery tank, a wide wet squeegee and a separately illustrated caged dry filter. Filter service lessons restore dry pickup on each model; exact fitted media/wet compatibility remain unverified. Maintenance guards show top notifications. The user’s new photos were used as references only.
+
+The [current delivery record](guides-and-soft-equipment.md) supersedes earlier module counts/routes where relevant. The user authorised pushing the completed increment to `origin/main`. Its release commit and remote state are tracked in Git history; hosted deployment status is separate.

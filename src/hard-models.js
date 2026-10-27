@@ -75,6 +75,10 @@ export function reduceHard(previous,action){
 
 export function initialInspection(){return {phase:'lesson',step:0,reviewed:false,playing:false,isolated:false,checked:[],complete:false};}
 export function reduceInspection(previous,action,module){
+ const out=applyInspection(previous,action,module);
+ return {...out,blocked:Boolean(out.message)&&!previous.complete&&JSON.stringify(previous)===JSON.stringify(out.state)&&!['step','play','lesson'].includes(action.type)};
+}
+function applyInspection(previous,action,module){
  const s={...previous,checked:[...previous.checked]},end=module.checks.length+1,result=message=>({state:s,message});
  if(action.type==='play'){if(s.step>=end&&s.reviewed)s.step=0;s.phase='lesson';s.playing=!s.playing;return result('');}
  if(action.type==='step'){

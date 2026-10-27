@@ -1,6 +1,7 @@
 export const SCRUB_DURATION_MS=20_000;
 export const HAND_AREAS=['palms','backs','fingers','nails'];
 export function initialPractice(kind){
+ if(['filter','wet-filter'].includes(kind))return {...initialPractice('bag'),kind,fill:0,inspected:false,selectedFilter:false};
  if(kind==='bag')return {kind,phase:'isolate',isolated:false,clips:{left:true,right:true},headOpen:false,usedBag:'fitted',newBag:'shelf',selected:null,fill:80,complete:false};
  if(kind==='hands')return {kind,phase:'water',tapOn:false,wet:false,soap:false,surfaces:[],rubElapsedMs:0,rubBaseMs:0,rubStartedAt:null,towel:false,dried:false,complete:false};
  if(kind==='terminals')return {kind,phase:'isolate',isolated:false,checks:[],activeCheck:null,complete:false};
@@ -11,8 +12,36 @@ function timeOf(action){if(!Number.isFinite(action.now)||action.now<0)throw new 
 function elapsed(state,now){return Math.min(SCRUB_DURATION_MS,state.rubBaseMs+(state.rubStartedAt===null?0:Math.max(0,now-state.rubStartedAt)));}
 function advanceScrub(state){if(state.rubElapsedMs>=SCRUB_DURATION_MS&&HAND_AREAS.every(id=>state.surfaces.includes(id))){state.phase='rinse';state.rubStartedAt=null;state.rubBaseMs=SCRUB_DURATION_MS;return true;}return false;}
 export function reducePractice(previous,action){
+ const out=applyPractice(previous,action);
+ const blocked=Boolean(out.message)&&!previous.complete&&!['tick','pause','select','reset'].includes(action.type)&&JSON.stringify(out.state)===JSON.stringify(previous);
+ return {...out,blocked};
+}
+function applyPractice(previous,action){
  if(action.type==='reset')return result(initialPractice(previous.kind),'Practice reset. Start with the first step.');
  const s={...previous};
+ if(['filter','wet-filter'].includes(s.kind)){
+  const expected={isolate:'isolate',unclip:'release',open:'open',remove:'remove',inspect:'inspect',choose:'choose',fit:'fit',close:'close',secure:'secure'};
+  if(!Object.hasOwn(expected,action.type))throw new RangeError('Unsupported filter action');
+  if(s.complete)return result(s,'Filter practice complete. Power stays isolated. Reset to try again.');
+  if(s.phase!==expected[action.type])return result(s,'Complete the previous step first. Follow the highlighted filter checklist before continuing.');
+  if(action.type==='isolate'){s.isolated=true;s.phase='release';return result(s,'Power isolated. Release both clips before lifting the head.');}
+  if(action.type==='unclip'||action.type==='secure'){
+   if(!['left','right'].includes(action.clip))throw new RangeError('Unknown retaining clip');
+   s.clips={...s.clips,[action.clip]:action.type==='secure'};
+   if(action.type==='unclip'&&!s.clips.left&&!s.clips.right)s.phase='open';
+   if(action.type==='secure'&&s.clips.left&&s.clips.right){s.phase='done';s.complete=true;}
+   return result(s,s.complete?'Filter sequence practised: correct clean, dry media fitted for dry pickup; head and clips secured. Power stays isolated.':s.phase==='open'?'Both clips released. Lift the head to its rest.':'Complete both clip controls before continuing.');
+  }
+  if(action.type==='open'){s.headOpen=true;s.phase='remove';return result(s,'Head parked. Hold the filter by its rim and lift it onto the inspection tray.');}
+  if(action.type==='remove'){s.usedBag='removed';s.phase='inspect';return result(s,'Filter removed. Inspect the media, rim and seal before choosing a replacement.');}
+  if(action.type==='inspect'){s.inspected=true;s.phase='choose';return result(s,'The training filter is loaded with dust. Check for tears and seal damage too. Choose the correct clean, dry replacement; its care method and fitment must follow the exact manual.');}
+  if(action.type==='choose'){
+   if(action.choice!=='correct')return result(s,'Complete the filter selection correctly: use the matching clean, dry filter for dry pickup. A different shape or a wet medium is not an interchangeable replacement.');
+   s.selectedFilter=true;s.phase='fit';return result(s,s.kind==='wet-filter'?'Caged dry filter selected for DRY pickup on the wet/dry unit. Do not fit dry media for liquid recovery.':'Textile basket filter selected. Hold the clean filter and seat it in the tank rim.');
+  }
+  if(action.type==='fit'){s.newBag='fitted';s.phase='close';return result(s,'Correct clean, dry filter seated in the teaching model. Return the head. No washing method or real spare-part compatibility is certified.');}
+  if(action.type==='close'){s.headOpen=false;s.phase='secure';return result(s,'Head seated. Secure both clips.');}
+ }
  if(s.kind==='bag'){
   if(action.type==='select'){
    if(!['used','new'].includes(action.item))throw new RangeError('Unknown bag');

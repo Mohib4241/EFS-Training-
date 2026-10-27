@@ -33,6 +33,20 @@ const scripts={
   ['Remove from use and report','Keep the equipment out of use and report the concern. This lesson does not teach live testing or repair.',1900,[{type:'decide',choice:'report'}],{at:{x:340,y:220}}]
  ]
 };
+const filterScript=wet=>[
+ ['Isolate before filter care','Switch off, unplug and let the motor stop before touching the clips.',1600,[{type:'isolate'}],{at:{x:110,y:535}}],
+ ['Release the first clip','Release the left retaining clip.',1100,[{type:'unclip',clip:'left'}],{at:{x:350,y:305}}],
+ ['Release the second clip','Both clips must be free before lifting the head.',1100,[{type:'unclip',clip:'right'}],{at:{x:643,y:305}}],
+ ['Park the motor head','Hold the handle and move the head to the rest.',2300,[{type:'open'}],{object:'head'}],
+ ['Lift the filter by its rim',wet?'Lift the caged dry-filter illustration onto the inspection tray.':'Lift the textile basket filter onto the inspection tray.',2300,[{type:'remove'}],{object:'used'}],
+ ['Inspect media, rim and seal','Look for dust loading, tears and a damaged seal. Do not assume the filter is washable or rated for liquids.',2100,[{type:'inspect'}],{at:{x:265,y:365}}],
+ ['Select the matching dry filter',wet?'This task restores DRY pickup on the wet/dry unit. Liquid pickup needs the exact approved wet setup, with dry media removed as specified.':'Use a matching clean, dry textile basket. Exact fitment and care follow the correct manual.',2500,[{type:'choose',choice:'correct'}],{at:{x:110,y:135}}],
+ ['Refit clean, dry media','Hold the clean filter, seat its rim correctly and check that the seal is not trapped.',2300,[{type:'fit'}],{object:'fresh'}],
+ ['Return the head','Return the head without disturbing the seated filter.',2300,[{type:'close'}],{object:'head'}],
+ ['Secure the first clip','Lock the left retaining clip.',1000,[{type:'secure',clip:'left'}],{at:{x:350,y:305}}],
+ ['Secure the second clip','Lock the right clip. The practice finishes isolated, with dry media fitted for dry pickup.',1200,[{type:'secure',clip:'right'}],{at:{x:643,y:305}}]
+];
+scripts.filter=filterScript(false);scripts['wet-filter']=filterScript(true);
 export function lessonFrames(kind){
  if(!Object.hasOwn(scripts,kind))throw new RangeError('Unknown lesson');
  let state=initialPractice(kind),start=0;
