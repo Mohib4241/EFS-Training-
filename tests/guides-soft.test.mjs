@@ -113,3 +113,17 @@ test('the filter can be grabbed only when the current step needs it moved',()=>{
  assert.equal(filterGrabbable(at('fit',{dryConfirmed:true,wet:false})),true);assert.equal(filterGrabbable(at('fit',{dryConfirmed:false})),false);assert.equal(filterGrabbable(at('fit',{dryConfirmed:true,wet:true})),false);
  for(const phase of ['isolate','release','open','inspect','dry','close'])assert.equal(filterGrabbable(at(phase)),false,`${phase} does not move the filter`);
 });
+
+test('guide speech is split at sentence ends into short pieces, and reports when the whole text has been spoken',()=>{
+ const text='Lift the head onto the stool. '+Array(60).fill('hold the handle firmly,').join(' ')+' Then secure both clips.';
+ const chunks=speechChunks(text);
+ assert.ok(chunks.every(c=>c.length<=180),'no piece is long enough to be cut off');
+ assert.equal(chunks.join(' ').replace(/\s+/g,' '),text.replace(/\s+/g,' '),'nothing is lost');
+ assert.ok(chunks.some(c=>/^Lift the head onto the stool\./.test(c))&&chunks.at(-1).endsWith('Then secure both clips.'),'sentences stay whole');
+ const calls=[];let finished=0;
+ const n=createNarrator({synth:{cancel(){},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}}});
+ n.setEnabled(true);n.speak(text,'k',null,()=>finished++);
+ for(let i=0;i<chunks.length;i++){assert.equal(finished,0,'not finished while pieces remain');calls[i].onend();}
+ assert.equal(finished,1,'finished once, after the last piece');
+ const quiet=createNarrator({synth:{cancel(){},getVoices:()=>[],speak(){}},Utterance:class{}});let told=0;quiet.speak('x','k',null,()=>told++);assert.equal(told,1,'with sound off it reports done at once, so a tour never waits for silence');
+});

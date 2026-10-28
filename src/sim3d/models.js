@@ -163,15 +163,19 @@ export function buildFilter(kit,{caged,parent=kit.scene}){
 
 // ---- water: sink, tap, stream ----
 // A scrolling streak texture on a thin tube reads as running water; splash ripples spread where it lands.
+// The texture's grey level is both colour and opacity: a translucent body with brighter streaks running down it.
 function waterMaterial(kit){
- const map=kit.canvasTexture(64,256,(x,w,h)=>{x.clearRect(0,0,w,h);for(let i=0;i<70;i++){const px=Math.random()*w,len=20+Math.random()*60;x.fillStyle=`rgba(255,255,255,${0.25+Math.random()*0.5})`;x.fillRect(px,Math.random()*h,1+Math.random()*2,len);}},{repeat:true,srgb:false});
- return kit.std('#bfe6f2',0.04,0,{map,alphaMap:map,transparent:true,opacity:0.88,depthWrite:false,envMapIntensity:1.6,emissive:'#4aa6c4',emissiveIntensity:0.12});
+ const map=kit.canvasTexture(64,256,(x,w,h)=>{x.fillStyle='rgb(150,150,150)';x.fillRect(0,0,w,h);
+  for(let i=0;i<90;i++){const px=Math.random()*w,len=16+Math.random()*70,v=200+Math.floor(Math.random()*55);x.fillStyle=`rgb(${v},${v},${v})`;x.fillRect(px,Math.random()*h,1+Math.random()*3,len);}
+  for(let i=0;i<30;i++){x.fillStyle='rgba(110,110,110,0.8)';x.fillRect(Math.random()*w,Math.random()*h,1+Math.random()*2,10+Math.random()*30);}},{repeat:true,srgb:false});
+ return kit.std('#e4f7ff',0.05,0,{map,alphaMap:map,transparent:true,opacity:0.95,depthWrite:false,envMapIntensity:1.8,emissive:'#7cc8e0',emissiveIntensity:0.18});
 }
-export function buildStream(kit,{top,bottom,radius=0.006,parent=kit.scene}){
- const {mesh,own}=kit,material=waterMaterial(kit),length=top[1]-bottom[1];
- const stream=mesh(new THREE.CylinderGeometry(radius,radius*1.35,length,12,6,true),material,parent);stream.position.set(top[0],(top[1]+bottom[1])/2,top[2]);
- const splashMat=own(new THREE.MeshBasicMaterial({color:'#e8f7fb',transparent:true,opacity:0.5,depthWrite:false}));
- const splash=mesh(new THREE.RingGeometry(0.012,0.04,28).rotateX(-Math.PI/2),splashMat,parent);splash.position.set(bottom[0],bottom[1]+0.002,bottom[2]);
+// Running water from a spout: a tapering translucent column whose streaks scroll down, and a splash where it lands.
+export function buildStream(kit,{top,bottom,radius=0.0085,parent=kit.scene}){
+ const {mesh,own}=kit,material=waterMaterial(kit),length=top[1]-bottom[1];material.map.repeat.set(1,length*5);
+ const stream=mesh(new THREE.CylinderGeometry(radius,radius*0.8,length,14,8,true),material,parent);stream.position.set(top[0],(top[1]+bottom[1])/2,top[2]);
+ const splashMat=own(new THREE.MeshBasicMaterial({color:'#f2fbff',transparent:true,opacity:0.6,depthWrite:false}));
+ const splash=mesh(new THREE.RingGeometry(0.014,0.05,32).rotateX(-Math.PI/2),splashMat,parent);splash.position.set(bottom[0],bottom[1]+0.002,bottom[2]);
  let on=0,target=0;
  return {
   set(value){target=value?1:0;},
@@ -179,28 +183,37 @@ export function buildStream(kit,{top,bottom,radius=0.006,parent=kit.scene}){
   // returns true while the water is visibly running or fading
   update(dt,time){
    on+=(target-on)*Math.min(1,dt*10);stream.visible=splash.visible=on>0.02;if(!stream.visible)return target!==on&&Math.abs(target-on)>0.001;
-   material.map.offset.y=-time*2.6;material.opacity=0.88*on;stream.scale.set(on,1,on);
-   const s=1+0.25*Math.sin(time*31);splash.scale.set(s,1,s);splashMat.opacity=0.45*on;return true;
+   material.map.offset.y=time*3.2;material.opacity=0.95*on;stream.scale.set(on*(1+0.04*Math.sin(time*23)),1,on);
+   const s=1+0.25*Math.sin(time*31);splash.scale.set(s,1,s);splashMat.opacity=0.55*on;return true;
   }
  };
 }
-// A utility sink for washing the filter: stainless basin on wall brackets, gooseneck tap with a lever on top.
-export function buildUtilitySink(kit,{position,size=[0.5,0.38,0.2],parent=kit.scene}){
- const {mesh,std,merge,at,group}=kit,[x,y,z]=position,[w,d,h]=size,t=0.012,inox=std('#d6dfe0',0.24,0.85,{envMapIntensity:1.4});
- mesh(merge([[new THREE.BoxGeometry(w,t,d),at(x,y-h,z)],[new THREE.BoxGeometry(w,h,t),at(x,y-h/2,z-d/2)],[new THREE.BoxGeometry(w,h,t),at(x,y-h/2,z+d/2)],[new THREE.BoxGeometry(t,h,d),at(x-w/2,y-h/2,z)],[new THREE.BoxGeometry(t,h,d),at(x+w/2,y-h/2,z)],
-  [new THREE.BoxGeometry(w+0.03,0.012,0.02),at(x,y,z+d/2+0.004)],[new THREE.BoxGeometry(0.02,0.012,d),at(x-w/2-0.006,y,z)],[new THREE.BoxGeometry(0.02,0.012,d),at(x+w/2+0.006,y,z)],
-  [new THREE.BoxGeometry(0.03,0.22,0.03),at(x-w/2+0.05,y-h-0.12,z-d/2+0.05)],[new THREE.BoxGeometry(0.03,0.22,0.03),at(x+w/2-0.05,y-h-0.12,z-d/2+0.05)]]),inox,parent);
- mesh(new THREE.CircleGeometry(0.02,20).rotateX(-Math.PI/2).translate(x,y-h+t/2+0.001,z),std('#5d6a6c',0.4,0.7),parent);
- return buildTap(kit,{base:[x,y+0.24,-0.74],spout:[x,y+0.2,z-0.02],parent});
+// A freestanding stainless utility sink against the wall: basin on four legs, rolled rim, splashback, drain and trap, with a
+// wall tap above it. The inside is drawn darker (a box seen only from within) so the open basin reads clearly from above.
+export function buildUtilitySink(kit,{position,size=[0.5,0.38,0.2],tap=[0.24,0.2],parent=kit.scene}){
+ const {mesh,std,merge,at}=kit,[x,y,z]=position,[w,d,h]=size,t=0.012,floor=y-h;
+ const steel=std('#dfe6e7',0.28,0.88,{envMapIntensity:1.5}),inside=std('#9eacaf',0.38,0.8,{envMapIntensity:1.2,side:THREE.BackSide});
+ const parts=[[new THREE.BoxGeometry(w,t,d),at(x,floor,z)],[new THREE.BoxGeometry(w,h,t),at(x,y-h/2,z-d/2)],[new THREE.BoxGeometry(w,h,t),at(x,y-h/2,z+d/2)],[new THREE.BoxGeometry(t,h,d),at(x-w/2,y-h/2,z)],[new THREE.BoxGeometry(t,h,d),at(x+w/2,y-h/2,z)],
+  // rolled rim
+  [new THREE.CylinderGeometry(0.009,0.009,w+0.018,10),at(x,y,z+d/2,0,0,Math.PI/2)],[new THREE.CylinderGeometry(0.009,0.009,d,10),at(x-w/2,y,z,Math.PI/2)],[new THREE.CylinderGeometry(0.009,0.009,d,10),at(x+w/2,y,z,Math.PI/2)],
+  // splashback on the wall
+  [new THREE.BoxGeometry(w+0.06,0.32,0.008),at(x,y+0.14,-0.744)],
+  // trap under the drain, into the wall
+  [new THREE.CylinderGeometry(0.016,0.016,0.1,12),at(x,floor-0.05,z)],[new THREE.TorusGeometry(0.035,0.016,8,16,Math.PI),at(x,floor-0.1,z-0.035,0,Math.PI/2,Math.PI)],[new THREE.CylinderGeometry(0.016,0.016,Math.abs(-0.744-(z-0.07)),12),at(x,floor-0.1+0.0,(z-0.07-0.744)/2,Math.PI/2)]];
+ for(const [i,j] of [[-1,-1],[1,-1],[-1,1],[1,1]])parts.push([new THREE.BoxGeometry(0.03,floor,0.03),at(x+i*(w/2-0.03),floor/2,z+j*(d/2-0.03))]);
+ mesh(merge(parts),steel,parent);
+ mesh(new THREE.BoxGeometry(w-2*t-0.004,h-0.002,d-2*t-0.004).translate(x,y-h/2+0.001+t/2,z),inside,parent);
+ mesh(new THREE.CircleGeometry(0.022,20).rotateX(-Math.PI/2).translate(x,floor+t/2+0.0015,z),std('#4f5b5d',0.4,0.7),parent);
+ return buildTap(kit,{base:[x,y+tap[0],-0.74],spout:[x,y+tap[1],z-0.02],parent});
 }
 // Wall-mounted gooseneck tap. The lever (a movable part) rotates between off and on; the stream runs from the spout.
 export function buildTap(kit,{base,spout,parent=kit.scene}){
  const {mesh,std,merge,at,group}=kit,chrome=std('#dfe7e8',0.12,1,{envMapIntensity:1.6});
  const [bx,by,bz]=base,[sx,sy,sz]=spout,reach=sz-bz;
- const path=new THREE.CatmullRomCurve3([new THREE.Vector3(bx,by,bz),new THREE.Vector3(bx,by+0.01,bz+reach*0.45),new THREE.Vector3(sx,by+0.035,sz-0.02),new THREE.Vector3(sx,sy+0.012,sz)]);
- mesh(merge([[new THREE.TubeGeometry(path,24,0.011,10)],[new THREE.CylinderGeometry(0.022,0.022,0.03,16),at(bx,by,bz+0.008,Math.PI/2)],[new THREE.CylinderGeometry(0.013,0.011,0.012,12),at(sx,sy+0.006,sz)]]),chrome,parent);
+ const path=new THREE.CatmullRomCurve3([new THREE.Vector3(bx,by,bz),new THREE.Vector3(bx,by+0.012,bz+reach*0.45),new THREE.Vector3(sx,by+0.04,sz-0.02),new THREE.Vector3(sx,sy+0.014,sz)]);
+ mesh(merge([[new THREE.TubeGeometry(path,28,0.014,12)],[new THREE.CylinderGeometry(0.03,0.03,0.03,20),at(bx,by,bz+0.008,Math.PI/2)],[new THREE.CylinderGeometry(0.016,0.013,0.016,14),at(sx,sy+0.008,sz)]]),chrome,parent);
  const lever=group(parent),leverMat=std('#dfe7e8',0.12,1,{envMapIntensity:1.6,emissive:'#000000'});
- mesh(merge([[new THREE.CylinderGeometry(0.012,0.012,0.02,12)],[new RoundedBoxGeometry(0.014,0.012,0.075,2,0.004),at(0,0.012,0.032,-0.25)]]),leverMat,lever);
+ mesh(merge([[new THREE.CylinderGeometry(0.016,0.016,0.024,14)],[new RoundedBoxGeometry(0.018,0.014,0.085,2,0.005),at(0,0.014,0.036,-0.25)]]),leverMat,lever);
  return {lever,leverMaterials:[leverMat],leverAt:[bx,by+0.03,bz+0.03],spoutTip:[sx,sy,sz]};
 }
 // Wall-hung hand basin (ceramic), with a deck mixer tap.
@@ -219,7 +232,10 @@ export function buildDryingRack(kit,{position,size=[0.42,0.26],parent=kit.scene}
  for(let i=0;i<=8;i++)entries.push([new THREE.CylinderGeometry(0.004,0.004,d,8),at(x-w/2+i*w/8,y,z,Math.PI/2)]);
  for(const dz of [-d/2,0,d/2])entries.push([new THREE.CylinderGeometry(0.005,0.005,w,8),at(x,y-0.004,z+dz,0,0,Math.PI/2)]);
  for(const dx of [-w/2+0.03,w/2-0.03])entries.push([new THREE.BoxGeometry(0.014,0.014,(z+d/2)-(-0.744)),at(x+dx,y-0.02,(z+d/2-0.744)/2)],[new THREE.BoxGeometry(0.012,0.012,0.2),at(x+dx,y-0.09,(z-0.744)/2-0.02,0.8)]);
+ // drip tray under the bars
+ entries.push([new THREE.BoxGeometry(w+0.02,0.006,d+0.02),at(x,y-0.06,z)],[new THREE.BoxGeometry(w+0.02,0.024,0.006),at(x,y-0.051,z+d/2+0.01)],[new THREE.BoxGeometry(0.006,0.024,d+0.02),at(x-w/2-0.01,y-0.051,z)],[new THREE.BoxGeometry(0.006,0.024,d+0.02),at(x+w/2+0.01,y-0.051,z)]);
  mesh(merge(entries),std('#c9d4d6',0.2,0.95,{envMapIntensity:1.4}),parent);
+ return {trayY:y-0.057};
 }
 // Air movement around the drying filter during the drying preview: soft rising curls (no particles, one draw call).
 export function buildAirflow(kit,{position,parent=kit.scene}){
@@ -228,6 +244,35 @@ export function buildAirflow(kit,{position,parent=kit.scene}){
  const curls=mesh(kit.merge(geoms.map(g=>[g])),material,parent);curls.position.set(...position);curls.visible=false;
  let level=0,target=0;
  return {set(v){target=v;},update(dt,time){level+=(target-level)*Math.min(1,dt*3);curls.visible=level>0.01;if(!curls.visible)return Math.abs(target-level)>0.001;material.opacity=0.55*level*(0.65+0.35*Math.sin(time*3));curls.position.y=position[1]+((time*0.12)%0.06);return true;}};
+}
+
+// Water drops falling from something wet: a few small instanced drops (one draw call).
+// update(dt, source) with source {at:[x,y,z], spread, floor, rate} while it drips, or null to let the last drops fall.
+export function buildDrips(kit,{count=7,parent=kit.scene}={}){
+ const {own,std}=kit,drops=own(new THREE.InstancedMesh(own(new THREE.SphereGeometry(1,8,6)),std('#d8f2fb',0.04,0,{transparent:true,opacity:0.8,envMapIntensity:1.8}),count));
+ drops.frustumCulled=false;drops.count=count;parent.add(drops);
+ const list=Array.from({length:count},(_,i)=>({wait:0.15+i*0.21,live:false,x:0,y:0,z:0,v:0,floor:0,size:0}));
+ const m=new THREE.Matrix4(),hidden=new THREE.Matrix4().makeScale(0,0,0);
+ for(let i=0;i<count;i++)drops.setMatrixAt(i,hidden);
+ let active=false;
+ return {mesh:drops,
+  update(dt,source){
+   if(!source&&!active)return false;
+   active=false;
+   list.forEach((d,i)=>{
+    if(!d.live){
+     if(!source){drops.setMatrixAt(i,hidden);return;}
+     d.wait-=dt*(source.rate??1);if(d.wait>0){drops.setMatrixAt(i,hidden);active=true;return;}
+     const a=Math.random()*TAU,r=Math.sqrt(Math.random())*(source.spread??0.08);
+     Object.assign(d,{live:true,x:source.at[0]+Math.cos(a)*r,y:source.at[1],z:source.at[2]+Math.sin(a)*r,v:0,floor:source.floor??0,size:0.0035+Math.random()*0.002});
+    }
+    d.v+=9.8*dt;d.y-=d.v*dt;active=true;
+    if(d.y<=d.floor){d.live=false;d.wait=0.2+Math.random()*0.6;drops.setMatrixAt(i,hidden);return;}
+    const stretch=1+Math.min(1.6,d.v*0.6);m.makeScale(d.size,d.size*stretch,d.size).setPosition(d.x,d.y,d.z);drops.setMatrixAt(i,m);
+   });
+   drops.instanceMatrix.needsUpdate=true;return active;
+  }
+ };
 }
 
 // ---- handwashing ----
