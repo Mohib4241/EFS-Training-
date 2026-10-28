@@ -64,6 +64,7 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
 | `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
 | `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
+| `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/` | Lazy 3D maintenance simulation (in progress, see [the staged record](docs/sim3d-stages.md)): shell, HUD, shared-state step model, lifecycle and render-on-demand pump |
 | `tests/delivery.test.mjs` | Bundle graph (3D and labs stay lazy), first-load budget, caching, compression and path-allowlist checks |
 | `tests/content.test.mjs` | Meaningful content, taxonomy, provenance and state regressions |
 

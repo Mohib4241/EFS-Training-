@@ -13,7 +13,7 @@ await mkdir(out,{recursive:true});
 
 // Everything under /static/ has a content hash in its name, so it can be cached forever.
 // Code splitting keeps three.js and each lab out of the first load; they download when their page opens.
-const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,logLevel:'warning'});
+const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},logLevel:'warning'});
 const outputs=Object.entries(result.metafile.outputs).map(([file,meta])=>({file:join(root,file),meta}));
 const entry=name=>outputs.find(o=>o.meta.entryPoint?.endsWith(`src/${name}`));
 const app=entry('app.js'),styles=entry('styles.css');
