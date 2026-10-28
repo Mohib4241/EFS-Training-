@@ -24,9 +24,15 @@ const quiet={name:'mediapipe-no-telemetry',setup(build){build.onLoad({filter:/vi
  return {contents:text.replace(needle,'flush(t,e){this.i=[];t?.();return;if(this.error)e?.("net-send-failed");'),loader:'js'};
 });}};
 
+// The hand-tracking worker is its own classic script (MediaPipe loads its WASM runtime with importScripts), built first so the
+// app can be told its hashed name.
+const workerBuild=await build({entryPoints:{'hand-worker':join(src,'sim3d/hand-worker.js')},outdir:out,entryNames:'[name]-[hash]',bundle:true,minify:true,format:'iife',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},logLevel:'warning'});
+const workerFile=Object.keys(workerBuild.metafile.outputs).find(file=>file.endsWith('.js'));
+if(!workerFile)throw new Error('esbuild did not emit the hand-tracking worker');
+
 // Everything under /static/ has a content hash in its name, so it can be cached forever.
 // Code splitting keeps three.js and each lab out of the first load; they download when their page opens.
-const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},define:{__MP_WASM_BASE__:JSON.stringify(`/static/mediapipe-${mediapipeVersion}`),__MP_MODEL__:JSON.stringify(`/static/${modelName}`)},logLevel:'warning'});
+const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},define:{__MP_WASM_BASE__:JSON.stringify(`/static/mediapipe-${mediapipeVersion}`),__MP_MODEL__:JSON.stringify(`/static/${modelName}`),__HAND_WORKER__:JSON.stringify(url(join(root,workerFile)))},logLevel:'warning'});
 const outputs=Object.entries(result.metafile.outputs).map(([file,meta])=>({file:join(root,file),meta}));
 const entry=name=>outputs.find(o=>o.meta.entryPoint?.endsWith(`src/${name}`));
 const app=entry('app.js'),styles=entry('styles.css');

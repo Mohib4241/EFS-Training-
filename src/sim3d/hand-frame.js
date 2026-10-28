@@ -3,10 +3,11 @@ import {REST} from './hand-rig.js';
 
 // Conversions between MediaPipe output and the hand rig.
 // MediaPipe world landmarks: metres, origin near the hand centre, x to the image right, y down, z away from the camera.
-// The scene is a mirror: screen-right is the user's right, y is up and +z points at the viewer, so all three axes flip.
-// MediaPipe's handedness label assumes a mirrored image, so after this x-flip it already names the hand as it is drawn.
+// The learner sees their own hands from behind, as in real life (first person): screen-right is their right, up is up, and a
+// hand pushed toward the screen moves into the scene. The camera faces the learner, so this is a half turn about the view
+// axis (x and y flip, z is kept): a right hand stays a right hand, and a palm shown to the camera is seen from its back.
 const mat=new THREE.Matrix4(),ax=new THREE.Vector3(),ay=new THREE.Vector3(),az=new THREE.Vector3(),d=new THREE.Vector3();
-export function worldToScene(world,out=new Float64Array(63)){for(let i=0;i<63;i++)out[i]=-world[i];return out;}
+export function worldToScene(world,out=new Float64Array(63)){for(let i=0;i<21;i++){out[i*3]=-world[i*3];out[i*3+1]=-world[i*3+1];out[i*3+2]=world[i*3+2];}return out;}
 // Orthonormal hand frame: y from the wrist to the middle of the four knuckles (averaging also calms landmark noise),
 // x across the palm toward the thumb, z = x cross y (the palm normal for a right hand).
 export function handFrame(L,frame={x:new THREE.Vector3(),y:new THREE.Vector3(),z:new THREE.Vector3()}){

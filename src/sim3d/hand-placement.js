@@ -5,7 +5,7 @@ import {poseLandmarks} from './hand-poses.js';
 const local=new Float64Array(63),contact=new THREE.Vector3(),v=new THREE.Vector3(),q=new THREE.Quaternion(),basis=new THREE.Matrix4(),pitchQ=new THREE.Quaternion(),rollQ=new THREE.Quaternion();
 const X=new THREE.Vector3(1,0,0),Y=new THREE.Vector3(0,1,0);
 // Contact point per pose, as a blend of landmarks: [index a, index b] means the midpoint of a and b.
-const CONTACT={pinch:[4,8],point:[8,8],grip:[4,6],relaxed:[4,8],open:[4,8]};
+const CONTACT={pinch:[4,8],point:[8,8],grip:[4,6],relaxed:[4,8],open:[4,8],flat:[0,9],cup:[0,9],spread:[0,9],claw:[8,12]};
 // Hand-local contact point of a (blended) pose, in the right-hand convention; z is mirrored for a left rig.
 export function contactPoint(blend,side,out=new THREE.Vector3()){
  const total=blend.reduce((s,[,w])=>s+w,0)||1;poseLandmarks(blend,local);out.set(0,0,0);
@@ -14,7 +14,7 @@ export function contactPoint(blend,side,out=new THREE.Vector3()){
 }
 // How the hand is held for each pose: fingers tipped slightly up so the forearm drops toward the viewer, as a learner's own would;
 // a grip around the head turns the palm inward. Blended by the pose weights.
-const HOLD={relaxed:{pitch:0.15,roll:0},open:{pitch:0.15,roll:0},pinch:{pitch:0.3,roll:0},point:{pitch:0.12,roll:0},grip:{pitch:0.22,roll:Math.PI/2}};
+const HOLD={relaxed:{pitch:0.15,roll:0},open:{pitch:0.15,roll:0},pinch:{pitch:0.3,roll:0},point:{pitch:0.12,roll:0},grip:{pitch:0.22,roll:Math.PI/2},flat:{pitch:0.15,roll:0},cup:{pitch:0.1,roll:0},spread:{pitch:0.15,roll:0},claw:{pitch:0.3,roll:0}};
 export function orientationForBlend(side,blend,out=new THREE.Quaternion()){
  const total=blend.reduce((s,[,w])=>s+w,0)||1;let pitch=0,roll=0;
  for(const [name,weight] of blend){pitch+=HOLD[name].pitch*weight/total;roll+=HOLD[name].roll*weight/total;}
