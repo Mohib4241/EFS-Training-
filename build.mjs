@@ -1,4 +1,4 @@
-import {mkdir,rm,readFile,writeFile,readdir} from 'node:fs/promises';
+import {mkdir,rm,readFile,writeFile,readdir,copyFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 import {createHash} from 'node:crypto';
 import {brotliCompressSync,gzipSync,constants} from 'node:zlib';
@@ -11,9 +11,22 @@ const url=file=>'/'+relative(dist,file).split(sep).join('/');
 await rm(dist,{recursive:true,force:true});
 await mkdir(out,{recursive:true});
 
+// Hand tracking runs locally: the model and the WASM runtime are served from this site (hashed or version-named), never from a CDN.
+const mediapipeVersion=JSON.parse(await readFile(join(root,'node_modules/@mediapipe/tasks-vision/package.json'),'utf8')).version;
+const mediapipeDir=join(out,`mediapipe-${mediapipeVersion}`);await mkdir(mediapipeDir,{recursive:true});
+for(const file of ['vision_wasm_internal.js','vision_wasm_internal.wasm'])await copyFile(join(root,'node_modules/@mediapipe/tasks-vision/wasm',file),join(mediapipeDir,file));
+const modelBody=await readFile(join(src,'assets/models/hand_landmarker.task')),modelName=`hand_landmarker-${hash(modelBody)}.task`;await writeFile(join(out,modelName),modelBody);
+// MediaPipe's bundle phones home to Google's logging endpoint on a timer. Replace its flush with a no-op that just empties the
+// buffer (the site's CSP blocks the request anyway). The build fails loudly if the vendor code changes shape.
+const quiet={name:'mediapipe-no-telemetry',setup(build){build.onLoad({filter:/vision_bundle\.mjs$/},async args=>{
+ const text=await readFile(args.path,'utf8'),needle='flush(t,e){if(this.error)e?.("net-send-failed");';
+ if(text.split(needle).length!==2)throw new Error('MediaPipe logging code changed: re-check the telemetry patch in build.mjs');
+ return {contents:text.replace(needle,'flush(t,e){this.i=[];t?.();return;if(this.error)e?.("net-send-failed");'),loader:'js'};
+});}};
+
 // Everything under /static/ has a content hash in its name, so it can be cached forever.
 // Code splitting keeps three.js and each lab out of the first load; they download when their page opens.
-const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},logLevel:'warning'});
+const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},define:{__MP_WASM_BASE__:JSON.stringify(`/static/mediapipe-${mediapipeVersion}`),__MP_MODEL__:JSON.stringify(`/static/${modelName}`)},logLevel:'warning'});
 const outputs=Object.entries(result.metafile.outputs).map(([file,meta])=>({file:join(root,file),meta}));
 const entry=name=>outputs.find(o=>o.meta.entryPoint?.endsWith(`src/${name}`));
 const app=entry('app.js'),styles=entry('styles.css');
@@ -36,7 +49,7 @@ async function* walk(dir){for(const entry of await readdir(dir,{withFileTypes:tr
 const report=[],files=[];
 for await(const file of walk(dist))files.push(file);
 for(const file of files){
- if(!['.html','.js','.css','.svg'].includes(extname(file)))continue;
+ if(!['.html','.js','.css','.svg','.wasm','.task'].includes(extname(file)))continue;
  const body=await readFile(file),br=brotliCompressSync(body,{params:{[constants.BROTLI_PARAM_QUALITY]:11,[constants.BROTLI_PARAM_SIZE_HINT]:body.length}}),gz=gzipSync(body,{level:9});
  await writeFile(`${file}.br`,br);await writeFile(`${file}.gz`,gz);report.push([url(file),body.length,gz.length,br.length]);
 }

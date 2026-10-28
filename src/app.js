@@ -48,10 +48,12 @@ function applySimView(){
  closeSim3d(false);const token=++sim3dToken,host=$('maintenance-3d');maintenance.pause();$('maintenance-practice').hidden=true;host.hidden=false;host.replaceChildren(note('Loading 3D simulation…'));
  loadModule('maintenance3d').then(({mountMaintenance3D})=>{
   if(token!==sim3dToken||simView!=='3d')return;host.replaceChildren();
-  sim3d=mountMaintenance3D(host,{bridge,onUnavailable:()=>fallbackTo2d('The 3D view lost its graphics context, so the 2D simulation is showing. Your progress is kept.')});sim3dMachine=machine.id;
+  sim3d=mountMaintenance3D(host,{bridge,machine:machine.id,onUnavailable:()=>fallbackTo2d('The 3D view lost its graphics context, so the 2D simulation is showing. Your progress is kept.')});sim3dMachine=machine.id;
+  if(scroll3d){scroll3d=false;host.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
  }).catch(error=>{if(token!==sim3dToken)return;console.warn('3D simulation unavailable:',error.message);host.replaceChildren();fallbackTo2d('3D could not start on this device, so the 2D simulation is showing.');});
 }
-function chooseSimView(view){viewNotice();simView=view;if(view==='2d'||hasWebGL2())rememberView(view);applySimView();}
+let scroll3d=false;
+function chooseSimView(view){viewNotice();simView=view;scroll3d=view==='3d';if(view==='2d'||hasWebGL2())rememberView(view);applySimView();}
 $('view-2d').addEventListener('click',()=>chooseSimView('2d'));$('view-3d').addEventListener('click',()=>chooseSimView('3d'));applySimView();
 function enterMaintenance(token){
  const container=$('maintenance-practice');
