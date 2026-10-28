@@ -3,9 +3,9 @@ import {initialState,transition} from './machine-state.js';
 import {hardList,hardModules} from './hard-content.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from './soft-content.js';
 import {mountGuidance} from './guidance.js';
-const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,maintenance,maintenanceId,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
+const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,maintenance,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
 // three.js and the labs are separate chunks: the home page and navigation never wait for them.
-const modules={viewer:()=>import('./viewer.js'),maintenance:()=>import('./maintenance.js'),maintenance3d:()=>import('./maintenance3d.js'),hardLab:()=>import('./hard-lab.js'),scrubber:()=>import('./scrubber.js')},pending={};
+const modules={viewer:()=>import('./viewer.js'),maintenance3d:()=>import('./maintenance3d.js'),maintenanceText:()=>import('./maintenance-text.js'),hardLab:()=>import('./hard-lab.js'),scrubber:()=>import('./scrubber.js')},pending={};
 const loadModule=name=>pending[name]??=modules[name]().catch(error=>{delete pending[name];throw error;});
 // A failed import() stays failed for that URL until the page reloads (which also picks up a newer deploy).
 const note=(text,failed=false)=>{const box=document.createElement('div'),message=document.createElement('p');box.className=failed?'lab-error':'lab-loading';box.setAttribute('role',failed?'alert':'status');message.textContent=text;box.append(message);if(failed){const button=document.createElement('button');button.textContent='Reload page';button.addEventListener('click',()=>location.reload());box.append(button);}return box;};
@@ -14,7 +14,7 @@ function loadLab(name,container,label,token){
  if(!container.firstElementChild||container.querySelector(':scope>.lab-error'))container.replaceChildren(note(`Loading ${label}…`));
  return loadModule(name).then(module=>token===navToken?module:null).catch(error=>{console.warn(`${label} could not be loaded:`,error.message);if(token===navToken)container.replaceChildren(note(`The ${label} could not be loaded. Check your connection, then reload the page.`,true));return null;});
 }
-const intents=[['[data-vacuum],#home-machine,#home-lab,#home-cleaning,[data-soft-entry="junior-429"]','viewer'],['[data-page="scrubber"],[data-soft-entry="hyper-2000b"]','scrubber'],['[data-hard-module],[data-page="catalogue"],[data-page="hard-checklist"]','hardLab'],['[data-page="soft-checklist"],#home-maintenance,#home-practice,#open-checklist','maintenance']];
+const intents=[['[data-vacuum],#home-machine,#home-lab,#home-cleaning,[data-soft-entry="junior-429"]','viewer'],['[data-page="scrubber"],[data-soft-entry="hyper-2000b"]','scrubber'],['[data-hard-module],[data-page="catalogue"],[data-page="hard-checklist"]','hardLab'],['[data-page="soft-checklist"],#home-maintenance,#home-practice,#open-checklist','maintenance3d']];
 // Start downloading a page's code as soon as the pointer, focus or finger heads for its link.
 function warm(event){const target=event.target.closest?.('button,a');if(!target||navigator.connection?.saveData)return;for(const [selector,name] of intents)if(target.matches(selector)){loadModule(name).catch(()=>{});return;}}
 document.addEventListener('pointerover',warm,{passive:true});document.addEventListener('focusin',warm);document.addEventListener('touchstart',warm,{passive:true});
@@ -28,38 +28,25 @@ function ensureViewer(){
   $('viewer-loading').hidden=true;viewer.setActive(page==='module');render();return viewer;
  }).catch(error=>{viewerReady=undefined;$('viewer-loading').hidden=true;$('viewer-fallback').hidden=false;console.warn('3D view unavailable:',error.message);return null;});
 }
-// ---- 2D / 3D simulation switch. Both views read and write the same checklist state, exposed by the 2D module through `bridge`. ----
-const bridge={};let simView='2d',sim3d=null,sim3dMachine=null,sim3dToken=0,webgl2;
-try{if(localStorage.getItem('efs-sim-view')==='3d')simView='3d';}catch{}
-const rememberView=view=>{try{localStorage.setItem('efs-sim-view',view);}catch{}};
+// ---- Maintenance checklist: every task is a 3D simulation (a lazy chunk). Without WebGL2 the written steps are shown instead. ----
+let webgl2;
 function hasWebGL2(){if(webgl2===undefined){const gl=document.createElement('canvas').getContext('webgl2');webgl2=Boolean(gl);gl?.getExtension('WEBGL_lose_context')?.loseContext();}return webgl2;}
 function viewNotice(text=''){$('view-notice').textContent=text;$('view-notice').hidden=!text;}
-function closeSim3d(adopt){
- if(!sim3d)return;const {kind,touched}=sim3d.summary();sim3d.destroy();sim3d=null;sim3dMachine=null;$('maintenance-3d').hidden=true;
- if(adopt&&touched)bridge.adopt(kind);else maintenance?.pause();
+let stepsText=null;
+function writtenSteps(container,token,text){
+ viewNotice(text);if(stepsText){stepsText.setMachine(machine.id);return;}
+ loadLab('maintenanceText',container,'maintenance steps',token).then(module=>{if(module&&!stepsText)stepsText=module.mountMaintenanceText(container,{machine:machine.id,getLanguage:()=>guidance.language});});
 }
-function fallbackTo2d(text){sim3dToken++;simView='2d';rememberView('2d');viewNotice(text);applySimView();}
-function applySimView(){
- if(simView==='3d'&&!hasWebGL2()){simView='2d';viewNotice('3D needs WebGL2, which this browser does not provide. The 2D simulation is showing.');}
- for(const [id,view] of [['view-2d','2d'],['view-3d','3d']])$(id).setAttribute('aria-pressed',String(view===simView));
- if(!maintenance||maintenanceId!==machine.id||!bridge.states)return;
- if(simView==='2d'){sim3dToken++;closeSim3d(true);$('maintenance-3d').hidden=true;$('maintenance-3d').replaceChildren();$('maintenance-practice').hidden=false;return;}
- if(sim3d&&sim3dMachine===machine.id)return;
- closeSim3d(false);const token=++sim3dToken,host=$('maintenance-3d');maintenance.pause();$('maintenance-practice').hidden=true;host.hidden=false;host.replaceChildren(note('Loading 3D simulation…'));
- loadModule('maintenance3d').then(({mountMaintenance3D})=>{
-  if(token!==sim3dToken||simView!=='3d')return;host.replaceChildren();
-  sim3d=mountMaintenance3D(host,{bridge,machine:machine.id,onUnavailable:()=>fallbackTo2d('The 3D view lost its graphics context, so the 2D simulation is showing. Your progress is kept.')});sim3dMachine=machine.id;
-  if(scroll3d){scroll3d=false;host.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
- }).catch(error=>{if(token!==sim3dToken)return;console.warn('3D simulation unavailable:',error.message);host.replaceChildren();fallbackTo2d('3D could not start on this device, so the 2D simulation is showing.');});
-}
-let scroll3d=false;
-function chooseSimView(view){viewNotice();simView=view;scroll3d=view==='3d';if(view==='2d'||hasWebGL2())rememberView(view);applySimView();}
-$('view-2d').addEventListener('click',()=>chooseSimView('2d'));$('view-3d').addEventListener('click',()=>chooseSimView('3d'));applySimView();
 function enterMaintenance(token){
  const container=$('maintenance-practice');
- if(maintenance&&maintenanceId===machine.id){maintenance.enter();applySimView();return;}
- loadLab('maintenance',container,'maintenance practice',token).then(module=>{
-  if(!module)return;if(maintenanceId!==machine.id){maintenance?.destroy();maintenance=module.mountMaintenance(container,{machine:machine.id,onNotify:guidance.notify,onProgress:guidance.clearNotice,getLanguage:()=>guidance.language,bridge});maintenanceId=machine.id;}maintenance.enter();applySimView();
+ if(!hasWebGL2()){writtenSteps(container,token,'This browser cannot show 3D (WebGL2 is missing), so the written steps are shown instead.');return;}
+ if(maintenance){viewNotice();maintenance.setMachine(machine.id);return;}
+ loadLab('maintenance3d',container,'3D maintenance practice',token).then(module=>{
+  if(!module||maintenance)return;
+  try{
+   container.replaceChildren();viewNotice();
+   maintenance=module.mountMaintenance3D(container,{machine:machine.id,getLanguage:()=>guidance.language,onProgress:guidance.clearNotice,onUnavailable:()=>{maintenance?.destroy();maintenance=null;writtenSteps(container,navToken,'The 3D view lost its graphics context, so the written steps are shown instead. Reload the page to try 3D again.');}});
+  }catch(error){console.warn('3D maintenance unavailable:',error.message);maintenance=null;writtenSteps(container,token,'3D could not start on this device, so the written steps are shown instead.');}
  });
 }
 function enterHardLab(id,view,token){
@@ -117,7 +104,10 @@ function vacuumTourFrame(frame,kind){
  }
 }
 function vacuumTourEnd(preserve){if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
-function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),targets:maintenanceView?{canvas:$('maintenance-practice'),tasks:$('maintenance-machine'),lesson:$('maintenance-practice'),practice:$('maintenance-practice')}:{canvas:$('machine'),camera:document.querySelector('#viewport .camera-buttons'),startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;viewer?.setState(state);},onPanels:value=>$('module').classList.toggle('machine-focused',value)});}
+// Tour targets on the 3D checklist, looked up when the tour reaches them (the 3D view mounts after the page opens).
+const inPractice=selector=>$('maintenance-practice').querySelector(selector)||$('maintenance-practice');
+const maintenanceTargets={get canvas(){return inPractice('.s3-stage');},get tasks(){return inPractice('.s3-tabs');},get lesson(){return inPractice('.s3-modes');},get practice(){return inPractice('.s3-stage');}};
+function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),targets:maintenanceView?maintenanceTargets:{canvas:$('machine'),camera:document.querySelector('#viewport .camera-buttons'),startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;viewer?.setState(state);},onPanels:value=>$('module').classList.toggle('machine-focused',value)});}
 function loadVacuum(id){if(!Object.hasOwn(vacuumModules,id))id='junior-103';if(machine.id!==id){machine=vacuumModules[id];parts=machine.parts;state=initialState(id);for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();viewer?.clearHover();viewer?.resetDust();viewer?.cameraAction('reset');}buildVacuumContent();render();}
 
 function buildVacuumContent(){

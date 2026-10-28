@@ -23,11 +23,11 @@ test('index references one content-hashed stylesheet and one hashed module entry
 
 test('three.js and every lab are lazy chunks, not part of the first load',()=>{
  const entry=read(entryUrl);
- for(const name of ['viewer','maintenance','hard-lab','scrubber'])assert.match(entry,new RegExp(`import\\("\\./chunks/${name}-[A-Za-z0-9]+\\.js"\\)`),`${name} is dynamically imported`);
+ for(const name of ['viewer','maintenance3d','maintenance-text','hard-lab','scrubber'])assert.match(entry,new RegExp(`import\\("\\./chunks/${name}-[A-Za-z0-9]+\\.js"\\)`),`${name} is dynamically imported`);
  const eager=[entryUrl,...preloads].map(read).join('\n');
  assert.doesNotMatch(eager,/WebGLRenderer/,'3D engine stays out of the eager graph');
  assert.ok(chunks.some(url=>/WebGLRenderer/.test(read(url))),'3D engine exists in a lazy chunk');
- assert.ok(preloads.length>0&&preloads.every(url=>!/viewer-|hard-lab-|scrubber-|maintenance-/.test(url)),'only shared eager chunks are preloaded');
+ assert.ok(preloads.length>0&&preloads.every(url=>!/viewer-|hard-lab-|scrubber-|maintenance/.test(url)),'only shared eager chunks are preloaded');
 });
 
 test('first load stays inside its size budget (gzip)',()=>{
@@ -36,16 +36,30 @@ test('first load stays inside its size budget (gzip)',()=>{
  assert.ok(total<90*1024,`first load is ${(total/1024).toFixed(1)} KB gzip; budget is 90 KB`);
 });
 
-test('the 3D simulation is a separate lazy chunk and the 2D simulation chunk stays self-contained',()=>{
- const named=prefix=>chunks.filter(url=>url.startsWith(`/static/chunks/${prefix}-`)),staticImports=url=>[...read(url).matchAll(/from"(\.\/[^"]+)"/g)].map(m=>m[1]);
- const [flat]=named('maintenance'),[solid]=named('maintenance3d');
- assert.ok(flat&&solid,'both chunks exist');
- assert.deepEqual(staticImports(flat),[],'the 2D chunk imports nothing, so opening the checklist costs no extra request');
- assert.doesNotMatch(read(flat),/WebGLRenderer/,'no 3D code leaks into the 2D chunk');
- assert.match(read(entryUrl),/import\("\.\/chunks\/maintenance3d-[A-Za-z0-9]+\.js"\)/,'the entry loads it dynamically');
- assert.ok(![entryUrl,...preloads].some(url=>staticImports(url).some(dep=>dep.includes('maintenance3d'))),'nothing eager imports it');
- assert.ok(!preloads.some(url=>/maintenance3d/.test(url)),'it is never preloaded');
- const shared=staticImports(solid).map(dep=>`/static/chunks/${dep.slice(2)}`);assert.ok(shared.every(url=>/WebGLRenderer/.test(read(url))),'its only static dependency is the existing three.js chunk');
+test('maintenance practice is 3D only: a lazy 3D chunk, a written fallback without three.js, and no 2D simulation',()=>{
+ const named=prefix=>chunks.filter(url=>new RegExp(`^/static/chunks/${prefix}-[A-Za-z0-9]+\\.js$`).test(url)),staticImports=url=>[...read(url).matchAll(/from"(\.\/[^"]+)"/g)].map(m=>`/static/chunks/${m[1].slice(2)}`);
+ assert.deepEqual(named('maintenance'),[],'the 2D simulation chunk is gone');
+ assert.doesNotMatch(read(entryUrl),/maintenance-[A-Za-z0-9]+\.js|maintenance\.css/,'nothing refers to the 2D simulation');
+ const [solid]=named('maintenance3d'),[text]=named('maintenance-text');
+ assert.ok(solid&&text,'the 3D practice and the written steps are separate chunks');
+ assert.ok(![entryUrl,...preloads].some(url=>staticImports(url).some(dep=>/maintenance/.test(dep))),'nothing eager imports either');
+ assert.ok(!preloads.some(url=>/maintenance/.test(url)),'neither is preloaded');
+ const graph=url=>{const seen=new Set(),walk=u=>{for(const dep of staticImports(u))if(!seen.has(dep)){seen.add(dep);walk(dep);}};walk(url);return [url,...seen];};
+ assert.ok(!graph(text).some(url=>/WebGLRenderer/.test(read(url))),'the written steps (for browsers without WebGL2) never download three.js');
+ assert.ok(graph(solid).some(url=>/WebGLRenderer/.test(read(url))),'the 3D practice brings three.js with it');
+ assert.ok(staticImports(text).every(dep=>staticImports(solid).includes(dep)),'the written steps reuse the 3D practice\'s lesson content, not a copy');
+});
+
+test('hand tracking runs in a worker that is its own hashed file, loaded only by the 3D practice',()=>{
+ const workers=readdirSync(join(dist,'static')).filter(name=>/^hand-worker-[A-Za-z0-9]+\.js$/.test(name));
+ assert.equal(workers.length,1,'one content-hashed worker script');
+ const url=`/static/${workers[0]}`,code=read(url);
+ assert.ok(code.startsWith('(()=>{')&&!/^import |from"\.\//m.test(code),'a classic worker: one self-contained script with no module imports of its own');
+ assert.match(code,/createFromOptions/,'it runs the MediaPipe hand landmarker');
+ assert.match(code,/flush\((\w+),(\w+)\)\{this\.i=\[\],\1\?\.\(\);return;/,'MediaPipe\'s usage-logging upload is switched off in the worker too');
+ const refs=[entryUrl,...preloads,...chunks].filter(chunk=>read(chunk).includes(workers[0]));
+ assert.deepEqual(refs.map(ref=>ref.replace(/-[A-Za-z0-9]+\.js$/,'')),['/static/chunks/maintenance3d'],'only the 3D practice knows where the worker is');
+ assert.doesNotMatch(html,/hand-worker/,'no page load fetches it');
 });
 
 let server,base;

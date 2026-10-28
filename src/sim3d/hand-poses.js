@@ -15,7 +15,13 @@ export const POSES={
  // index extended, others curled, thumb tucked: for pressing buttons and latches
  point:{index:[0.05,0.02,0.02,0],middle:[1.35,1.5,0.9,0],ring:[1.4,1.5,0.9,-0.04],pinky:[1.4,1.5,0.9,-0.08],thumb:{tuck:[0.03,0.09,0.03]}},
  // hand wrapped around a handle
- grip:{index:[0.85,1.0,0.7,0],middle:[1.0,1.1,0.7,0],ring:[1.1,1.1,0.7,-0.03],pinky:[1.15,1.1,0.7,-0.06],thumb:{tuck:[0.045,0.1,0.045]}}
+ grip:{index:[0.85,1.0,0.7,0],middle:[1.0,1.1,0.7,0],ring:[1.1,1.1,0.7,-0.03],pinky:[1.15,1.1,0.7,-0.06],thumb:{tuck:[0.045,0.1,0.045]}},
+ // handwashing: a flat hand (palms rubbed together, pressing a pump), a cupped hand under running water,
+ // fingers spread to interlace, and curled fingertips rubbed in the other palm
+ flat:{index:[0.02,0.02,0,0.03],middle:[0.02,0.02,0,0],ring:[0.02,0.02,0,-0.03],pinky:[0.02,0.02,0,-0.06],thumb:{tip:[0.05,0.088,0.012]}},
+ cup:{index:[0.35,0.35,0.15,0.02],middle:[0.4,0.4,0.15,0],ring:[0.45,0.4,0.15,-0.02],pinky:[0.5,0.45,0.15,-0.05],thumb:{tip:[0.056,0.082,0.034]}},
+ spread:{index:[0.05,0.05,0,0.2],middle:[0.05,0.05,0,0.04],ring:[0.05,0.05,0,-0.12],pinky:[0.05,0.05,0,-0.26],thumb:{tip:[0.088,0.078,0.012]}},
+ claw:{index:[0.75,0.95,0.55,0.02],middle:[0.8,0.95,0.55,0],ring:[0.85,0.95,0.55,-0.02],pinky:[0.9,0.95,0.55,-0.04],thumb:{toFinger:'middle'}}
 };
 const tmp=new THREE.Vector3(),axis=new THREE.Vector3(),from=new THREE.Vector3(),to=new THREE.Vector3(),q=new THREE.Quaternion();
 const joints=[new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3(),new THREE.Vector3()],goal=new THREE.Vector3();

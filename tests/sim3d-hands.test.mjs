@@ -52,11 +52,15 @@ test('a left hand is a true mirror of a right hand: same pose, mirrored placemen
   assert.ok(agree/total>0.97,`${rig.chirality} hand: ${(agree/total*100).toFixed(1)}% of faces agree with their normals`);}
 });
 
-test('mediapipe world coordinates map into the mirrored scene without flipping the hand',()=>{
- // A right hand held up, palm to the camera: MediaPipe x to the image right (the user's left), y down, z away from the camera.
- const world=new Float64Array(63);for(let i=0;i<21;i++){const [x,y,z]=REST[i];world.set([-x,-y,-z],i*3);}   // rest hand rotated by 180 degrees about z, then flipped by the conversion
- const scene=worldToScene(world);for(let i=0;i<63;i++)assert.ok(Math.abs(scene[i]-REST[Math.floor(i/3)][i%3])<1e-12);
- assert.equal(handScale(toLocal(scene,handFrame(scene),'right'))>0.95&&handScale(toLocal(scene,handFrame(scene),'right'))<1.05,true,'rest hand is rest size');
+test('mediapipe world coordinates map into a first-person scene: a right hand stays a right hand, seen from its back',()=>{
+ // A right hand held up, palm to the camera: MediaPipe x to the image right, y down, z away from the camera.
+ // Its thumb is on the image right, its fingers point up (-y) and its palm faces the camera (-z).
+ const world=new Float64Array(63);for(let i=0;i<21;i++){const [x,y,z]=REST[i];world.set([x,-y,-z],i*3);}
+ const scene=worldToScene(world),frame=handFrame(scene),local=toLocal(scene,frame,'right');
+ for(let i=0;i<63;i++)assert.ok(Math.abs(local[i]-REST[Math.floor(i/3)][i%3])<1e-9,'the same right hand, unmirrored');
+ assert.ok(frame.y.y>0.99,'fingers still point up');assert.ok(frame.x.x<-0.99,'the thumb is on the learner\'s left, as when looking at the back of your own right hand');
+ assert.ok(frame.z.z<-0.99,'the palm faces into the scene (toward the screen), so the learner sees the back of the hand');
+ assert.ok(handScale(local)>0.95&&handScale(local)<1.05,'rest hand is rest size');
 });
 
 test('rig has the documented skeleton: 16 bones, wrist plus three per finger',()=>{

@@ -38,16 +38,18 @@ export function createPinchTracker({on=0.34,off=0.6}={}){return schmitt(on,off);
 export function createClosedTracker({on=1.45,off=1.75}={}){return schmitt(on,off);}
 function schmitt(on,off){let pinching=false;return {update(ratio){if(!pinching&&ratio<on)pinching=true;else if(pinching&&ratio>off)pinching=false;return pinching;},reset(){pinching=false;},get value(){return pinching;}};}
 
-// Camera image to screen. The scene is a mirror (your right hand is on the screen's right), and the middle ~75% of the camera
+// Camera image to screen. Your right hand is on the screen's right (the raw image is flipped), and the middle ~75% of the camera
 // frame covers the whole screen so nobody has to reach the very edge of the picture.
 export const GAIN=1.35;
 export const toNdc=(x,y,out=[0,0],gain=GAIN)=>{out[0]=Math.max(-1.25,Math.min(1.25,(0.5-x)*2*gain));out[1]=Math.max(-1.25,Math.min(1.25,(0.5-y)*2*gain));return out;};
 
 const frame=handFrame(new Float64Array(63)),q=new THREE.Quaternion();
 // Everything the scene needs about one tracked hand. `world` must already be smoothed (and is not modified).
+// MediaPipe names a hand as if the picture were mirrored (a selfie). Our frames are raw, so its "Left" is the user's right hand.
+export const handOfLabel=label=>String(label).toLowerCase()==='left'?'right':'left';
 export function describeHand({norm,world,label,video,gain=GAIN}){
- const scene=worldToScene(world,new Float64Array(63)),chirality=String(label).toLowerCase()==='left'?'left':'right';
+ const scene=worldToScene(world,new Float64Array(63)),chirality=handOfLabel(label);
  handFrame(scene,frame);const local=toLocal(scene,frame,chirality,new Float64Array(63));
- const pinch=toNdc((norm[12]+norm[24])/2,(norm[13]+norm[25])/2),tip=toNdc(norm[24],norm[25]),wrist=toNdc(norm[0],norm[1]);
- return {chirality,local,quaternion:frameQuaternion(frame,q).clone(),scale:handScale(local),pinchRatio:pinchRatio(world),closedRatio:closedRatio(world),pinchNdc:pinch,tipNdc:tip,wristNdc:wrist,distance:estimateDistance(norm,video)};
+ const pinch=toNdc((norm[12]+norm[24])/2,(norm[13]+norm[25])/2),tip=toNdc(norm[24],norm[25]),wrist=toNdc(norm[0],norm[1]),palm=toNdc((norm[0]+norm[27])/2,(norm[1]+norm[28])/2);
+ return {chirality,local,quaternion:frameQuaternion(frame,q).clone(),scale:handScale(local),pinchRatio:pinchRatio(world),closedRatio:closedRatio(world),pinchNdc:pinch,tipNdc:tip,wristNdc:wrist,palmNdc:palm,distance:estimateDistance(norm,video)};
 }

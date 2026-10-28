@@ -1,0 +1,10 @@
+import {task as bag} from './bag.js';
+
+// Every maintenance task the checklist offers, in 3D. A task module supplies its scene, rules, framing and choreography.
+export const TASKS={bag};
+// The tasks a machine offers, in checklist order (filter care first, as on the checklist).
+export function tasksFor(machine){
+ const filterKind=machine==='junior-429'?'wet-filter':'filter';
+ return [filterKind,'bag','hands','terminals'].filter(kind=>TASKS[kind]).map(kind=>({kind,title:TASKS[kind].title(machine)}));
+}
+export const MACHINE_LABELS={'junior-103':'JUNIOR 103','junior-429':'JUNIOR 429'};

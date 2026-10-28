@@ -47,7 +47,7 @@ test('holding is a pinch or a closed hand; open, relaxed and pointing hands hold
  const {world}=observe({pose:'pinch'});const big=world.map(v=>v*1.25);assert.ok(Math.abs(pinchRatio(big)-pinchRatio(world))<1e-9&&Math.abs(closedRatio(big)-closedRatio(world))<1e-9);
 });
 
-test('screen mapping is a mirror and the central part of the frame covers the whole screen',()=>{
+test('screen mapping puts your right hand on the right and the central part of the frame covers the whole screen',()=>{
  assert.deepEqual(toNdc(0.5,0.5),[0,0]);
  const [rx]=toNdc(0.2,0.5),[lx]=toNdc(0.8,0.5);assert.ok(rx>0&&lx<0,'a hand on the image left (the user\'s right) appears on the screen right');
  const [,top]=toNdc(0.5,0.2),[,bottom]=toNdc(0.5,0.8);assert.ok(top>0&&bottom<0,'higher in the picture is higher on screen');
@@ -55,12 +55,13 @@ test('screen mapping is a mirror and the central part of the frame covers the wh
  assert.ok(toNdc(-5,5).every(v=>Math.abs(v)<=1.25),'clamped');
 });
 
-test('a described hand carries pointer positions, size, chirality and a usable orientation',()=>{
+test('a described hand carries pointer positions, size, true handedness and a usable orientation',()=>{
  const {norm,world}=observe({pose:'pinch',cx:0.35,cy:0.6});
+ // MediaPipe calls a real right hand "Left" in a raw (unmirrored) frame; the learner sees their own right hand
  const d=describeHand({norm,world,label:'Left',video});
- assert.equal(d.chirality,'left');assert.equal(d.local.length,63);assert.ok(d.pinchRatio<0.3);
+ assert.equal(d.chirality,'right');assert.equal(d.local.length,63);assert.ok(d.pinchRatio<0.3);
  assert.ok(d.pinchNdc[0]>0,'a hand left of centre in the raw image is on the right of the screen');assert.ok(d.pinchNdc[1]<0,'and below centre');
  assert.ok(Math.abs(d.scale-1)<0.1,'rest-size hand');assert.ok(Math.abs(d.quaternion.length()-1)<1e-9);
  assert.ok(Math.abs(d.distance-0.75)/0.75<0.1);
- assert.equal(describeHand({norm,world,label:'Right',video}).chirality,'right');
+ assert.equal(describeHand({norm,world,label:'Right',video}).chirality,'left');
 });

@@ -2,10 +2,12 @@ import {createOneEuro} from './oneeuro.js';
 import {describeHand,createPinchTracker,createClosedTracker,classifyDistance} from './tracking-math.js';
 
 // Webcam hand tracking: asks for the camera, loads the self-hosted MediaPipe HandLandmarker, and turns every video frame into
-// at most two smoothed hands. Video never leaves the page: it is read into the model locally and nothing is recorded or sent.
-// The build injects where the model and WASM live (hashed, same origin); the fallbacks keep this importable in tests.
+// at most two smoothed hands. Video never leaves the device: frames are read into the model locally and nothing is recorded or sent.
+// The model runs in a Web Worker so rendering never waits for it; if a worker cannot start, it runs on the page instead.
+// The build injects where the model, WASM and worker live (hashed, same origin); the fallbacks keep this importable in tests.
 const WASM_BASE=typeof __MP_WASM_BASE__==='string'?__MP_WASM_BASE__:'/static/mediapipe';
 const MODEL_URL=typeof __MP_MODEL__==='string'?__MP_MODEL__:'/static/hand_landmarker.task';
+const WORKER_URL=typeof __HAND_WORKER__==='string'?__HAND_WORKER__:null;
 
 const CAMERA_ERRORS={NotAllowedError:'denied',PermissionDeniedError:'denied',SecurityError:'denied',NotFoundError:'no-camera',DevicesNotFoundError:'no-camera',NotReadableError:'busy',TrackStartError:'busy',AbortError:'busy',OverconstrainedError:'unsupported'};
 export const cameraErrorCode=error=>CAMERA_ERRORS[error?.name]||(error?.code==='insecure'?'insecure':'failed');
@@ -22,18 +24,42 @@ export async function openCamera(){
  if(!navigator.mediaDevices?.getUserMedia){const error=new Error('getUserMedia is unavailable');error.code=window.isSecureContext===false?'insecure':'failed';throw error;}
  return navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:30}}});
 }
-async function loadLandmarker(onStatus){
+// Two engines with the same results: a worker (preferred) and the page itself (fallback).
+async function workerEngine(){
+ if(!WORKER_URL||typeof Worker!=='function'||typeof createImageBitmap!=='function')throw new Error('workers unavailable');
+ const worker=new Worker(WORKER_URL);let pending=null;
+ const ready=new Promise((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error('the hand-tracking worker did not start')),45000);
+  worker.onmessage=({data})=>{
+   if(data.type==='ready'){clearTimeout(timer);resolve(data.delegate);}
+   else if(data.type==='error'){clearTimeout(timer);reject(new Error(data.message));}
+   else{const settle=pending;pending=null;settle?.(data);}
+  };
+  worker.onerror=event=>{event.preventDefault?.();clearTimeout(timer);reject(new Error(event.message||'the hand-tracking worker failed'));};
+ });
+ worker.postMessage({type:'init',wasm:new URL(WASM_BASE,location.href).href,model:new URL(MODEL_URL,location.href).href});
+ const delegate=await ready.catch(error=>{worker.terminate();throw error;});
+ return {kind:'worker',delegate,
+  async detect(video,timestamp){
+   const bitmap=await createImageBitmap(video),started=performance.now();
+   const reply=await new Promise(resolve=>{pending=resolve;worker.postMessage({type:'frame',bitmap,timestamp},[bitmap]);});
+   if(reply.type!=='result')throw new Error(reply.message);return {result:reply,inference:performance.now()-started};
+  },
+  close(){try{worker.postMessage({type:'close'});}catch{}worker.terminate();if(pending){pending({type:'frame-error',message:'closed'});pending=null;}}};
+}
+async function pageEngine(){
  const {FilesetResolver,HandLandmarker}=await import('@mediapipe/tasks-vision');
  const files=await FilesetResolver.forVisionTasks(WASM_BASE);
  const options=delegate=>({baseOptions:{modelAssetPath:MODEL_URL,delegate},numHands:2,runningMode:'VIDEO',minHandDetectionConfidence:0.5,minHandPresenceConfidence:0.5,minTrackingConfidence:0.5});
- try{return {landmarker:await HandLandmarker.createFromOptions(files,options('GPU')),delegate:'GPU'};}
- catch(error){onStatus?.({state:'loading',detail:'GPU unavailable, using CPU'});return {landmarker:await HandLandmarker.createFromOptions(files,options('CPU')),delegate:'CPU'};}
+ let landmarker,delegate='GPU';
+ try{landmarker=await HandLandmarker.createFromOptions(files,options('GPU'));}catch{delegate='CPU';landmarker=await HandLandmarker.createFromOptions(files,options('CPU'));}
+ return {kind:'page',delegate,async detect(video,timestamp){const started=performance.now(),result=landmarker.detectForVideo(video,timestamp);return {result,inference:performance.now()-started};},close(){try{landmarker.close();}catch{}}};
 }
 
 const slotState=()=>({pinch:createPinchTracker(),closed:createClosedTracker(),world:createOneEuro(63,{minCutoff:1.1,beta:0.04}),norm:createOneEuro(63,{minCutoff:1.6,beta:0.09}),lastSeen:-1,present:false,x:0,vote:0,rawWorld:new Float64Array(63),rawNorm:new Float64Array(63)});
 // life: lifecycle that owns the stream and the landmarker; onHands(hands, info) runs for every processed frame.
 export async function createHandTracker({video,life,onStatus=()=>{},onHands=()=>{}}){
- let stream=null,landmarker=null,running=false,callback=0,lastTimestamp=0,seq=0,lastFrameTime=-1,failures=0,distance=NaN,fps=0,fpsClock=0,fpsCount=0,delegate='';
+ let stream=null,engine=null,running=false,busy=false,callback=0,lastTimestamp=0,seq=0,lastFrameTime=-1,failures=0,distance=NaN,fps=0,fpsClock=0,fpsCount=0;
  const slots={L:slotState(),R:slotState()},hands=[];
  const stopStream=()=>{if(stream){for(const track of stream.getTracks())track.stop();stream=null;}video.srcObject=null;};
  function cancel(){if(callback){if(video.cancelVideoFrameCallback&&callback.kind==='video')video.cancelVideoFrameCallback(callback.id);else cancelAnimationFrame(callback.id);callback=0;}}
@@ -42,14 +68,13 @@ export async function createHandTracker({video,life,onStatus=()=>{},onHands=()=>
  function tick(){
   callback=0;if(!running)return;
   const now=performance.now();
-  if(video.readyState>=2&&!video.paused&&now-lastFrameTime>=30&&video.videoWidth>0){
-   lastFrameTime=now;const stamp=Math.max(now,lastTimestamp+1);lastTimestamp=stamp;
-   try{
-    const started=performance.now(),result=landmarker.detectForVideo(video,stamp),inference=performance.now()-started;failures=0;
-    process(result,stamp/1000,inference);
-   }catch(error){
-    failures++;if(failures>=5){running=false;onStatus({state:'error',code:'failed',message:CAMERA_MESSAGES.failed});console.warn('Hand tracking stopped:',error.message);return;}
-   }
+  // one frame in flight at a time: a slow model skips frames instead of queueing them
+  if(!busy&&video.readyState>=2&&!video.paused&&now-lastFrameTime>=30&&video.videoWidth>0){
+   lastFrameTime=now;const stamp=Math.max(now,lastTimestamp+1);lastTimestamp=stamp;busy=true;const current=engine;
+   current.detect(video,stamp).then(({result,inference})=>{busy=false;failures=0;if(running&&engine===current)process(result,stamp/1000,inference);},error=>{
+    busy=false;if(!running||engine!==current)return;
+    failures++;if(failures>=5){running=false;onStatus({state:'error',code:'failed',message:CAMERA_MESSAGES.failed});console.warn('Hand tracking stopped:',error.message);}
+   });
   }
   schedule();
  }
@@ -79,21 +104,22 @@ export async function createHandTracker({video,life,onStatus=()=>{},onHands=()=>
   for(const key of taken)slots[key].present=true;
   if(!count)distance=NaN;
   fpsCount++;if(time-fpsClock>=1){fps=fpsCount/(time-fpsClock);fpsCount=0;fpsClock=time;}
-  onHands(hands,{seq,count,distance,distanceClass:classifyDistance(distance),inference,fps,delegate});
+  onHands(hands,{seq,count,distance,distanceClass:classifyDistance(distance),inference,fps,delegate:engine?.delegate,engine:engine?.kind});
  }
  const api={
   // Ask for the camera, then load the model. Rejects with {code} when either fails; anything opened is closed again.
   async start(){
    try{
     onStatus({state:'requesting'});stream=await openCamera();video.muted=true;video.playsInline=true;video.srcObject=stream;await video.play();
-    onStatus({state:'loading'});const loaded=await loadLandmarker(onStatus);landmarker=loaded.landmarker;delegate=loaded.delegate;
-    running=true;lastFrameTime=-1;onStatus({state:'ready',delegate});schedule();
+    onStatus({state:'loading'});
+    try{engine=await workerEngine();}catch(error){console.info('Hand tracking runs on the page:',error.message);engine=await pageEngine();}
+    running=true;busy=false;lastFrameTime=-1;onStatus({state:'ready',delegate:engine.delegate,engine:engine.kind});schedule();
    }catch(error){
-    const code=stream||landmarker?(error?.name&&CAMERA_ERRORS[error.name]?cameraErrorCode(error):'model'):cameraErrorCode(error);
+    const code=stream?(error?.name&&CAMERA_ERRORS[error.name]?cameraErrorCode(error):'model'):cameraErrorCode(error);
     api.stop();const e=new Error(CAMERA_MESSAGES[code]||CAMERA_MESSAGES.failed);e.code=code;onStatus({state:'error',code,message:e.message});throw e;
    }
   },
-  stop(){running=false;cancel();try{landmarker?.close();}catch{}landmarker=null;stopStream();for(const slot of Object.values(slots)){slot.lastSeen=-1;slot.present=false;}},
+  stop(){running=false;cancel();engine?.close();engine=null;busy=false;stopStream();for(const slot of Object.values(slots)){slot.lastSeen=-1;slot.present=false;}},
   get running(){return running;}
  };
  life.onCleanup(api.stop);
