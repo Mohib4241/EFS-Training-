@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-Default address: http://127.0.0.1:5173. Set `PORT=5186` to use the current preview port. `npm run dev` builds before serving; rebuild and refresh after edits. `npm run check`, `npm test`, `npm run build` provide syntax, regression and production-build checks. `dist/` is static output. No deployment is performed.
+Default address: http://127.0.0.1:5173. Set `PORT=5186` to use the current preview port. `npm run dev` builds before serving; rebuild and refresh after edits. `npm run check`, `npm test`, `npm run build` provide syntax, regression and production-build checks. `dist/` is static output: a code-split, content-hashed, brotli/gzip-precompressed build (`npm run build` prints the size of every file). No deployment is performed.
 
 ## Navigation
 
@@ -60,10 +60,11 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `src/machine-state.js` | Testable connection/power/opening state transitions and interlocks |
 | `src/viewer.js` | Procedural geometry, selection, camera, part motion, lighting and render scheduling |
 | `src/app.js` | Authoritative interaction state, UI rendering, navigation and checklist |
-| `src/index.html`, `src/style.css` | Semantic layout, responsive navigation, controls and styling |
-| `src/assets/efs-logo.svg` | Original official EFS logo |
-| `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle and clean static build |
-| `server.mjs` | Loopback-only preview, explicit asset allowlist, MIME types and security headers |
+| `src/index.html`, `src/style.css`, `src/styles.css` | Semantic layout, responsive navigation, controls and styling; `styles.css` is the single stylesheet entry that bundles the three CSS files |
+| `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
+| `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
+| `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
+| `tests/delivery.test.mjs` | Bundle graph (3D and labs stay lazy), first-load budget, caching, compression and path-allowlist checks |
 | `tests/content.test.mjs` | Meaningful content, taxonomy, provenance and state regressions |
 
 Logical specialist roles covered: architecture, engineering education, domain review, graphics, frontend, QA and reliability. An independent QA subagent reviewed hover/gesture handling read-only during the Phantas interaction update; implementation remained with the main agent.
@@ -79,7 +80,9 @@ Logical specialist roles covered: architecture, engineering education, domain re
 
 ## Performance approach
 
-No network model or texture download is needed at runtime: geometry is procedural, label texture is generated locally, and the logo is local. Device pixel ratio is capped at 1.75; shadows use one 1024 map. Static scenes render on demand; optional auto orbit renders only while active and visible. Animation scheduling stops while the canvas is offscreen or the document is hidden. Cable geometry changes only during connector motion. Motion is disabled for reduced-motion preferences. This describes the implementation, not a device benchmark or guaranteed frame rate.
+**Delivery.** The first load carries only navigation, content and the guide (about 58 KB gzip including HTML and CSS). Three.js, the vacuum viewer, the Hard Services lab, the scrubber lab and the maintenance practice are separate chunks fetched when their page opens, and started early when a link is hovered, focused or touched. Hashed files are cached for a year; HTML is revalidated. Measured before/after figures, method and limits are in [the performance and review record](docs/performance-and-review.md).
+
+**Rendering.** No network model or texture download is needed at runtime: geometry is procedural, label texture is generated locally, and the logo is local. Device pixel ratio is capped at 1.75; shadows use one 1024 map. Static scenes render on demand; optional auto orbit renders only while active and visible. Animation scheduling stops while the canvas is offscreen or the document is hidden. Cable geometry changes only during connector motion. Motion is disabled for reduced-motion preferences. This describes the implementation, not a device benchmark or guaranteed frame rate.
 
 ## Verification for this increment
 

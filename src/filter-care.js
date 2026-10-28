@@ -80,3 +80,5 @@ const copy={
  done:[['Weekly filter wash practised.','The same washable filter was removed, rinsed, air-drying checked and refitted. Weekly is your site training schedule.'],['Weekly filter wash practise ho gaya.','Wahi washable filter nikala, rinse kiya, dryness check ki aur wapas lagaya. Weekly aapka site training schedule hai.']]
 };
 export function filterInstruction(state,language='english'){return copy[state.phase]?.[language==='hinglish'?1:0]||['Filter care','Follow the highlighted action.'];}
+// The filter may be picked up only when the current step needs it moved: the tap must already be on to rinse and off to drain.
+export const filterGrabbable=s=>s.phase==='remove'||s.phase==='wash'&&s.waterOn||s.phase==='drain'&&!s.waterOn||s.phase==='fit'&&s.dryConfirmed&&!s.wet;

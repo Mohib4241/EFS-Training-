@@ -4,7 +4,7 @@ import {createNarrator,speechChunks,voiceForLanguage} from '../src/guidance.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.js';
 import {initialState,transition} from '../src/machine-state.js';
 import {initialPractice,reducePractice,bagDropAction} from '../src/maintenance-state.js';
-import {FILTER_CARE_INTERVAL,FILTER_ZONES,filterCareSteps,filterObjectPose,filterDropAction,filterInstruction} from '../src/filter-care.js';
+import {FILTER_CARE_INTERVAL,FILTER_ZONES,filterCareSteps,filterObjectPose,filterDropAction,filterInstruction,filterGrabbable,initialFilterCare} from '../src/filter-care.js';
 import {guideFrames,moveGuide,partNameSpeech} from '../src/guide-content.js';
 import {LESSONS} from '../src/maintenance-lessons.js';
 import {initialInspection,reduceInspection} from '../src/hard-models.js';
@@ -82,4 +82,34 @@ test('blocked maintenance feedback covers the existing bag, hand and connector p
 });
 test('scrubber preserves separate functions and isolates whenever opened',()=>{
  let s=initialScrubber();assert.equal(reduceScrubber(s,{type:'run'}).blocked,true);s=reduceScrubber(s,{type:'connect'}).state;s=reduceScrubber(s,{type:'run'}).state;s=reduceScrubber(s,{type:'input',key:'suction',value:false}).state;assert.equal(s.running,true);assert.deepEqual(scrubberResult(s).requested,['brush','solution']);assert.match(scrubberResult(s).explanation,/does not recover/);s=reduceScrubber(s,{type:'open',value:50}).state;assert.equal(s.running,false);assert.equal(s.connected,false);assert.equal(reduceScrubber(s,{type:'connect'}).blocked,true);assert.throws(()=>reduceScrubber(s,{type:'input',key:'__proto__',value:true}),RangeError);
+});
+test('narration waits once for asynchronously loaded voices, without leaking listeners',()=>{
+ const make=()=>{const calls=[],listeners=new Set(),pending=new Map();let next=0,voices=[];
+  const synth={cancel(){},getVoices:()=>voices,speak:u=>calls.push(u),addEventListener:(type,fn)=>{if(type==='voiceschanged')listeners.add(fn);},removeEventListener:(type,fn)=>listeners.delete(fn)};
+  const n=createNarrator({synth,Utterance:class{constructor(t){this.text=t;}},delay:fn=>{pending.set(++next,fn);return next;},clearDelay:id=>pending.delete(id)});
+  return {calls,listeners,pending,n,setVoices:list=>{voices=list;}};};
+ // voices arrive: the Hindi voice and text are used, and nothing is left registered
+ let t=make();t.n.setEnabled(true);t.n.setLanguage('hinglish');t.n.speak('Yeh motor head hai.','Motor head','यह motor head है।');
+ assert.equal(t.calls.length,0,'speech is held until voices are known');
+ t.setVoices([{name:'Hindi',lang:'hi-IN',localService:true}]);[...t.listeners].forEach(fn=>fn());
+ assert.equal(t.calls.length,1);assert.equal(t.calls[0].text,'यह motor head है।');assert.equal(t.calls[0].lang,'hi-IN');
+ assert.equal(t.listeners.size,0,'listener removed once voices arrive');assert.equal(t.pending.size,0,'fallback timer cleared once voices arrive');
+ // no voices ever arrive: speak after the fallback delay with the Roman text, and never wait again
+ t=make();t.n.setEnabled(true);t.n.setLanguage('hinglish');t.n.speak('Yeh fan hai.','Fan','यह fan है।');assert.equal(t.calls.length,0);[...t.pending.values()].forEach(fn=>fn());
+ assert.equal(t.calls.length,1);assert.equal(t.calls[0].text,'Yeh fan hai.');assert.equal(t.listeners.size,0);
+ t.n.speak('Yeh pump hai.','Pump','यह pump है।');assert.equal(t.calls.length,2,'later speech is not delayed once voices were checked');
+ // a newer request supersedes one still waiting, and the stale listener and timer are removed
+ t=make();t.n.setEnabled(true);t.n.speak('One','One');assert.equal(t.listeners.size,1);t.n.speak('Two','Two');assert.equal(t.listeners.size,1,'only the newest request listens');assert.equal(t.pending.size,1);
+ t.setVoices([{name:'UK',lang:'en-GB',localService:true}]);[...t.listeners].forEach(fn=>fn());
+ assert.deepEqual(t.calls.map(c=>c.text),['Two']);assert.equal(t.listeners.size,0);assert.equal(t.pending.size,0);
+ // stopping while waiting drops the listener without speaking
+ t=make();t.n.setEnabled(true);t.n.speak('Three','Three');t.n.stop();assert.equal(t.listeners.size,0);assert.equal(t.pending.size,0);assert.equal(t.calls.length,0);
+});
+test('the filter can be grabbed only when the current step needs it moved',()=>{
+ const at=(phase,extra={})=>({...initialFilterCare('filter'),phase,...extra});
+ assert.equal(filterGrabbable(at('remove')),true);
+ assert.equal(filterGrabbable(at('wash',{waterOn:false})),false,'turn the tap on before rinsing');assert.equal(filterGrabbable(at('wash',{waterOn:true})),true);
+ assert.equal(filterGrabbable(at('drain',{waterOn:true})),false,'turn the tap off before draining');assert.equal(filterGrabbable(at('drain',{waterOn:false})),true);
+ assert.equal(filterGrabbable(at('fit',{dryConfirmed:true,wet:false})),true);assert.equal(filterGrabbable(at('fit',{dryConfirmed:false})),false);assert.equal(filterGrabbable(at('fit',{dryConfirmed:true,wet:true})),false);
+ for(const phase of ['isolate','release','open','inspect','dry','close'])assert.equal(filterGrabbable(at(phase)),false,`${phase} does not move the filter`);
 });

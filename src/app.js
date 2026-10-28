@@ -1,13 +1,50 @@
 import {airflowLesson,hardServices,operatorChecks} from './content.js';
 import {initialState,transition} from './machine-state.js';
-import {createViewer} from './viewer.js';
-import {mountMaintenance} from './maintenance.js';
 import {hardList,hardModules} from './hard-content.js';
-import {mountHardLab} from './hard-lab.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from './soft-content.js';
-import {mountScrubber} from './scrubber.js';
 import {mountGuidance} from './guidance.js';
-const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,maintenance,maintenanceId,hardLab,scrubber,partsKey,tourSnapshot;
+const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,maintenance,maintenanceId,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
+// three.js and the labs are separate chunks: the home page and navigation never wait for them.
+const modules={viewer:()=>import('./viewer.js'),maintenance:()=>import('./maintenance.js'),hardLab:()=>import('./hard-lab.js'),scrubber:()=>import('./scrubber.js')},pending={};
+const loadModule=name=>pending[name]??=modules[name]().catch(error=>{delete pending[name];throw error;});
+// A failed import() stays failed for that URL until the page reloads (which also picks up a newer deploy).
+const note=(text,failed=false)=>{const box=document.createElement('div'),message=document.createElement('p');box.className=failed?'lab-error':'lab-loading';box.setAttribute('role',failed?'alert':'status');message.textContent=text;box.append(message);if(failed){const button=document.createElement('button');button.textContent='Reload page';button.addEventListener('click',()=>location.reload());box.append(button);}return box;};
+// Resolves the module, or null when the learner already moved on or the chunk could not be fetched.
+function loadLab(name,container,label,token){
+ if(!container.firstElementChild||container.querySelector(':scope>.lab-error'))container.replaceChildren(note(`Loading ${label}…`));
+ return loadModule(name).then(module=>token===navToken?module:null).catch(error=>{console.warn(`${label} could not be loaded:`,error.message);if(token===navToken)container.replaceChildren(note(`The ${label} could not be loaded. Check your connection, then reload the page.`,true));return null;});
+}
+const intents=[['[data-vacuum],#home-machine,#home-lab,#home-cleaning,[data-soft-entry="junior-429"]','viewer'],['[data-page="scrubber"],[data-soft-entry="hyper-2000b"]','scrubber'],['[data-hard-module],[data-page="catalogue"],[data-page="hard-checklist"]','hardLab'],['[data-page="soft-checklist"],#home-maintenance,#home-practice,#open-checklist','maintenance']];
+// Start downloading a page's code as soon as the pointer, focus or finger heads for its link.
+function warm(event){const target=event.target.closest?.('button,a');if(!target||navigator.connection?.saveData)return;for(const [selector,name] of intents)if(target.matches(selector)){loadModule(name).catch(()=>{});return;}}
+document.addEventListener('pointerover',warm,{passive:true});document.addEventListener('focusin',warm);document.addEventListener('touchstart',warm,{passive:true});
+const withViewer=run=>viewer?run(viewer):viewerReady?.then(ready=>ready&&run(ready));
+function ensureViewer(){
+ if(viewer)return Promise.resolve(viewer);
+ if(viewerReady)return viewerReady;
+ $('viewer-loading').hidden=false;$('viewer-fallback').hidden=true;
+ return viewerReady=loadModule('viewer').then(({createViewer})=>{
+  viewer=createViewer($('machine'),selectPart,value=>action('open',value),progress=>{$('pickup-progress').textContent=`${progress.picked} / ${progress.total} markers picked up`;$('pickup-progress').classList.toggle('complete',progress.picked===progress.total);if(progress.picked===progress.total)$('operation-message').textContent='All virtual debris markers collected. Reset dust to practise again.';},{onHover:guidance.hover,onFloor:()=>action('floor',state.floorMode==='hard'?'soft':'hard')});
+  $('viewer-loading').hidden=true;viewer.setActive(page==='module');render();return viewer;
+ }).catch(error=>{viewerReady=undefined;$('viewer-loading').hidden=true;$('viewer-fallback').hidden=false;console.warn('3D view unavailable:',error.message);return null;});
+}
+function enterMaintenance(token){
+ const container=$('maintenance-practice');
+ if(maintenance&&maintenanceId===machine.id){maintenance.enter();return;}
+ loadLab('maintenance',container,'maintenance practice',token).then(module=>{
+  if(!module)return;if(maintenanceId!==machine.id){maintenance?.destroy();maintenance=module.mountMaintenance(container,{machine:machine.id,onNotify:guidance.notify,onProgress:guidance.clearNotice,getLanguage:()=>guidance.language});maintenanceId=machine.id;}maintenance.enter();
+ });
+}
+function enterHardLab(id,view,token){
+ if(hardLab){hardLab.show(id,view);return;}
+ loadLab('hardLab',$('hard-lab'),'equipment lab',token).then(module=>{if(!module)return;if(!hardLab)hardLab=module.mountHardLab($('hard-lab'),{guidance,onNavigate:(next,mode='explore')=>showPage('hardlab',[next,mode])});hardLab.show(id,view);});
+}
+function enterScrubber(view,token){
+ loadLab('scrubber',$('scrubber-lab'),'equipment lab',token).then(module=>{
+  if(!module)return;if(!scrubber)scrubber=module.mountScrubber($('scrubber-lab'),{guidance,onNavigate:next=>showPage('scrubber',[next])});scrubber.show(view);
+  guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused});
+ });
+}
 function action(type,value){const result=transition(state,{type,value});state=result.state;state.autoRotate=guidance.autoRotate;if(type==='pickup')viewer?.resetDust();if(result.message)$('operation-message').textContent=result.message;render();}
 function showInfo(which){$('learn-panel').hidden=which!=='learn';$('specs-panel').hidden=which!=='specs';for(const b of document.querySelectorAll('[data-info]'))b.setAttribute('aria-pressed',String(b.dataset.info===which));}
 function selectPart(id){
@@ -53,7 +90,7 @@ function vacuumTourFrame(frame,kind){
  }
 }
 function vacuumTourEnd(preserve){if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
-function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),targets:maintenanceView?{canvas:$('maintenance-practice'),tasks:$('maintenance-machine'),lesson:$('maintenance-practice'),practice:$('maintenance-practice')}:{canvas:$('machine'),camera:document.querySelector('#viewport .camera-buttons'),startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onSelect:id=>{if(maintenanceView)showPage('module',[machine.id]);selectPart(id);},onAutoRotate:value=>{state.autoRotate=value;viewer?.setState(state);},onPanels:value=>$('module').classList.toggle('machine-focused',value)});}
+function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),targets:maintenanceView?{canvas:$('maintenance-practice'),tasks:$('maintenance-machine'),lesson:$('maintenance-practice'),practice:$('maintenance-practice')}:{canvas:$('machine'),camera:document.querySelector('#viewport .camera-buttons'),startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;viewer?.setState(state);},onPanels:value=>$('module').classList.toggle('machine-focused',value)});}
 function loadVacuum(id){if(!Object.hasOwn(vacuumModules,id))id='junior-103';if(machine.id!==id){machine=vacuumModules[id];parts=machine.parts;state=initialState(id);for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();viewer?.clearHover();viewer?.resetDust();viewer?.cameraAction('reset');}buildVacuumContent();render();}
 
 function buildVacuumContent(){
@@ -74,14 +111,14 @@ for(const b of document.querySelectorAll('[data-pickup]'))b.addEventListener('cl
 for(const b of document.querySelectorAll('[data-info]'))b.addEventListener('click',()=>showInfo(b.dataset.info));
 $('explode').addEventListener('input',e=>action('open',Number(e.target.value)));
 for(const b of document.querySelectorAll('[data-open]'))b.addEventListener('click',()=>action('open',Number(b.dataset.open)));
-for(const [id,key] of [['xray-toggle','xray'],['air-toggle','air'],['callout-toggle','callouts'],['stroke-toggle','stroke']])$(id).addEventListener('click',()=>{state[key]=!state[key];if(((key==='air'&&state.air)||(key==='stroke'&&state.stroke))&&state.open>0){const result=transition(state,{type:'open',value:0});state=result.state;}if(key==='stroke'&&state.stroke){viewer?.cameraAction('floor');$('operation-message').textContent=state.running?'Move the powered tool over the markers to collect them.':'The tool can move by hand. Connect the plug and switch on for dust pickup.';}render();});
+for(const [id,key] of [['xray-toggle','xray'],['air-toggle','air'],['callout-toggle','callouts'],['stroke-toggle','stroke']])$(id).addEventListener('click',()=>{state[key]=!state[key];if(((key==='air'&&state.air)||(key==='stroke'&&state.stroke))&&state.open>0){const result=transition(state,{type:'open',value:0});state=result.state;}if(key==='stroke'&&state.stroke){withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent=state.running?'Move the powered tool over the markers to collect them.':'The tool can move by hand. Connect the plug and switch on for dust pickup.';}render();});
 $('plug-toggle').addEventListener('click',()=>action('plug'));$('power-toggle').addEventListener('click',()=>action('power'));
 $('reset').addEventListener('click',()=>{viewer?.clearHover();action('reset');viewer?.resetDust();viewer?.cameraAction('reset');showInfo('learn');});
 $('condition').addEventListener('change',e=>{state.condition=e.target.value;state.air=true;if(state.open>0){const result=transition(state,{type:'open',value:0});state=result.state;$('operation-message').textContent='Machine assembled for the airflow lesson. Connect the plug, then switch on.';}render();});
 for(const id of ['rotate-left','rotate-right','zoom-out','zoom-in'])$(id).addEventListener('click',()=>viewer?.cameraAction(id));$('camera-reset').addEventListener('click',()=>viewer?.cameraAction('reset'));
 $('floor-view').addEventListener('click',()=>viewer?.cameraAction('floor'));
 $('reset-dust').addEventListener('click',()=>viewer?.resetDust());
-$('single-pass').addEventListener('click',()=>{if(state.open>0||!state.connected||!state.running){$('operation-message').textContent='Assemble the machine, connect the plug and switch on before a pickup pass.';return;}if(state.condition!=='clear'){$('operation-message').textContent='Choose Clear air path for the pickup practice. Fault-specific pickup rates are not modelled.';return;}state.stroke=false;render();viewer?.cameraAction('floor');viewer?.makeCleaningPass();$('operation-message').textContent='The tool is making a full practice pass. Markers are counted, not cleaning efficiency.';});
+$('single-pass').addEventListener('click',()=>{if(state.open>0||!state.connected||!state.running){$('operation-message').textContent='Assemble the machine, connect the plug and switch on before a pickup pass.';return;}if(state.condition!=='clear'){$('operation-message').textContent='Choose Clear air path for the pickup practice. Fault-specific pickup rates are not modelled.';return;}state.stroke=false;render();withViewer(ready=>{ready.cameraAction('floor');ready.makeCleaningPass();});$('operation-message').textContent='The tool is making a full practice pass. Markers are counted, not cleaning efficiency.';});
 const narrowNav=window.matchMedia('(max-width:1050px)');
 function syncMenu(){const open=document.body.classList.contains('nav-open');document.querySelector('.sidebar').inert=narrowNav.matches&&!open;document.querySelector('.app').inert=narrowNav.matches&&open;$('nav-backdrop').hidden=!narrowNav.matches||!open;$('menu').setAttribute('aria-expanded',String(open));}
 function closeMenu(){document.body.classList.remove('nav-open');syncMenu();}
@@ -96,8 +133,9 @@ const pageHashes={home:'home','soft-checklist':'maintenance',catalogue:'hard-ser
 function readRoute(){const [prefix,id,view]=location.hash.slice(1).split('/');if(Object.hasOwn(vacuumModules,prefix))return {page:'module',path:[prefix]};if(prefix==='equipment'&&Object.hasOwn(hardModules,id))return {page:'hardlab',path:[id,view]};if(prefix==='hyper-2000b')return {page:'scrubber',path:[id||'explore']};return {page:Object.keys(pageHashes).find(p=>pageHashes[p]===prefix)||'home',path:id?[id]:[]};}
 function setCollapsed(collapsed){document.body.classList.toggle('nav-collapsed',collapsed);$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');}
 function showPage(next,path=[],historyMode='push'){
+ page=next;const token=++navToken;
  if(next!=='hardlab')hardLab?.pause();if(next!=='scrubber')scrubber?.pause();if(next!=='soft-checklist')maintenance?.pause();
- viewer?.clearHover();if(next!=='module'){state.connected=false;state.running=false;state.stroke=false;}viewer?.setActive(next==='module');
+ viewer?.clearHover();if(next!=='module'){state.connected=false;state.running=false;state.stroke=false;}viewer?.setActive(next==='module');if(next==='module')ensureViewer();
  guidance.setMachine(null);
  for(const [id,page] of [['home','home'],['module','module'],['checklist','soft-checklist'],['hard-lab','hardlab'],['scrubber-lab','scrubber']])$(id).hidden=next!==page;
  $('catalogue').hidden=!['catalogue','hard-checklist'].includes(next);setCollapsed(next!=='home');let title='EFS Learning Academy',hash=pageHashes[next]||'home',hardId=null;
@@ -106,16 +144,15 @@ function showPage(next,path=[],historyMode='push'){
   if(next==='module'){state={...state,part:'overview',open:0,connected:false,running:false,stroke:false};$('startup-panel').open=false;for(const drawer of document.querySelectorAll('#module .module-options,#module .cleaning-practice'))drawer.open=false;render();$('breadcrumb').textContent=`Soft Services / Equipment / Vacuum Cleaner / ${machine.category} / CleanTech / ${machine.name}`;hash=machine.id;}
   else{
    $('breadcrumb').textContent=`Soft Services / Maintenance Checklist / ${machine.name}`;hash=`maintenance/${machine.id}`;$('maintenance-machine').value=machine.id;$('checklist-machine-name').textContent=machine.name;
-   if(maintenanceId!==machine.id){maintenance?.destroy();maintenance=mountMaintenance($('maintenance-practice'),{machine:machine.id,onNotify:guidance.notify,onProgress:guidance.clearNotice,getLanguage:()=>guidance.language});maintenanceId=machine.id;}
-   maintenance.enter();
+   enterMaintenance(token);
   }
   title=next==='module'?machine.name:machine.name+' maintenance';
  }else if(next==='hardlab'){
   hardId=Object.hasOwn(hardModules,path[0])?path[0]:hardList[0].id;const view=['maintenance','experiment'].includes(path[1])?path[1]:'explore';
   $('breadcrumb').textContent=`Hard Services / Equipment / ${hardModules[hardId].path.join(' / ')} / ${hardModules[hardId].brand}`;
-  if(!hardLab)hardLab=mountHardLab($('hard-lab'),{guidance,onNavigate:(id,mode='explore')=>showPage('hardlab',[id,mode])});hardLab.show(hardId,view);title=hardModules[hardId].name;hash=`equipment/${hardId}${view==='explore'?'':`/${view}`}`;
+  enterHardLab(hardId,view,token);title=hardModules[hardId].name;hash=`equipment/${hardId}${view==='explore'?'':`/${view}`}`;
  }else if(next==='scrubber'){
-  if(!scrubber)scrubber=mountScrubber($('scrubber-lab'),{guidance,onNavigate:view=>showPage('scrubber',[view])});const view=path[0]==='maintenance'?'maintenance':'explore';scrubber.show(view);guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:scrubber.tourStart,onTourFrame:scrubber.tourFrame,onTourEnd:scrubber.tourEnd,onSelect:scrubber.selectPart,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused});$('breadcrumb').textContent='Soft Services / Equipment / Scrubber Dryers / Lavor / HYPER 2000B';title='HYPER 2000B';hash=`hyper-2000b${view==='maintenance'?'/maintenance':''}`;
+  const view=path[0]==='maintenance'?'maintenance':'explore';enterScrubber(view,token);$('breadcrumb').textContent='Soft Services / Equipment / Scrubber Dryers / Lavor / HYPER 2000B';title='HYPER 2000B';hash=`hyper-2000b${view==='maintenance'?'/maintenance':''}`;
  }else if(next==='home')$('breadcrumb').textContent='Welcome to EFS Learning Academy';
  else{$('breadcrumb').textContent=`Hard Services / ${next==='hard-checklist'?'Maintenance Checklist':'Equipment'}`;$('catalogue-title').textContent=next==='hard-checklist'?'Maintenance learning':'Hard Services equipment';hardNames($('catalogue-names'),next==='hard-checklist');title='Hard Services';}
  for(const b of document.querySelectorAll('[data-vacuum]')){const selected=next==='module'&&b.dataset.vacuum===machine.id;b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
@@ -132,14 +169,13 @@ for(const id of ['open-checklist','home-maintenance','home-practice'])$(id).addE
 for(const id of ['back-to-machine','practice-back'])$(id).addEventListener('click',()=>showPage('module'));
 for(const id of ['home-machine','home-lab'])$(id).addEventListener('click',()=>showPage('module',['junior-103']));
 for(const b of document.querySelectorAll('[data-soft-entry]'))b.addEventListener('click',()=>b.dataset.softEntry==='hyper-2000b'?showPage('scrubber'):showPage('module',[b.dataset.softEntry]));
-$('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;viewer?.cameraAction('floor');$('operation-message').textContent='Connect the plug, switch on and choose Move floor tool to pick up the virtual dust on tiles.';});
+$('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent='Connect the plug, switch on and choose Move floor tool to pick up the virtual dust on tiles.';});
 window.addEventListener('popstate',()=>{const route=readRoute();showPage(route.page,route.path,'none');});
 $('maintenance-machine').addEventListener('change',e=>{if(e.target.value==='hyper-2000b')showPage('scrubber',['maintenance']);else showPage('soft-checklist',[e.target.value]);});
 for(const check of operatorChecks){const label=document.createElement('label');label.className='check-row';const input=document.createElement('input');input.type='checkbox';input.id=`check-${check.id}`;const text=document.createElement('span');const title=document.createElement('strong');title.textContent=check.name;const desc=document.createElement('small');desc.textContent=check.text;text.append(title,desc);label.append(input,text);$('operator-checks').append(label);input.addEventListener('change',()=>updateChecks(input));}
 function updateChecks(changed){const inputs=[...document.querySelectorAll('#operator-checks input')],index=inputs.indexOf(changed);if(index>=0){if(changed.checked){const previous=inputs.slice(0,index).findIndex(input=>!input.checked);if(previous>=0){changed.checked=false;guidance.notify('Complete the previous step: '+operatorChecks[previous].name+'.');}else guidance.clearNotice();}else{for(const input of inputs.slice(index+1))input.checked=false;guidance.clearNotice();}}$('check-progress').textContent=`${document.querySelectorAll('#operator-checks input:checked').length} / ${operatorChecks.length} checked`;}
 $('clear-checks').addEventListener('click',()=>{for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();});
 buildVacuumContent();
-try{viewer=createViewer($('machine'),selectPart,value=>action('open',value),progress=>{$('pickup-progress').textContent=`${progress.picked} / ${progress.total} markers picked up`;$('pickup-progress').classList.toggle('complete',progress.picked===progress.total);if(progress.picked===progress.total)$('operation-message').textContent='All virtual debris markers collected. Reset dust to practise again.';},{onHover:guidance.hover,onFloor:()=>action('floor',state.floorMode==='hard'?'soft':'hard')});$('viewer-loading').hidden=true;}catch(error){$('viewer-loading').hidden=true;$('viewer-fallback').hidden=false;console.warn('3D view unavailable:',error.message);}
 document.addEventListener('efs-guide-language',()=>render());
 render();
 const route=readRoute();showPage(route.page,route.path,'replace');
