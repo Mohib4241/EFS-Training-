@@ -1,5 +1,20 @@
 import {GUIDE_LANGUAGES,guideFrames,moveGuide,partNameSpeech} from './guide-content.js';
-export function speechChunks(text){const words=String(text).trim().split(/\s+/),chunks=[];let chunk='';for(const word of words){if(chunk.length+word.length>260&&chunk){chunks.push(chunk);chunk='';}chunk+=(chunk?' ':'')+word;}if(chunk)chunks.push(chunk);return chunks;}
+// Speech is sent in short pieces, split at sentence ends (then commas, then words): Chromium can stop a long utterance
+// part-way (around 15 seconds), and a sentence boundary is a natural place to pause.
+const CHUNK=180;
+export function speechChunks(text){
+ const sentences=String(text).trim().replace(/\s+/g,' ').match(/[^.!?।]+[.!?।]+["')\]]*\s*|[^.!?।]+$/g)||[];
+ const pieces=[];
+ for(const sentence of sentences.map(s=>s.trim()).filter(Boolean)){
+  if(sentence.length<=CHUNK){pieces.push(sentence);continue;}
+  let part='';
+  for(const word of sentence.split(' ')){if(part&&part.length+word.length+1>CHUNK){pieces.push(part);part='';}part+=(part?' ':'')+word;if(/[,;:]$/.test(word)&&part.length>CHUNK*0.6){pieces.push(part);part='';}}
+  if(part)pieces.push(part);
+ }
+ // join short neighbours so the voice does not stop after every few words
+ const chunks=[];for(const piece of pieces){const last=chunks.at(-1);if(last!==undefined&&last.length+piece.length+1<=CHUNK*0.75)chunks[chunks.length-1]=last+' '+piece;else chunks.push(piece);}
+ return chunks;
+}
 export function voiceForLanguage(voices,language){
  const local=voices.filter(v=>v.localService),preferred=language==='hinglish'?[/^hi[-_]/i,/^en[-_]IN$/i,/^en[-_]/i]:[/^en[-_]GB$/i,/^en[-_]/i];
  for(const pattern of preferred){const voice=local.find(v=>pattern.test(v.lang))||voices.find(v=>pattern.test(v.lang));if(voice)return voice;}return null;
@@ -14,13 +29,14 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
   dropVoiceWait=()=>{synth.removeEventListener('voiceschanged',finish);if(timer!==null){clearDelay(timer);timer=null;}dropVoiceWait=()=>{};};
   synth.addEventListener('voiceschanged',finish);timer=delay(()=>{timer=null;finish();},400);
  }
- function speak(text,key='guide',spokenHi=null){
-  if(!enabled||!supported)return false;stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
+ function speak(text,key='guide',spokenHi=null,onDone=null){
+  const done=typeof onDone==='function'?onDone:()=>{};
+  if(!enabled||!supported){done();return false;}stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
   function begin(voices){voice=voiceForLanguage(voices,language);const useHindi=language==='hinglish'&&/^hi[-_]/i.test(voice?.lang||'');chunks=speechChunks(useHindi&&spokenHi?spokenHi:text);next();}
-  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;onStatus('Ready · hover a part to hear its name.');return;}
+  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;onStatus('Ready · hover a part to hear its name.');done();return;}
    current=new Utterance(chunks[index++]);current.lang=voice?.lang||(language==='hinglish'?'en-IN':'en-GB');current.rate=.96;current.voice=voice;
-   current.onstart=()=>{if(run===token)onStatus('Speaking · '+key);};current.onend=next;current.onerror=e=>{if(run!==token)return;current=null;if(!['canceled','interrupted'].includes(e.error))onStatus('Audio unavailable. The visual guide still works.');};
-   onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The visual guide still works.');}
+   current.onstart=()=>{if(run===token)onStatus('Speaking · '+key);};current.onend=next;current.onerror=e=>{if(run!==token)return;current=null;if(!['canceled','interrupted'].includes(e.error)){onStatus('Audio unavailable. The visual guide still works.');done();}};
+   onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The visual guide still works.');done();}
   }withVoices(run,begin);return true;
  }
  function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},220);}
@@ -42,7 +58,7 @@ export function mountGuidance(container){
  function clearNotice(){clearTimeout(toastTimer);toast.hidden=true;}
  function notify(message){clearNotice();toast.querySelector('span').textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,7000);}
  toast.querySelector('button').addEventListener('click',clearNotice);
- function clearTimer(){clearTimeout(timer);timer=null;}
+ function clearTimer(){clearTimeout(timer);timer=null;if(tour){clearTimeout(tour.cap);tour.cap=null;}}
  function sync(){
   const sound=toolbar.querySelector('[data-guide-command=sound]');sound.innerHTML=icon(narrator.enabled?'sound':'muted');sound.setAttribute('aria-pressed',String(narrator.enabled));sound.setAttribute('aria-label',narrator.enabled?'Turn sound off':'Turn sound on');sound.title=sound.getAttribute('aria-label');
   const rotate=toolbar.querySelector('[data-guide-command=rotate]');rotate.hidden=Boolean(callbacks.maintenance);rotate.setAttribute('aria-pressed',String(autoRotate));rotate.setAttribute('aria-label',autoRotate?'Pause auto rotation':'Resume auto rotation');rotate.title=rotate.getAttribute('aria-label');
@@ -60,7 +76,15 @@ export function mountGuidance(container){
   card.style.width=`${width}px`;card.style.left=`${left}px`;card.style.top=`${Math.max(76,Math.min(innerHeight-height-12,top))}px`;
  }
  function schedulePosition(){if(tour&&!positionRAF)positionRAF=requestAnimationFrame(position);}
- function queue(){clearTimer();if(!tour?.playing||document.hidden)return;const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];timer=setTimeout(()=>move(1),f.duration);}
+ // A card moves on when its minimum time is up and the voice has finished the whole caption (never mid-sentence).
+ // If a browser never reports the end of speech, a generous cap keeps the tour moving.
+ function queue(){
+  clearTimer();if(!tour?.playing||document.hidden)return;const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index],t=tour;
+  t.timeUp=false;timer=setTimeout(()=>{timer=null;if(tour!==t)return;t.timeUp=true;advanceWhenReady();},f.duration);
+  const words=(f.title+' '+(f.spokenHi||f.caption)).split(/\s+/).length;const seq=t.seq;t.cap=setTimeout(()=>{if(tour===t&&t.seq===seq){t.spoken=true;advanceWhenReady();}},f.duration+words*480+4000);
+ }
+ function advanceWhenReady(){if(!tour?.playing||!tour.timeUp||!(tour.spoken||!narrator.enabled))return;clearTimer();timer=setTimeout(()=>{timer=null;move(1);},450);}
+ function say(f){if(!tour)return;const t=tour,seq=t.seq=(t.seq||0)+1;t.spoken=!narrator.enabled;narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,()=>{if(tour===t&&t.seq===seq){t.spoken=true;advanceWhenReady();}});}
  function paintTour(apply=false){
   if(!tour||!machine)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index];
   overlay.hidden=false;overlay.classList.toggle('tour-paused',!tour.playing);overlay.classList.toggle('tour-reduced',reduced.matches);card.lang=language==='hinglish'?'hi-Latn':'en';
@@ -69,7 +93,7 @@ export function mountGuidance(container){
   const play=card.querySelector('[data-guide-command=play]');play.textContent=tour.playing?'Ⅱ':'▶';play.setAttribute('aria-label',tour.playing?'Pause visual guide':'Play visual guide');
   card.querySelector('[data-guide-command=next]').textContent=tour.index===frames.length-1?'✓':'›';card.querySelector('[data-guide-command=next]').setAttribute('aria-label',tour.index===frames.length-1?'Finish visual guide':'Next guide action');
   card.querySelector('.tour-dots').innerHTML=frames.map((_,i)=>`<i class="${i===tour.index?'active':''}" aria-label="Action ${i+1}${i===tour.index?', current':''}"></i>`).join('');
-  if(apply){callbacks.onTourFrame?.(f,tour.kind);narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}
+  if(apply){callbacks.onTourFrame?.(f,tour.kind);say(f);}
   schedulePosition();sync();queue();
  }
  function closeTour(restore=true){
@@ -85,15 +109,15 @@ export function mountGuidance(container){
  function hover(id,user=true){if(!machine)return;const part=machine.parts.find(p=>p.id===id);if(!part){if(!tour)narrator.hover('',null);return;}if(tour){if(!user)return;pauseTour(true);}const spoken=partNameSpeech(part,language);narrator.hover(spoken.text,part.name,spoken.spokenHi);}
  function click(event){
   const b=event.target.closest('[data-guide-command]');if(!b)return;const command=b.dataset.guideCommand;
-  if(command==='sound'){narrator.setEnabled(!narrator.enabled);sync();if(narrator.enabled&&tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}}
+  if(command==='sound'){narrator.setEnabled(!narrator.enabled);sync();if(tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];if(narrator.enabled){paintTour();say(f);}else{tour.spoken=true;advanceWhenReady();}}}
   if(command==='rotate'){autoRotate=!autoRotate;sync();}
   if(command==='panels'){focused=!focused;sync();}
   if(command==='machine'||command==='page')startGuide(command);
   if(command==='close')closeTour();if(command==='next')move(1);if(command==='previous')move(-1);
-  if(command==='play'&&tour){tour.playing=!tour.playing;tour.waitingForVisibility=false;if(!tour.playing)narrator.stop();paintTour();if(tour.playing){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}}
+  if(command==='play'&&tour){tour.playing=!tour.playing;tour.waitingForVisibility=false;if(!tour.playing)narrator.stop();paintTour();if(tour.playing){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];say(f);}}
  }
  toolbar.addEventListener('click',e=>{e.stopPropagation();click(e);});container.addEventListener('click',click);
- toolbar.querySelector('select').addEventListener('change',event=>{language=event.target.value;narrator.setLanguage(language);try{localStorage.setItem('efs-guide-language',language);}catch{}document.dispatchEvent(new CustomEvent('efs-guide-language',{detail:{language}}));if(tour){paintTour();const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi);}sync();});
+ toolbar.querySelector('select').addEventListener('change',event=>{language=event.target.value;narrator.setLanguage(language);try{localStorage.setItem('efs-guide-language',language);}catch{}document.dispatchEvent(new CustomEvent('efs-guide-language',{detail:{language}}));if(tour){paintTour();const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];say(f);}sync();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tour){e.preventDefault();closeTour();}});
  document.addEventListener('pointerdown',e=>{if(tour&&!card.contains(e.target)&&!toolbar.contains(e.target))pauseTour(true);},{capture:true});
  const partButton=target=>target.closest('[data-part],[data-hl-part],[data-soft-part]');

@@ -3,6 +3,7 @@
 // so any moment can be scrubbed to, backward or forward, and replays identically. Parts only move because a hand carries them.
 export const DEMO_SCALE=1.4;                 // lesson frames are short; the hands need time to arrive, act and leave
 const HAND_PACE=1250;                        // milliseconds per metre carried: a calm, readable pace
+const REACH_MS=1750;                         // a press or a look needs time for the hand to come in, act and leave
 export const CAMERA_MS=900;
 export const smoother=t=>t*t*t*(t*(t*6-15)+10);
 export const clamp01=t=>Math.min(1,Math.max(0,t));
@@ -47,6 +48,7 @@ export function buildDemo(frames,{script,reduce}){
   const s=script(frame);let duration=frame.duration*DEMO_SCALE;
   // long carries take as long as they need, whatever the authored lesson timing says
   if(s.kind==='carry')duration=Math.max(duration,pathLength(s.path)*HAND_PACE/(s.t.carryEnd-s.t.carryStart));
+  else if(s.kind==='press'||s.kind==='look')duration=Math.max(duration,REACH_MS);
   const effects=s.t.effects??frame.actions.map(()=>s.t.effect);
   const states=[frame.from];for(const action of frame.actions)states.push(reduce(states.at(-1),action).state);states[states.length-1]=frame.to;
   const step={frame,start,end:start+duration,duration,script:s,effects,states};start+=duration;return step;
@@ -88,9 +90,9 @@ export function sampleDemo(demo,t){
   if(p<arrive){const u=smoother(p/arrive);target=lerp3(far,hover,u);blend=[['relaxed',1-u],[pose,u]];}
   else if(p<release){
    if(s.kind==='press'){const u=smoother(clamp01((p-arrive)/(s.t.press-arrive))),d=smoother(clamp01((p-s.t.press)/(release-s.t.press)));target=lerp3(lerp3(hover,point,u),hover,d);}
-   else{const u=smoother(clamp01((p-arrive)/0.12)),wobble=0.004*Math.sin(p*40);target=lerp3(hover,[point[0]+wobble,point[1]+0.012,point[2]+0.02],u);}
+   else{const u=smoother(clamp01((p-arrive)/0.12)),settle=1-smoother(clamp01((p-release+0.1)/0.1)),wobble=0.004*Math.sin(p*40)*settle;target=lerp3(hover,[point[0]+wobble,point[1]+0.012,point[2]+0.02],u);}
    blend=[[pose,1]];
-  }else{const u=smoother(clamp01((p-release)/(1-release)));target=lerp3(hover,far,u);blend=[[pose,1-u],['relaxed',u]];}
+  }else{const u=smoother(clamp01((p-release)/(1-release))),from=s.kind==='look'?[point[0],point[1]+0.012,point[2]+0.02]:hover;target=lerp3(from,far,u);blend=[[pose,1-u],['relaxed',u]];}
   hands.push({side:s.hand,target,pose:blend,visible:true});
   if(s.kind==='look'&&s.choice&&p>=arrive)choice=s.choice;
  }else if(s.kind==='effect'){

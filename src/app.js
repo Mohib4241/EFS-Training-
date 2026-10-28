@@ -151,7 +151,6 @@ function readRoute(){const [prefix,id,view]=location.hash.slice(1).split('/');if
 function setCollapsed(collapsed){document.body.classList.toggle('nav-collapsed',collapsed);$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');}
 function showPage(next,path=[],historyMode='push'){
  page=next;const token=++navToken;
- if(next!=='soft-checklist')closeSim3d(true);
  if(next!=='hardlab')hardLab?.pause();if(next!=='scrubber')scrubber?.pause();if(next!=='soft-checklist')maintenance?.pause();
  viewer?.clearHover();if(next!=='module'){state.connected=false;state.running=false;state.stroke=false;}viewer?.setActive(next==='module');if(next==='module')ensureViewer();
  guidance.setMachine(null);

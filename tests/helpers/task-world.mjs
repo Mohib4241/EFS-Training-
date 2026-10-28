@@ -32,7 +32,7 @@ export function harness(task,kind=task.kind){
  const h={get state(){return state;},set state(s){state=s;},messages,events,actions,world,ix,frame,dispatch,pointer};
  // pinch on a part, move to an on-screen point (or a zone's centre), hold there, open the hand
  h.carryTo=(id,part,destination,{seconds=1}={})=>{
-  const start=world.anchorScreen(part);
+  world.frame();const start=world.anchorScreen(part);
   for(let t=0;t<0.2;t+=1/30)frame([pointer(id,[start.nx,start.ny],true)]);
   const end=typeof destination==='string'?zoneCentre(world,destination):destination;
   const steps=Math.ceil(seconds*30);for(let i=1;i<=steps;i++){const u=i/steps;frame([pointer(id,[start.nx+(end[0]-start.nx)*u,start.ny+(end[1]-start.ny)*u],true)]);}
@@ -40,9 +40,9 @@ export function harness(task,kind=task.kind){
   for(let t=0;t<0.3;t+=1/30)frame([pointer(id,end,false)]);
  };
  // rest a fingertip on a part until it is pressed
- h.press=(id,part,seconds=1.3)=>{const a=world.anchorScreen(part);for(let t=0;t<seconds;t+=1/30)frame([pointer(id,[a.nx,a.ny-0.1],false,[a.nx,a.ny])]);frame([]);};
+ h.press=(id,part,seconds=1.3)=>{world.frame();const a=world.anchorScreen(part);for(let t=0;t<seconds;t+=1/30)frame([pointer(id,[a.nx,a.ny-0.1],false,[a.nx,a.ny])]);frame([]);};
  // pull a part (the plug) this far on screen, in normalised units
- h.pull=(id,part,[dx,dy]=[0.35,-0.05])=>{const a=world.anchorScreen(part);h.carryTo(id,part,[a.nx+dx,a.ny+dy]);};
+ h.pull=(id,part,[dx,dy]=[0.35,-0.05])=>{world.frame();const a=world.anchorScreen(part);h.carryTo(id,part,[a.nx+dx,a.ny+dy]);};
  return h;
 }
 export function zoneCentre(world,zone){const r=world.zoneRect(zone);return [(r.x0+r.x1)/2,(r.y0+r.y1)/2];}

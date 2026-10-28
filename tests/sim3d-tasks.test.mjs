@@ -7,8 +7,9 @@ import {buildDemo,sampleDemo,scripts,cameraAt} from '../src/sim3d/demo.js';
 import {VIEW,WIDE,cameraPose} from '../src/sim3d/layout.js';
 import {harness,doStep,makeWorld,zoneCentre} from './helpers/task-world.mjs';
 import {task as bag} from '../src/sim3d/tasks/bag.js';
+import {TASKS as ALL} from '../src/sim3d/tasks/index.js';
 
-const TASKS=[[bag,'bag']];
+const TASKS=Object.entries(ALL).map(([kind,task])=>[task,kind]);
 
 for(const [task,kind] of TASKS){
  test(`${kind}: a learner can do the whole task in 3D, one correct move after another`,()=>{

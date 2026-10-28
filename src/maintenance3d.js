@@ -236,15 +236,17 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  }
 
  // ---- mouse / touch: drag, or click to pick up and click again to put down ----
- const mouse={nx:0,ny:0,down:false,clicked:false,released:false,touch:false,inside:false,sticky:false,wasSticky:false,downAt:0,downX:0,downY:0,moved:0,pinchWeight:0};
+ const mouse={nx:0,ny:0,down:false,clicked:false,released:false,touch:false,inside:false,sticky:false,wasSticky:false,quickClick:false,downFrames:0,downAt:0,downX:0,downY:0,moved:0,pinchWeight:0};
  function pointerNdc(event){const r=canvas.getBoundingClientRect();mouse.nx=((event.clientX-r.left)/r.width)*2-1;mouse.ny=-(((event.clientY-r.top)/r.height)*2-1);}
- canvas.addEventListener('pointerdown',e=>{if(view!=='practice'||input!=='mouse')return;canvas.setPointerCapture(e.pointerId);mouse.down=true;mouse.clicked=true;mouse.inside=true;mouse.wasSticky=mouse.sticky;mouse.downAt=performance.now();mouse.downX=e.clientX;mouse.downY=e.clientY;mouse.moved=0;pointerNdc(e);pump.invalidate();},{signal});
+ canvas.addEventListener('pointerdown',e=>{if(view!=='practice'||input!=='mouse')return;canvas.setPointerCapture(e.pointerId);mouse.down=true;mouse.clicked=true;mouse.inside=true;mouse.wasSticky=mouse.sticky;mouse.downAt=e.timeStamp;mouse.downFrames=0;mouse.downX=e.clientX;mouse.downY=e.clientY;mouse.moved=0;pointerNdc(e);pump.invalidate();},{signal});
  canvas.addEventListener('pointermove',e=>{if(input!=='mouse')return;mouse.inside=true;if(mouse.down)mouse.moved=Math.max(mouse.moved,Math.hypot(e.clientX-mouse.downX,e.clientY-mouse.downY));pointerNdc(e);pump.invalidate();},{signal});
  for(const type of ['pointerup','pointercancel'])canvas.addEventListener(type,e=>{
   if(input!=='mouse'||!mouse.down)return;mouse.down=false;mouse.released=true;mouse.touch=e.pointerType!=='mouse';
-  const quick=performance.now()-mouse.downAt<CLICK_MS&&mouse.moved<CLICK_PX;
+  // quick: short in time, or spanning only a few frames on a slow device
+  const quick=(e.timeStamp-mouse.downAt<CLICK_MS||mouse.downFrames<=3)&&mouse.moved<CLICK_PX;
   // a quick click on a part keeps holding it until the next click; a second click puts it down
-  if(mouse.wasSticky||type==='pointercancel')mouse.sticky=false;else if(quick&&S?.interaction.holding.length)mouse.sticky=true;
+  // (decided after the next frame has picked the part up: a fast click can end before any frame ran)
+  if(mouse.wasSticky||type==='pointercancel')mouse.sticky=false;else if(quick){if(S?.interaction.holding.length)mouse.sticky=true;else mouse.quickClick=true;}
   pump.invalidate();
  },{signal});
  canvas.addEventListener('pointerleave',()=>{if(!mouse.down&&!mouse.sticky)mouse.inside=false;pump.invalidate();},{signal});
@@ -272,7 +274,10 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   S.stage.setFocusBlend(focusOf(cam.from),focusOf(cam.to),reduced?1:cam.k);
   const state=reduced&&frameAdjust?sample.step.frame.to:sample.state;
   if(state!==shownState){shownState=state;S.stage.setPlaces(S.task.places(state),{instant:reduced});S.view.apply?.(state,{instant:reduced,demo:true});}
-  if(sample.held&&!reduced){S.stage.hold(sample.held.part,sample.held.anchor);heldByDemo=sample.held.part;}else if(heldByDemo){S.stage.hold(heldByDemo,null);heldByDemo=null;}
+  // a jump (scrubbing, or a slow frame) can go straight from one carried part to another: let the first one go
+  const carried=sample.held&&!reduced?sample.held.part:null;
+  if(heldByDemo&&heldByDemo!==carried){S.stage.hold(heldByDemo,null);heldByDemo=null;}
+  if(carried){S.stage.hold(carried,sample.held.anchor);heldByDemo=carried;}
   S.stage.setHighlight(null,null);hideRigs();
   if(!reduced)for(const h of sample.hands)if(h.visible)placeSample(h);
   S.view.frame?.({mode:'demo',sample,state,rigs,wall,reduced});
@@ -284,9 +289,11 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   renderChoices(state,null);
   let pointers=[];const used=new Set(),camera=input==='hands'&&tracking;
   if(camera){smoothTracked(dt);for(const d of shown.values())pointers.push({id:d.id,seq:d.seq,nx:d.pinch[0],ny:d.pinch[1],pinch:d.holding,tipNx:d.tip[0],tipNy:d.tip[1]});}
-  else if(input==='mouse'&&(mouse.inside||mouse.down||mouse.clicked||mouse.released||mouse.sticky))pointers=[{id:'mouse',nx:mouse.nx,ny:mouse.ny,pinch:mouse.down||mouse.clicked||mouse.sticky,tipNx:mouse.nx,tipNy:mouse.ny,dwell:false,crisp:true}];
+  else if(input==='mouse'&&(mouse.inside||mouse.down||mouse.clicked||mouse.released||mouse.sticky))pointers=[{id:'mouse',nx:mouse.nx,ny:mouse.ny,pinch:mouse.down||mouse.clicked||mouse.sticky||mouse.quickClick,tipNx:mouse.nx,tipNy:mouse.ny,dwell:false,crisp:true}];
   const report=S.interaction.update(dt,pointers,camera?trackInfo.seq:undefined);
   const gesture=S.gestures?.update(dt,{pointers,hands:camera?[...shown.values()]:null,mouse:camera?null:{down:mouse.down||mouse.sticky,nx:mouse.nx,ny:mouse.ny,active:pointers.length>0},now:performance.now()})??null;
+  if(mouse.down)mouse.downFrames++;
+  if(mouse.quickClick){mouse.quickClick=false;if(S.interaction.holding.length)mouse.sticky=true;}
   mouse.clicked=false;if(mouse.released){mouse.released=false;if(mouse.touch&&!mouse.sticky)mouse.inside=false;}
   hideRigs();
   if(camera)for(const d of shown.values())placeTracked(d,used);
