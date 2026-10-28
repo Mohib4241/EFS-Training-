@@ -128,12 +128,14 @@ function sourceNote(kind){
  if(kind==='hands')return '<strong>Based on CDC community handwashing guidance:</strong> wet, soap/lather, scrub at least 20 seconds, rinse and dry. Drying before towel tap-off follows the WHO poster. The 20-second timer is for scrubbing only; WHO’s 40–60 seconds describes its entire procedure, which this simplified exercise does not time or certify. <a href="https://www.cdc.gov/clean-hands/about/index.html" target="_blank" rel="noopener noreferrer">CDC handwashing ↗</a><a href="https://www.who.int/docs/default-source/patient-safety/how-to-handwash-poster.pdf" target="_blank" rel="noopener noreferrer">WHO drying and tap-off sequence ↗</a>';
  return '<strong>External visual checks only.</strong> No live test, wiring, tightening or repair is taught. Internal terminal inspection requires an authorised person with task-appropriate competence and the correct manual. <a href="https://www.hse.gov.uk/electricity/electricequip.htm" target="_blank" rel="noopener noreferrer">HSE equipment-check guidance ↗</a>';
 }
-export function mountMaintenance(container,{onComplete,onNotify=()=>{},onProgress=()=>{},machine='junior-103',getLanguage=()=> 'english'}={}){
+export function mountMaintenance(container,{onComplete,onNotify=()=>{},onProgress=()=>{},machine='junior-103',getLanguage=()=> 'english',bridge}={}){
  const machineName=machine==='junior-429'?'Junior 429':'Junior 103',filterKind=machine==='junior-429'?'wet-filter':'filter',titles={[filterKind]:taskTitles[filterKind],bag:machine==='junior-429'?'Change dry dust bag':taskTitles.bag,hands:taskTitles.hands,terminals:taskTitles.terminals};
  let active=filterKind,mode='lesson',message='Watch the demonstration, then try the task yourself.',interval=null,lessonRAF=0,lastLessonTime=0,lastLessonStep=-1,destroyed=false,keyControlsOpen=false,drag=null,dragRAF=0;
  const states=Object.fromEntries(Object.keys(titles).map(kind=>[kind,initialPractice(kind)]));
  const lessons=Object.fromEntries(Object.keys(titles).map(kind=>[kind,initialLesson()]));
  const watched=Object.fromEntries(Object.keys(titles).map(kind=>[kind,false]));
+ // Optional hand-over to the lazy 3D view; without a bridge this is skipped and nothing else changes.
+ if(bridge)Object.assign(bridge,{states,titles,reduce:reducePractice,initial:initialPractice,frames:LESSONS,stepsFor:kind=>['filter','wet-filter'].includes(kind)?filterCareSteps(getLanguage()):kind==='bag'?bagSteps:kind==='hands'?handSteps:terminalSteps,getActive:()=>active,adopt(kind){if(!Object.hasOwn(states,kind))return;pause();active=kind;watched[kind]=true;mode='practice';message='Continuing from the 3D simulation.';render();}});
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');container.classList.add('maintenance-root');
  function stopClock(){if(interval!==null){clearInterval(interval);interval=null;}}
  function stopLesson(){if(lessonRAF)cancelAnimationFrame(lessonRAF);lessonRAF=0;lastLessonTime=0;}

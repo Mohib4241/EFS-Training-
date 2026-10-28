@@ -36,6 +36,18 @@ test('first load stays inside its size budget (gzip)',()=>{
  assert.ok(total<90*1024,`first load is ${(total/1024).toFixed(1)} KB gzip; budget is 90 KB`);
 });
 
+test('the 3D simulation is a separate lazy chunk and the 2D simulation chunk stays self-contained',()=>{
+ const named=prefix=>chunks.filter(url=>url.startsWith(`/static/chunks/${prefix}-`)),staticImports=url=>[...read(url).matchAll(/from"(\.\/[^"]+)"/g)].map(m=>m[1]);
+ const [flat]=named('maintenance'),[solid]=named('maintenance3d');
+ assert.ok(flat&&solid,'both chunks exist');
+ assert.deepEqual(staticImports(flat),[],'the 2D chunk imports nothing, so opening the checklist costs no extra request');
+ assert.doesNotMatch(read(flat),/WebGLRenderer/,'no 3D code leaks into the 2D chunk');
+ assert.match(read(entryUrl),/import\("\.\/chunks\/maintenance3d-[A-Za-z0-9]+\.js"\)/,'the entry loads it dynamically');
+ assert.ok(![entryUrl,...preloads].some(url=>staticImports(url).some(dep=>dep.includes('maintenance3d'))),'nothing eager imports it');
+ assert.ok(!preloads.some(url=>/maintenance3d/.test(url)),'it is never preloaded');
+ const shared=staticImports(solid).map(dep=>`/static/chunks/${dep.slice(2)}`);assert.ok(shared.every(url=>/WebGLRenderer/.test(read(url))),'its only static dependency is the existing three.js chunk');
+});
+
 let server,base;
 before(async()=>{
  const port=await new Promise(resolve=>{const probe=createSocket();probe.listen(0,'127.0.0.1',()=>{const {port}=probe.address();probe.close(()=>resolve(port));});});
