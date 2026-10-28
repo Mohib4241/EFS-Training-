@@ -75,3 +75,28 @@ test('server only serves the build output',async()=>{
  assert.equal((await get('/',{method:'POST'})).status,405);
  assert.equal((await get('/',{method:'HEAD'})).status,200);
 });
+
+test('hand tracking is opt-in: model and WebAssembly are same-origin files that no page load fetches',()=>{
+ const staticFiles=[],walk=dir=>{for(const entry of readdirSync(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())walk(path);else staticFiles.push(path.slice(dist.length));}};walk(join(dist,'static'));
+ const model=staticFiles.filter(name=>/^\/static\/hand_landmarker-[A-Za-z0-9]+\.task$/.test(name)),wasm=staticFiles.filter(name=>/^\/static\/mediapipe-[\d.]+\/vision_wasm_internal\.wasm$/.test(name));
+ assert.equal(model.length,1,'one content-hashed model');assert.equal(wasm.length,1,'one WebAssembly binary in a versioned folder');
+ for(const url of [entryUrl,...preloads])assert.doesNotMatch(read(url),/hand_landmarker|vision_wasm|HandLandmarker/,`${url} knows nothing about hand tracking`);
+ assert.doesNotMatch(html,/hand_landmarker|\.wasm|mediapipe/,'the page never preloads the model');
+ const vision=chunks.find(url=>url.includes('/vision_bundle-'));assert.ok(vision&&/createFromOptions/.test(read(vision)),'the MediaPipe code is its own chunk');
+ const solid=chunks.find(url=>url.includes('/maintenance3d-'));assert.match(read(solid),/import\("\.\/vision_bundle-[A-Za-z0-9]+\.js"\)/,'it is loaded by a dynamic import, only after the learner allows the camera');
+ assert.match(read(solid),/hand_landmarker-[A-Za-z0-9]+\.task/,'the 3D chunk points at the hashed model');
+ assert.match(read(vision),/flush\((\w+),(\w+)\)\{this\.i=\[\],\1\?\.\(\);return;/,'MediaPipe\'s usage-logging upload is switched off, so no video-derived data can leave the page');
+});
+
+test('camera and WebAssembly are allowed for this site only, on the dev server and in the production headers alike',async()=>{
+ const page=await get('/');
+ const csp=page.headers.get('content-security-policy'),script=/script-src ([^;]+)/.exec(csp)?.[1];
+ assert.equal(script,"'self' 'wasm-unsafe-eval'",'WebAssembly compilation is allowed, scripts are not widened');assert.doesNotMatch(csp,/unsafe-eval(?!')|'unsafe-inline'[^;]*script|https?:\/\/|\*/,'no remote origins or wildcards');
+ assert.equal(page.headers.get('permissions-policy'),'camera=(self), microphone=(), geolocation=()');
+ const wasm=(await readdirSync(join(dist,'static'),{recursive:true})).find(name=>/vision_wasm_internal\.wasm$/.test(name)),model=readdirSync(join(dist,'static')).find(name=>/^hand_landmarker-.*\.task$/.test(name));
+ const w=await get(`/static/${wasm}`,{headers:{'Accept-Encoding':'br'}});assert.equal(w.status,200);assert.equal(w.headers.get('content-type'),'application/wasm');assert.equal(w.headers.get('cache-control'),'public, max-age=31536000, immutable');assert.equal(w.headers.get('content-encoding'),'br','the 14 MB binary travels compressed');
+ const m=await get(`/static/${model}`,{headers:{'Accept-Encoding':'br'}});assert.equal(m.status,200);assert.equal(m.headers.get('content-encoding'),'br','the 7.8 MB model travels compressed');assert.equal(m.headers.get('content-type'),'application/octet-stream');assert.equal(m.headers.get('cache-control'),'public, max-age=31536000, immutable');
+ // the production host (render.yaml) must send exactly what the preview server sends
+ const yaml=readFileSync(join(root,'render.yaml'),'utf8'),value=name=>new RegExp(`name: ${name}\\s+value: "?([^\\n"]+)"?`).exec(yaml)?.[1];
+ assert.equal(value('Content-Security-Policy'),csp);assert.equal(value('Permissions-Policy'),page.headers.get('permissions-policy'));
+});
