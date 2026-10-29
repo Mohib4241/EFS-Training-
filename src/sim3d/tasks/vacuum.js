@@ -27,12 +27,12 @@ export const clipUsable=(state,id)=>{const side=id==='clipLeft'?'left':'right';r
 export const PART_LABELS={plug:'the plug',head:'the motor head',clipLeft:'the left clip',clipRight:'the right clip'};
 
 // Builds the machine, plug, socket, lead and stool and registers the movable parts on the stage.
-export function buildVacuumScene(stage,{label,table,rest,socket}){
+export function buildVacuumScene(stage,{label,table,rest,socket,heatMark=false}){
  const {kit}=stage,machine=buildVacuum(kit,{label});
  stage.blob(0,0,0.78);
  buildStool(kit,{position:rest});stage.blob(rest[0],rest[2],0.5);
  buildSocket(kit,{position:[socket[0],socket[1],-0.744]});
- const plug=buildPlug(kit,{heatMark:false});
+ const plug=buildPlug(kit,{heatMark});
  const cable=buildCable(kit,{start:[0,0.2,-0.185]});
  stage.addPart('head',{group:machine.head,materials:machine.materials.head,places:table.head.places,anchor:table.head.anchor,shadow:0.46,initial:'seated'});
  stage.addPart('clipLeft',{group:machine.clips.left,materials:machine.materials.clip,places:table.clipLeft.places,anchor:table.clipLeft.anchor,initial:'locked'});
