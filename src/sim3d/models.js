@@ -216,16 +216,6 @@ export function buildTap(kit,{base,spout,parent=kit.scene}){
  mesh(merge([[new THREE.CylinderGeometry(0.016,0.016,0.024,14)],[new RoundedBoxGeometry(0.018,0.014,0.085,2,0.005),at(0,0.014,0.036,-0.25)]]),leverMat,lever);
  return {lever,leverMaterials:[leverMat],leverAt:[bx,by+0.03,bz+0.03],spoutTip:[sx,sy,sz]};
 }
-// Wall-hung hand basin (ceramic), with a deck mixer tap.
-export function buildHandBasin(kit,{position,parent=kit.scene}){
- const {mesh,std,lathe}=kit,[x,y,z]=position,ceramic=std('#fbfcfb',0.16,0,{envMapIntensity:1.2});
- const bowl=lathe([[0.012,y-0.17],[0.05,y-0.168],[0.17,y-0.13],[0.225,y-0.06],[0.24,y-0.01],[0.25,y],[0.252,y+0.012],[0.24,y+0.016],[0.226,y+0.006],[0.21,y-0.045],[0.155,y-0.11],[0.045,y-0.146],[0.0,y-0.148]],56);
- bowl.scale(1.1,1,0.8).translate(x,0,z);mesh(bowl,ceramic,parent);
- mesh(new RoundedBoxGeometry(0.5,0.05,0.12,3,0.02).translate(x,y-0.005,-0.69),ceramic,parent);
- mesh(new THREE.CylinderGeometry(0.06,0.04,0.42,24).translate(x,y-0.37,-0.66),ceramic,parent);
- mesh(new THREE.CircleGeometry(0.018,20).rotateX(-Math.PI/2).translate(x,y-0.145,z),std('#9aa6a8',0.3,0.8),parent);
- return buildTap(kit,{base:[x,y+0.07,-0.71],spout:[x,y+0.13,z-0.07],parent});
-}
 // Wire drying rack on wall brackets: a grid of chrome bars the washed filter stands on.
 export function buildDryingRack(kit,{position,size=[0.42,0.26],parent=kit.scene}){
  const {mesh,std,merge,at}=kit,[x,y,z]=position,[w,d]=size,entries=[];
@@ -273,33 +263,6 @@ export function buildDrips(kit,{count=7,parent=kit.scene}={}){
    drops.instanceMatrix.needsUpdate=true;return active;
   }
  };
-}
-
-// ---- handwashing ----
-export function buildSoapDispenser(kit,{position,parent=kit.scene}){
- const {mesh,std,merge,at,group}=kit,[x,y,z]=position,body=std('#e9eeec',0.35,0),glass=std('#8fd0b9',0.15,0,{transparent:true,opacity:0.75});
- mesh(new RoundedBoxGeometry(0.1,0.16,0.075,3,0.012).translate(x,y,z),body,parent);mesh(new THREE.BoxGeometry(0.05,0.07,0.004).translate(x,y+0.02,z+0.038),glass,parent);
- const push=group(parent),pushMat=std('#3f6f66',0.4,0.1,{emissive:'#000000'});mesh(new RoundedBoxGeometry(0.07,0.045,0.02,2,0.008),pushMat,push);
- mesh(merge([[new THREE.CylinderGeometry(0.006,0.004,0.02,10),at(x,y-0.09,z+0.02)]]),std('#5d6a6c',0.4,0.6),parent);
- return {push,materials:[pushMat],nozzle:[x,y-0.1,z+0.02]};
-}
-export function buildTowelDispenser(kit,{position,parent=kit.scene}){
- const {mesh,std,group,canvasTexture}=kit,[x,y,z]=position;
- mesh(new RoundedBoxGeometry(0.28,0.24,0.1,3,0.015).translate(x,y,z),std('#f0f3f2',0.35,0),parent);
- mesh(new THREE.BoxGeometry(0.2,0.012,0.012).translate(x,y-0.115,z+0.035),std('#2c3a3d',0.6,0),parent);
- const tab=group(parent),paper=std('#ffffff',0.95,0,{map:canvasTexture(128,128,(c,w,h)=>{c.fillStyle='#fbfbf6';c.fillRect(0,0,w,h);for(let i=0;i<300;i++){c.fillStyle=`rgba(180,175,160,${Math.random()*0.15})`;c.fillRect(Math.random()*w,Math.random()*h,2,2);}}),emissive:'#000000',side:THREE.DoubleSide});
- mesh(new THREE.PlaneGeometry(0.16,0.09,4,4).translate(0,-0.045,0),paper,tab);
- return {tab,materials:[paper],paper};
-}
-// A paper towel in the hand: a gently curved sheet.
-export function buildTowelSheet(kit,{material,parent=kit.scene}){
- const g=new THREE.PlaneGeometry(0.17,0.2,6,6),p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i);p.setZ(i,0.02*Math.cos(x*14));}g.computeVertexNormals();
- const sheet=kit.mesh(g,material,parent);sheet.visible=false;return sheet;
-}
-// Lather: small white spheres that cling to the hands (positions are set every frame from the hand joints).
-export function buildFoam(kit,{count=46,parent=kit.scene}){
- const {own,std}=kit,foam=own(new THREE.InstancedMesh(own(new THREE.IcosahedronGeometry(1,1)),std('#ffffff',0.55,0,{transparent:true,opacity:0.92,envMapIntensity:0.6}),count));
- foam.frustumCulled=false;foam.count=0;parent.add(foam);return foam;
 }
 
 // ---- connector inspection ----

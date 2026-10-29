@@ -1,20 +1,14 @@
 import {initialFilterCare,reduceFilterCare} from './filter-care.js';
-export const SCRUB_DURATION_MS=20_000;
-export const HAND_AREAS=['palms','backs','fingers','nails'];
 export function initialPractice(kind){
  if(['filter','wet-filter'].includes(kind))return initialFilterCare(kind);
  if(kind==='bag')return {kind,phase:'isolate',isolated:false,clips:{left:true,right:true},headOpen:false,usedBag:'fitted',newBag:'shelf',selected:null,fill:80,complete:false};
- if(kind==='hands')return {kind,phase:'water',tapOn:false,wet:false,soap:false,surfaces:[],rubElapsedMs:0,rubBaseMs:0,rubStartedAt:null,towel:false,dried:false,complete:false};
  if(kind==='terminals')return {kind,phase:'isolate',isolated:false,checks:[],activeCheck:null,complete:false};
  throw new RangeError('Unknown maintenance practice');
 }
 function result(state,message){return {state,message};}
-function timeOf(action){if(!Number.isFinite(action.now)||action.now<0)throw new RangeError('A monotonic timestamp is required');return action.now;}
-function elapsed(state,now){return Math.min(SCRUB_DURATION_MS,state.rubBaseMs+(state.rubStartedAt===null?0:Math.max(0,now-state.rubStartedAt)));}
-function advanceScrub(state){if(state.rubElapsedMs>=SCRUB_DURATION_MS&&HAND_AREAS.every(id=>state.surfaces.includes(id))){state.phase='rinse';state.rubStartedAt=null;state.rubBaseMs=SCRUB_DURATION_MS;return true;}return false;}
 export function reducePractice(previous,action){
  const out=applyPractice(previous,action);
- const blocked=Boolean(out.message)&&!previous.complete&&!['tick','pause','select','reset'].includes(action.type)&&JSON.stringify(out.state)===JSON.stringify(previous);
+ const blocked=Boolean(out.message)&&!previous.complete&&!['select','reset'].includes(action.type)&&JSON.stringify(out.state)===JSON.stringify(previous);
  return {...out,blocked};
 }
 function applyPractice(previous,action){
@@ -69,65 +63,6 @@ function applyPractice(previous,action){
    s.newBag='fitted';s.fill=0;s.selected=null;s.phase='close';return result(s,'Clean bag fitted in the teaching model. Close and secure the head.');
   }
   s.headOpen=false;s.phase='secure';return result(s,'Head returned to the tank. Secure both retaining clips to finish the practice.');
- }
- if(s.kind==='hands'){
-  if(action.type==='pause'){
-   if(s.rubStartedAt!==null){s.rubElapsedMs=elapsed(s,timeOf(action));s.rubBaseMs=s.rubElapsedMs;s.rubStartedAt=null;advanceScrub(s);}
-   return result(s,'Scrub timer paused. Resume when you return to the practice.');
-  }
-  if(s.complete)return result(s,'Handwashing practice is complete. Reset to try again.');
-  if(action.type==='tap'){
-   if(s.tapOn&&s.phase==='dry')return result(s,'Dry both hands with a clean paper towel before using the towel to turn off the tap.');
-   if(s.tapOn&&s.phase==='tapoff'){
-    if(!s.dried||!s.towel)return result(s,'Dry the hands with a clean paper towel first.');
-    s.tapOn=false;s.phase='done';s.complete=true;return result(s,'Handwashing sequence practised: hands dried first, then the towel used to turn off the tap. This simulation cannot verify real hand hygiene.');
-   }
-   s.tapOn=!s.tapOn;if(s.phase==='water'&&s.tapOn)s.phase='wet';
-   return result(s,s.tapOn?'Clean running water is on.':s.phase==='soap'?'Tap off. Apply soap to the wet hands.':'Tap off.');
-  }
-  if(action.type==='wet'){
-   if(s.phase!=='wet'||!s.tapOn)return result(s,'Turn on the tap, then wet both hands under clean running water.');
-   s.wet=true;s.phase='soap';return result(s,'Hands wet. Turn off the tap to save water, then apply soap.');
-  }
-  if(action.type==='soap'){
-   if(s.phase!=='soap'||!s.wet)return result(s,'Wet the hands before applying soap.');
-   if(s.tapOn)return result(s,'Turn off the tap before applying soap and scrubbing.');
-   s.soap=true;s.phase='scrub';return result(s,'Soap applied. Cover every named area and run the scrub timer for at least 20 seconds.');
-  }
-  if(action.type==='surface'){
-   if(s.phase!=='scrub')return result(s,'Wet the hands and apply soap before practising the scrub surfaces.');
-   if(!HAND_AREAS.includes(action.area))throw new RangeError('Unknown hand surface');
-   s.surfaces=[...new Set([...s.surfaces,action.area])];
-   if(advanceScrub(s))return result(s,'All areas covered and at least 20 seconds elapsed. Turn the tap on and rinse well.');
-   return result(s,s.rubElapsedMs>=SCRUB_DURATION_MS?'Time reached. Cover the remaining named hand areas before rinsing.':'Area practised. Continue scrubbing all areas for at least 20 seconds.');
-  }
-  if(action.type==='rub'){
-   if(s.phase!=='scrub')return result(s,'Apply soap before starting the scrub timer.');
-   if(s.rubStartedAt!==null)return result(s,'The scrub timer is already running.');
-   if(s.rubElapsedMs>=SCRUB_DURATION_MS)return result(s,'Cover every named area before moving to the rinse step.');
-   const now=timeOf(action);s.rubBaseMs=s.rubElapsedMs;s.rubStartedAt=now;return result(s,'Scrub timer running. Practise palms, backs, between fingers and fingertips/nails.');
-  }
-  if(action.type==='tick'){
-   if(s.rubStartedAt===null)return result(s,'');
-   s.rubElapsedMs=elapsed(s,timeOf(action));
-   if(advanceScrub(s))return result(s,'At least 20 seconds elapsed and all areas covered. Turn the tap on, then rinse.');
-   if(s.rubElapsedMs>=SCRUB_DURATION_MS){s.rubBaseMs=SCRUB_DURATION_MS;s.rubStartedAt=null;return result(s,'20 seconds reached. Practise every named hand area before rinsing.');}
-   return result(s,'');
-  }
-  if(action.type==='rinse'){
-   if(s.phase!=='rinse')return result(s,'Complete at least 20 seconds of scrubbing and cover every area before rinsing.');
-   if(!s.tapOn)return result(s,'Turn on clean running water before rinsing.');
-   s.soap=false;s.phase='dry';return result(s,'Soap rinsed away. Take a clean paper towel and dry both hands before using the towel to turn off the tap.');
-  }
-  if(action.type==='towel'){
-   if(s.phase!=='dry')return result(s,'Complete scrubbing and rinsing before taking the drying towel.');
-   s.towel=true;return result(s,'Clean paper towel ready. Dry both hands, then use the towel to turn off the tap.');
-  }
-  if(action.type==='dry'){
-   if(s.phase!=='dry'||!s.towel)return result(s,'Rinse well, then take a clean towel to dry the hands.');
-   s.wet=false;s.dried=true;s.phase='tapoff';return result(s,'Hands dried. Now use the towel as a barrier to turn off the tap; do not dry again with the tap-contact area.');
-  }
-  throw new RangeError('Unsupported handwashing action');
  }
  if(s.kind==='terminals'){
   if(s.complete)return result(s,'Fault recognition practice is complete. Reset to try again.');

@@ -30,7 +30,7 @@ A locally bundled Three.js model replaces the SVG. Hover to identify and highlig
 
 The orange cable follows a plug that moves into a schematic UK-style socket. Connecting leaves the motor off. Running requires a connection and a fully assembled model. Opening switches off and disconnects automatically. The operating cutaway shows motor/fan rotation; a separate control demonstrates a short tool/tube stroke. Reduced-motion users receive static states. Leaving the module stops the motor.
 
-The Maintenance Checklist opens an animated lesson followed by interactive practice for each task: dust-bag replacement, hands-only handwashing, and an isolated external connector observation. The original six operator checks remain in an optional collapsible practice record. Progress is session-only. None of these activities is an approved maintenance schedule, certificate or permanent maintenance record.
+The Maintenance Checklist opens an animated lesson followed by interactive practice for each task: weekly filter wash, dust-bag replacement and an isolated external connector observation. The original six operator checks remain in an optional collapsible practice record. Progress is session-only. None of these activities is an approved maintenance schedule, certificate or permanent maintenance record.
 
 All supplied photo images and their UI controls were removed from source and build output. Nameplate transcriptions retain source attribution. The original uploaded files outside the application are untouched.
 
@@ -64,7 +64,7 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
 | `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
 | `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
-| `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/sim3d/tasks/`, `src/maintenance-text.js` | The Maintenance Checklist, in 3D only (see [the record](docs/sim3d-stages.md)): every task for both Junior machines (weekly filter wash, dust bag, handwashing, connector inspection), each shown by two hands and then practised with the learner's own hands (webcam, MediaPipe in a Web Worker, first-person view, 0.75 m distance coach) or the mouse/touch (click to pick up and click to put down, or drag). Browsers without WebGL2 get the written steps instead. |
+| `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/sim3d/tasks/`, `src/maintenance-text.js` | The Maintenance Checklist, in 3D only (see [the record](docs/sim3d-stages.md)): every task for both Junior machines (weekly filter wash, dust bag, connector inspection), each shown by two hands and then practised with the learner's own hands (webcam, MediaPipe in a Web Worker, first-person view, 0.75 m distance coach) or the mouse/touch (click to pick up and click to put down, or drag). Browsers without WebGL2 get the written steps instead. |
 | `tests/delivery.test.mjs` | Bundle graph (3D and labs stay lazy), first-load budget, caching, compression and path-allowlist checks |
 | `tests/content.test.mjs` | Meaningful content, taxonomy, provenance and state regressions |
 
@@ -113,10 +113,9 @@ The default welcome page is `#home`, titled “Welcome to EFS Learning Academy�
 ### Interactive practices
 
 - **Dust bag:** an 80% full schematic bag exceeds the user-supplied 70% training trigger. The sequence gates isolation → release both retaining clips → lift head to its rest → lift used bag to tray → seal → bin at bottom right → fit clean bag from top left → return head → secure both clips. Hold/move/release pointer gestures move the illustrated objects themselves. Explicit keyboard/tap actions provide the same sequence. The actual fitted bag and manufacturer service threshold remain unverified. Disposal follows the actual waste stream and site procedure.
-- **Handwashing:** only hands are rendered, with a tap, handwash dispenser and towel. Wet → tap off → soap → all four named areas and at least 20,000 ms scrubbing → running-water rinse → clean towel → dry → towel tap-off. Timing uses monotonic `performance.now()`, pauses off-page/hidden, and resumes accumulated time. Repeated clicks cannot replace elapsed time. This is a conceptual sequence, not a real hygiene assessment or a germ-count simulation.
 - **Connector observation:** isolation first; inspect pins/casing, cable entry and visible heat damage; choose removal from use/reporting. A “no concern” answer cannot pass the illustrated defect. This teaches external observation only; internal terminals, wiring, tightening, repairs and live tests are excluded and require task-appropriate competence and the correct equipment instructions.
 
-Sources for the educational sequence: [CDC handwashing](https://www.cdc.gov/clean-hands/about/index.html), [CDC tap/towel FAQ](https://www.cdc.gov/clean-hands/faq/), [WHO handwashing poster](https://www.who.int/docs/default-source/patient-safety/how-to-handwash-poster.pdf), and [HSE electrical equipment checks](https://www.hse.gov.uk/electricity/electricequip.htm). CDC's **20 seconds is the scrub interval**; WHO's **40–60 seconds is its entire procedure**. The simplified practice does not claim WHO healthcare-procedure compliance. HSE is an educational source, not a statement of local UAE law.
+Sources: the filter-wash and connector tasks link their references in the 3D view under “Learning scope & sources”.
 
 ### Tiled-floor pickup model contract
 

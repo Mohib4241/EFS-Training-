@@ -2,11 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {LESSONS,initialLesson,advanceLesson,stepLesson,lessonPosition} from '../src/maintenance-lessons.js';
 import {initialPractice} from '../src/maintenance-state.js';
-test('all five authored lessons reach their correct demonstrated outcomes',()=>{
- assert.deepEqual(Object.keys(LESSONS),['bag','hands','terminals','filter','wet-filter']);
+test('all four authored lessons reach their correct demonstrated outcomes',()=>{
+ assert.deepEqual(Object.keys(LESSONS),['bag','terminals','filter','wet-filter']);
  for(const frames of Object.values(LESSONS)){assert.ok(frames.length>=5);assert.equal(frames[0].start,0);assert.equal(frames.at(-1).to.complete,true);for(const frame of frames){assert.ok(frame.title&&frame.caption);assert.ok(frame.duration>0);}}
  assert.equal(LESSONS.bag.at(-1).to.clips.left,true);assert.equal(LESSONS.bag.at(-1).to.clips.right,true);
- assert.equal(LESSONS.hands.find(frame=>frame.gesture.scrub).duration,5000);
 });
 test('paused playback does not advance or unlock practice',()=>{
  const lesson=initialLesson();assert.equal(advanceLesson('bag',lesson,100_000),lesson);

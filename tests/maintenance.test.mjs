@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialPractice,reducePractice,SCRUB_DURATION_MS,HAND_AREAS} from '../src/maintenance-state.js';
+import {initialPractice,reducePractice} from '../src/maintenance-state.js';
 const act=(state,type,extra={})=>reducePractice(state,{type,...extra}).state;
-function readyToScrub(){let s=initialPractice('hands');for(const type of ['tap','wet','tap','soap'])s=act(s,type);return s;}
 function openBag(){let s=act(initialPractice('bag'),'isolate');for(const clip of ['left','right'])s=act(s,'unclip',{clip});return act(s,'open');}
 function bagToDispose(){let s=openBag();for(const type of ['remove','seal'])s=act(s,type);return s;}
 test('dust bag scenario starts above the user training trigger and cannot open before isolation',()=>{
@@ -19,31 +18,6 @@ test('bag source/destination actions complete the correct isolated replacement s
  assert.equal(act(s,'transfer',{target:'machine'}).newBag,'shelf');
  s=act(s,'select',{item:'new'});s=act(s,'transfer',{target:'machine'});assert.equal(s.fill,0);assert.equal(s.newBag,'fitted');s=act(s,'close');assert.equal(s.complete,false);for(const clip of ['left','right'])s=act(s,'secure',{clip});
  assert.equal(s.complete,true);assert.equal(s.headOpen,false);assert.equal(s.isolated,true);assert.equal(s.usedBag,'disposed');assert.deepEqual(act(s,'reset'),initialPractice('bag'));
-});
-test('soap and rinse cannot bypass wetting or the scrub stage',()=>{
- let s=initialPractice('hands');assert.equal(act(s,'soap').soap,false);s=act(s,'tap');s=act(s,'wet');assert.equal(act(s,'soap').soap,false);s=act(s,'tap');s=act(s,'soap');assert.equal(s.phase,'scrub');assert.equal(act(s,'rinse').phase,'scrub');
-});
-test('scrubbing requires at least20 real elapsed seconds, not click count',()=>{
- let s=readyToScrub();for(const area of HAND_AREAS)s=act(s,'surface',{area});s=act(s,'rub',{now:1000});
- for(let i=0;i<20;i++)s=act(s,'surface',{area:'palms'});assert.equal(s.phase,'scrub');assert.equal(s.rubElapsedMs,0);
- s=act(s,'tick',{now:20_999});assert.equal(s.rubElapsedMs,19_999);assert.equal(s.phase,'scrub');
- s=act(s,'tick',{now:21_000});assert.equal(s.rubElapsedMs,SCRUB_DURATION_MS);assert.equal(s.phase,'rinse');assert.equal(s.rubStartedAt,null);
-});
-test('all named hand areas are required even after the timer has reached20 seconds',()=>{
- let s=readyToScrub();s=act(s,'rub',{now:500});s=act(s,'tick',{now:20_500});assert.equal(s.phase,'scrub');assert.equal(s.rubStartedAt,null);
- for(const area of HAND_AREAS.slice(0,3))s=act(s,'surface',{area});assert.equal(s.phase,'scrub');s=act(s,'surface',{area:'nails'});assert.equal(s.phase,'rinse');
-});
-test('pausing excludes hidden time and resume uses only accumulated scrub time',()=>{
- let s=readyToScrub();for(const area of HAND_AREAS)s=act(s,'surface',{area});s=act(s,'rub',{now:1000});s=act(s,'pause',{now:6000});assert.equal(s.rubElapsedMs,5000);
- s=act(s,'tick',{now:100_000});assert.equal(s.rubElapsedMs,5000);assert.equal(s.phase,'scrub');s=act(s,'rub',{now:100_000});s=act(s,'tick',{now:114_999});assert.equal(s.phase,'scrub');s=act(s,'tick',{now:115_000});assert.equal(s.phase,'rinse');
-});
-test('completion requires rinse, clean towel, drying before towel tap-off',()=>{
- let s=readyToScrub();for(const area of HAND_AREAS)s=act(s,'surface',{area});s=act(s,'rub',{now:1});s=act(s,'tick',{now:20_001});assert.equal(act(s,'rinse').phase,'rinse');
- s=act(s,'tap');s=act(s,'rinse');assert.equal(act(s,'dry').complete,false);assert.equal(act(s,'tap').tapOn,true);s=act(s,'towel');assert.equal(act(s,'tap').tapOn,true);s=act(s,'dry');assert.equal(s.dried,true);assert.equal(s.phase,'tapoff');assert.equal(s.complete,false);assert.equal(s.tapOn,true);s=act(s,'tap');assert.equal(s.complete,true);assert.equal(s.tapOn,false);assert.equal(s.wet,false);
- assert.deepEqual(act(s,'reset'),initialPractice('hands'));
-});
-test('invalid time and unknown hand areas are rejected',()=>{
- const s=readyToScrub();assert.throws(()=>act(s,'rub',{now:NaN}),RangeError);assert.throws(()=>act(s,'rub',{now:-1}),RangeError);assert.throws(()=>act(s,'surface',{area:'unknown'}),RangeError);
 });
 test('connector inspection requires isolation, all observations and a fault report',()=>{
  let s=initialPractice('terminals');assert.equal(act(s,'inspect',{area:'heat'}).checks.length,0);s=act(s,'isolate');s=act(s,'inspect',{area:'heat'});assert.equal(act(s,'decide',{choice:'report'}).complete,false);

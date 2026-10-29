@@ -5,7 +5,7 @@ import {LESSONS} from './maintenance-lessons.js';
 const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function tasks(machine){
  const wet=machine==='junior-429';
- return [[wet?'wet-filter':'filter',wet?'Weekly caged filter wash':'Weekly textile filter wash'],['bag',wet?'Change dry dust bag':'Change the dust bag'],['hands','Wash hands'],['terminals','Inspect the connector']];
+ return [[wet?'wet-filter':'filter',wet?'Weekly caged filter wash':'Weekly textile filter wash'],['bag',wet?'Change dry dust bag':'Change the dust bag'],['terminals','Inspect the connector']];
 }
 export function mountMaintenanceText(container,{machine='junior-103',getLanguage=()=> 'english'}={}){
  const render=()=>{
