@@ -26,7 +26,7 @@ for(const [task,kind] of TASKS){
    if(choices.length){assert.ok(choices.some(c=>c.correct),`${state.phase} has a correct choice`);continue;}
    assert.ok(part,`${state.phase} has a target`);assert.equal(task.rules.canGrab(state,part),true,`${state.phase}: ${part} usable`);
    const usable=[...task.rules.carry,...task.rules.press].filter(id=>task.rules.canGrab(state,id));
-   if(!['release','secure'].includes(state.phase))assert.deepEqual(usable,[part],`${state.phase} offers exactly one part`);
+   if(!['release','secure',...(task.anyOrder??[])].includes(state.phase))assert.deepEqual(usable,[part],`${state.phase} offers exactly one part`);
   }
  });
 

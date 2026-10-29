@@ -105,8 +105,9 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  // Build a task's scene, demonstration, checklist and interaction. Keeps the learner's progress (per machine and task).
  function openTask(kind){
   closeTask();
-  const task=TASKS[kind],taskLife=createLifecycle(),stage=createStage({renderer,life:taskLife,reducedMotion:reduced});
-  const sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,reducedMotion:reduced})||{};
+  const task=TASKS[kind],taskLife=createLifecycle();let stage,sceneView;
+  try{stage=createStage({renderer,life:taskLife,reducedMotion:reduced});sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,reducedMotion:reduced})||{};}
+  catch(error){taskLife.dispose();console.error('3D task could not open:',error);toast('This task could not open in 3D. Try another task or reload the page.',true);renderTabs();return;}
   for(const rig of Object.values(rigs))stage.scene.add(rig.object);
   const demo=buildDemo(LESSONS[kind],{script:frame=>task.script(frame,scripts),reduce:reducePractice});
   S={kind,task,stage,life:taskLife,view:sceneView,demo,steps:buildSteps(task.steps(language),LESSONS[kind]),interaction:null,gestures:null};

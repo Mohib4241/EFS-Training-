@@ -316,7 +316,7 @@ export function buildMarker(kit,{number,parent=kit.scene}){
  const material=kit.own(new THREE.SpriteMaterial({map,depthTest:false,transparent:true}));const sprite=new THREE.Sprite(material);sprite.scale.set(0.028,0.028,1);sprite.renderOrder=20;parent.add(sprite);
  return {sprite,material};
 }
-export function buildTag(kit,{parent=kit.scene}){
+export function buildTag(kit,{parent=kit.scene}={}){
  const {mesh,std,group,canvasTexture}=kit,tag=group(parent);
  const map=canvasTexture(256,128,(c,w,h)=>{c.fillStyle='#d8432f';c.fillRect(0,0,w,h);c.fillStyle='#ffffff';c.font='bold 40px Arial';c.textAlign='center';c.fillText('DO NOT USE',w/2,h*0.48);c.font='bold 20px Arial';c.fillText('REPORTED · AWAITING CHECK',w/2,h*0.78);c.fillStyle='#f4efe8';c.beginPath();c.arc(22,h/2,8,0,TAU);c.fill();});
  mesh(new RoundedBoxGeometry(0.11,0.055,0.002,1,0.001),std('#ffffff',0.7,0,{map,emissive:'#3a0c06',emissiveIntensity:0.25}),tag);
