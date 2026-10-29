@@ -45,12 +45,9 @@ export function harness(task,kind=task.kind){
  h.pull=(id,part,[dx,dy]=[0.35,-0.05])=>{world.frame();const a=world.anchorScreen(part);h.carryTo(id,part,[a.nx+dx,a.ny+dy]);};
  return h;
 }
-const state0=h=>h.state;
 export function zoneCentre(world,zone){const r=world.zoneRect(zone);return [(r.x0+r.x1)/2,(r.y0+r.y1)/2];}
 // Do the current step the way a learner would: press, carry to the zone, pull the plug, or answer a choice card.
 export function doStep(h,task,{id='r'}={}){
- // a running scrub timer only needs time to pass
- if(state0(h).rubStartedAt!==null&&state0(h).rubStartedAt!==undefined&&!state0(h).complete){h.dispatch({type:'tick',now:state0(h).rubStartedAt+20_000});return 'time';}
  const state=h.state,part=task.rules.targetPart(state),choices=task.choices(state,'english');
  if(choices.length){const pick=choices.find(c=>c.correct)??choices[0];h.dispatch(pick.action);return 'choice';}
  if(!part)throw new Error('No part for phase '+state.phase);

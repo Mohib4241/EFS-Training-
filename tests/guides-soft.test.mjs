@@ -70,7 +70,7 @@ test('Hinglish uses mixed-script speech with a Hindi voice and Roman speech when
  assert.equal(voiceForLanguage([{lang:'en-US'},{lang:'en-IN'}],'hinglish').lang,'en-IN');assert.equal(voiceForLanguage([{lang:'fr-FR'}],'english'),null);assert.throws(()=>n.setLanguage('hindi'),RangeError);
 });
 test('blocked maintenance feedback covers the existing bag, hand and connector paths',()=>{
- for(const [kind,action] of [['bag',{type:'fit'}],['hands',{type:'soap'}],['terminals',{type:'inspect',area:'pins'}]])assert.equal(reducePractice(initialPractice(kind),action).blocked,true);
+ for(const [kind,action] of [['bag',{type:'fit'}],['terminals',{type:'inspect',area:'pins'}]])assert.equal(reducePractice(initialPractice(kind),action).blocked,true);
  let i=initialInspection();assert.equal(reduceInspection(i,{type:'practice'},scrubberModule).blocked,true);for(let n=0;n<5;n++)i=reduceInspection(i,{type:'step',direction:1},scrubberModule).state;i=reduceInspection(i,{type:'practice'},scrubberModule).state;assert.equal(reduceInspection(i,{type:'check',id:'filter'},scrubberModule).blocked,true);
  i=reduceInspection(i,{type:'isolate'},scrubberModule).state;assert.equal(reduceInspection(i,{type:'check',id:'filter'},scrubberModule).blocked,true);for(const c of scrubberModule.checks)i=reduceInspection(i,{type:'check',id:c.part},scrubberModule).state;assert.equal(reduceInspection(i,{type:'report',choice:'clear'},scrubberModule).blocked,true);assert.equal(reduceInspection(i,{type:'report',choice:'report'},scrubberModule).state.complete,true);
 });

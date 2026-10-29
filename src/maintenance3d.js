@@ -55,7 +55,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  <div class="s3-panel s3-controls" data-s3="controls">
   <div class="s3-group s3-modes" role="group" aria-label="Mode"><button type="button" data-s3="mode-demo" aria-pressed="false">Watch how</button><button type="button" data-s3="mode-practice" aria-pressed="false">Practise</button></div>
   <div class="s3-group" data-s3="demo-controls"><button type="button" data-s3="prev" aria-label="Previous step">‹</button><button type="button" data-s3="play" aria-label="Play or pause the demonstration">Play</button><button type="button" data-s3="next" aria-label="Next step">›</button><input type="range" min="0" max="1000" value="0" step="1" data-s3="scrub" aria-label="Scrub the demonstration"><span class="s3-time" data-s3="time">0:00</span><label class="sr-only" for="s3-speed">Speed</label><select id="s3-speed" data-s3="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button type="button" class="s3-primary" data-s3="try">Now you try</button></div>
-  <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="timer" hidden>Start scrub timer</button><button type="button" data-s3="camera">Use camera</button></div>
+  <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="camera">Use camera</button></div>
   <span class="s3-spacer"></span><button type="button" data-s3="focus" aria-pressed="false" title="Hide the side panel (F)">Hide panel</button><button type="button" data-s3="full" aria-pressed="false" title="Full screen">Full screen</button>
  </div></div>`;
  life.onCleanup(()=>container.replaceChildren());
@@ -98,7 +98,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  life.onCleanup(()=>clearTimeout(toastTimer));
 
  function closeTask(){
-  if(!S)return;S.interaction.cancel();pauseScrub();
+  if(!S)return;S.interaction.cancel();
   for(const rig of Object.values(rigs)){S.stage.scene.remove(rig.object);rig.object.visible=false;}
   S.life.dispose();S=null;
  }
@@ -137,7 +137,6 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   $('try').disabled=!watched;$('camera').textContent=tracking?'Stop camera':'Use camera';$('camera').setAttribute('aria-pressed',String(tracking));
   $('turn').hidden=!(inDemo&&watched&&demoTime>=S.demo.duration-60);
   const status=view==='ready'?null:S.task.status?.(state,{demo:inDemo?sample:null})??null;
-  const timerLabel=view==='practice'&&!state.complete?S.task.timer?.(state):null;$('timer').hidden=!timerLabel;if(timerLabel)$('timer').textContent=timerLabel;
   $('done').hidden=!done;if(done){const [t,b]=S.task.instructions(state,language);$('done-title').textContent=t;$('done-body').textContent=b;}
   const key=[view,stepIndex,done,inDemo?frameIndex:JSON.stringify(state),input,tracking,language,watched,status?JSON.stringify(status):''].join('|');
   if(key===hudKey)return;hudKey=key;
@@ -180,7 +179,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   if(target>=S.steps.length){setDemoTime(S.demo.duration,{pause:true});return;}
   frameAdjust=true;setDemoTime(reduced?stepEnd(Math.max(0,target)):stepStart(Math.max(0,target)),{pause:true});
  }
- function beginDemo(){S.interaction.cancel();releaseHolds();pauseScrub();view='demo';$('preflight').hidden=true;shownState=null;if(demoTime>=S.demo.duration-60)demoTime=0;playing=!reduced;setDemoTime(demoTime);toast('');}
+ function beginDemo(){S.interaction.cancel();releaseHolds();view='demo';$('preflight').hidden=true;shownState=null;if(demoTime>=S.demo.duration-60)demoTime=0;playing=!reduced;setDemoTime(demoTime);toast('');}
  function beginPractice(){
   if(!entry(S.kind).watched){beginDemo();return;}
   S.interaction.cancel();releaseHolds();view='practice';$('preflight').hidden=true;shownState=null;playing=false;hudKey='';choiceKey='';mouse.sticky=false;renderHud();pump.invalidate();
@@ -319,12 +318,9 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   return moving||busy||(view==='demo'&&playing)||tracking||mouse.inside||mouse.down||S.interaction.holding.length>0;
  });
  life.onCleanup(()=>pump.stop());
- // a running scrub timer advances in real time and pauses whenever the practice is left
- function pauseScrub(){if(!S)return;const s=practice();if(s.rubStartedAt!==null&&s.rubStartedAt!==undefined)dispatch({type:'pause'});}
- const ticker=setInterval(()=>{if(!S||view!=='practice')return;const s=practice();if(s.rubStartedAt!==null&&s.rubStartedAt!==undefined&&!s.complete)dispatch({type:'tick'});},200);life.onCleanup(()=>clearInterval(ticker));
  const resize=new ResizeObserver(()=>{const r=stageEl.getBoundingClientRect();width=Math.round(r.width);height=Math.round(r.height);if(width&&height){renderer.setSize(width,height,false);S?.stage.resize(width,height);pump.invalidate();}});resize.observe(stageEl);life.onCleanup(()=>resize.disconnect());
- const watch=new IntersectionObserver(entries=>{const visible=entries[0].isIntersecting&&!document.hidden;pump.setVisible(visible);if(!visible){playing=false;pauseScrub();}});watch.observe(canvas);life.onCleanup(()=>watch.disconnect());
- document.addEventListener('visibilitychange',()=>{pump.setVisible(!document.hidden);if(document.hidden){playing=false;pauseScrub();}},{signal});
+ const watch=new IntersectionObserver(entries=>{const visible=entries[0].isIntersecting&&!document.hidden;pump.setVisible(visible);if(!visible)playing=false;});watch.observe(canvas);life.onCleanup(()=>watch.disconnect());
+ document.addEventListener('visibilitychange',()=>{pump.setVisible(!document.hidden);if(document.hidden){playing=false;}},{signal});
  canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();onUnavailable('lost');},{signal});
  document.addEventListener('efs-guide-language',()=>{language=getLanguage();if(S){S.steps=buildSteps(S.task.steps(language),LESSONS[S.kind]);hudKey='';choiceKey='';renderTabs();renderHud();}},{signal});
  const fullButton=$('full');fullButton.hidden=!document.fullscreenEnabled;
@@ -346,9 +342,8 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
    case 'prev':jumpStep(-1);break;case 'next':jumpStep(1);break;
    case 'try':case 'turn-go':beginPractice();break;
    case 'camera':if(tracking)stopCamera();else{$('preflight').hidden=false;status('');$('allow').disabled=false;}break;
-   case 'reset':S.interaction.cancel();pauseScrub();commit(initialPractice(S.kind));shownState=null;toast('Practice reset.');renderTabs();renderHud();pump.invalidate();break;
-   case 'assist':{const state=practice();if(state.complete)break;S.interaction.cancel();pauseScrub();commit(stateAfterStep(S.steps,currentStep(S.steps,practice())));shownState=null;renderTabs();renderHud();pump.invalidate();break;}
-   case 'timer':{const s=practice();dispatch(s.rubStartedAt!==null&&s.rubStartedAt!==undefined?{type:'pause'}:{type:'rub'});break;}
+   case 'reset':S.interaction.cancel();commit(initialPractice(S.kind));shownState=null;toast('Practice reset.');renderTabs();renderHud();pump.invalidate();break;
+   case 'assist':{const state=practice();if(state.complete)break;S.interaction.cancel();commit(stateAfterStep(S.steps,currentStep(S.steps,practice())));shownState=null;renderTabs();renderHud();pump.invalidate();break;}
    case 'focus':{const on=!root.classList.contains('s3-focus');root.classList.toggle('s3-focus',on);button.setAttribute('aria-pressed',String(on));button.textContent=on?'Show panel':'Hide panel';break;}
    case 'full':{if(document.fullscreenElement===root)document.exitFullscreen?.();else root.requestFullscreen?.().catch(()=>toast('Full screen is not available here.',true));break;}
   }
@@ -376,7 +371,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  pump.invalidate();
  return {
   setMachine(id){if(!MACHINE_LABELS[id]||id===machineId)return;const kind=S?.kind;machineId=id;const list=tasksFor(id).map(t=>t.kind);openTask(list.includes(kind)?kind:kind==='filter'||kind==='wet-filter'?list[0]:list[0]);$('pre-eyebrow').textContent=`3D · ${MACHINE_LABELS[machineId]} · maintenance`;},
-  pause(){playing=false;pauseScrub();if(S)renderHud();},
+  pause(){playing=false;if(S)renderHud();},
   destroy:()=>{closeTask();tracker?.stop();life.dispose();}
  };
 }

@@ -1,4 +1,4 @@
-import {initialPractice,reducePractice,HAND_AREAS} from './maintenance-state.js';
+import {initialPractice,reducePractice} from './maintenance-state.js';
 
 // These are authored demonstrations. They never update the learner's practice state.
 const scripts={
@@ -14,16 +14,6 @@ const scripts={
   ['Return the head','Pick up the parked head and return it to the top of the tank.',2600,[{type:'close'}],{object:'head'}],
   ['Secure the left clip','Secure the first retaining clip after the head has been seated.',1200,[{type:'secure',clip:'left'}],{at:{x:350,y:305}}],
   ['Secure the right clip','Secure the other clip. This practice finishes with the power still isolated.',1200,[{type:'secure',clip:'right'}],{at:{x:643,y:305}}]
- ],
- hands:[
-  ['Turn on clean water','Begin with clean running water. The lesson shows only the hands and washing equipment.',1500,[{type:'tap'}],{at:{x:435,y:86}}],
-  ['Wet both hands','Wet the hands before applying handwash.',1700,[{type:'wet'}],{at:{x:410,y:280}}],
-  ['Turn off the tap','Save water while you lather and scrub.',1200,[{type:'tap'}],{at:{x:435,y:86}}],
-  ['Apply soap','Use the handwash dispenser and cover the hands with lather.',1500,[{type:'soap'}],{at:{x:130,y:175}}],
-  ['Scrub every surface','Palms, backs, between fingers and fingertips/nails. Preview is 4× speed: practice requires a real 20-second scrub.',5000,[...HAND_AREAS.map(area=>({type:'surface',area})),{type:'rub',now:0},{type:'tick',now:20_000}],{at:{x:410,y:295},scrub:true}],
-  ['Rinse under running water','Turn the tap on and rinse the soap away.',2100,[{type:'tap'},{type:'rinse'}],{at:{x:455,y:260}}],
-  ['Dry with a clean towel','Take a clean paper towel and dry the hands before touching the tap.',2000,[{type:'towel'},{type:'dry'}],{at:{x:640,y:380}}],
-  ['Use the towel to turn off the tap','Use the towel as a barrier, then discard it. Do not dry again with its tap-contact area.',1600,[{type:'tap'}],{at:{x:435,y:86}}]
  ],
  terminals:[
   ['Isolate before checking','Switch off and unplug before this external visual observation.',1800,[{type:'isolate'}],{at:{x:260,y:310}}],
