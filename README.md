@@ -64,7 +64,7 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
 | `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
 | `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
-| `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/assets/models/` | Lazy hand-controlled 3D dust-bag change (see [the record](docs/sim3d-stages.md)): tiled room and Junior vacuum, camera consent, two-hand tracking with MediaPipe (self-hosted model and WebAssembly), a 0.75 m distance coach, a hand demonstration and practice that share the 2D checklist state, with mouse/touch fallback |
+| `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/sim3d/tasks/`, `src/maintenance-text.js` | The Maintenance Checklist, in 3D only (see [the record](docs/sim3d-stages.md)): every task for both Junior machines (weekly filter wash, dust bag, handwashing, connector inspection), each shown by two hands and then practised with the learner's own hands (webcam, MediaPipe in a Web Worker, first-person view, 0.75 m distance coach) or the mouse/touch (click to pick up and click to put down, or drag). Browsers without WebGL2 get the written steps instead. |
 | `tests/delivery.test.mjs` | Bundle graph (3D and labs stay lazy), first-load budget, caching, compression and path-allowlist checks |
 | `tests/content.test.mjs` | Meaningful content, taxonomy, provenance and state regressions |
 

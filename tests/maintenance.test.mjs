@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {initialPractice,reducePractice,SCRUB_DURATION_MS,HAND_AREAS,BAG_ZONES,bagObjectPose,bagDropAction} from '../src/maintenance-state.js';
+import {initialPractice,reducePractice,SCRUB_DURATION_MS,HAND_AREAS} from '../src/maintenance-state.js';
 const act=(state,type,extra={})=>reducePractice(state,{type,...extra}).state;
 function readyToScrub(){let s=initialPractice('hands');for(const type of ['tap','wet','tap','soap'])s=act(s,type);return s;}
 function openBag(){let s=act(initialPractice('bag'),'isolate');for(const clip of ['left','right'])s=act(s,'unclip',{clip});return act(s,'open');}
@@ -55,14 +55,4 @@ test('head requires two released clips and completion requires two secured clips
  const initial=initialPractice('bag');let s=act(initial,'isolate');s=act(s,'unclip',{clip:'left'});assert.equal(act(s,'open').headOpen,false);assert.equal(initial.clips.left,true);
  s=act(s,'unclip',{clip:'right'});s=act(s,'open');assert.equal(s.headOpen,true);assert.equal(act(s,'secure',{clip:'left'}).clips.left,false);
  assert.throws(()=>act(s,'unclip',{clip:'unknown'}),RangeError);
-});
-test('drag targets accept only the correct object and phase',()=>{
- let s=act(initialPractice('bag'),'isolate');for(const clip of ['left','right'])s=act(s,'unclip',{clip});
- assert.equal(bagDropAction(s,'head',{x:450,y:470}),null);
- let drop=bagDropAction(s,'head',{x:825,y:150});assert.deepEqual(drop,{type:'open'});s=reducePractice(s,drop).state;
- assert.equal(bagDropAction(s,'used',{x:900,y:500}),null);drop=bagDropAction(s,'used',{x:265,y:425});assert.deepEqual(drop,{type:'remove'});s=reducePractice(s,drop).state;s=act(s,'seal');
- assert.deepEqual(bagDropAction(s,'used',{x:900,y:500}),{type:'dispose',item:'used'});assert.equal(bagDropAction(s,'fresh',{x:500,y:400}),null);
- s=act(s,'dispose',{item:'used'});drop=bagDropAction(s,'fresh',{x:500,y:400});assert.deepEqual(drop,{type:'fit',item:'new'});s=reducePractice(s,drop).state;
- assert.deepEqual(bagDropAction(s,'head',{x:500,y:270}),{type:'close'});assert.equal(bagObjectPose(s,'head').x,680);
- assert.throws(()=>bagDropAction(s,'head',{x:NaN,y:20}),RangeError);
 });

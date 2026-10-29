@@ -1,5 +1,7 @@
 # 3D maintenance simulation: staged record
 
+> **Current state (October 2026).** The 2D board, the 2D | 3D toggle and the bridge described below have been removed. The checklist is 3D only: tasks live in `src/sim3d/tasks/` (filter, bag, hands, terminals) on a shared stage, interaction and demonstration framework; hand tracking runs in a Web Worker and tracked hands are shown first person. Browsers without WebGL2 get written steps (`src/maintenance-text.js`). The stages below are kept as the historical record.
+
 Goal: a Jarvis-style 3D mode for the Maintenance Checklist, hands performing every step, with the existing 2D simulation left as it is. Built in six stages with a checkpoint after each.
 
 ## Discovery (stage 0)
