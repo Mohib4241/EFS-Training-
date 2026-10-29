@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {createNarrator,speechChunks,voiceForLanguage} from '../src/guidance.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.js';
 import {initialState,transition} from '../src/machine-state.js';
-import {initialPractice,reducePractice,bagDropAction} from '../src/maintenance-state.js';
-import {FILTER_CARE_INTERVAL,FILTER_ZONES,filterCareSteps,filterObjectPose,filterDropAction,filterInstruction,filterGrabbable,initialFilterCare} from '../src/filter-care.js';
+import {initialPractice,reducePractice} from '../src/maintenance-state.js';
+import {FILTER_CARE_INTERVAL,filterCareSteps,filterInstruction,filterGrabbable,initialFilterCare} from '../src/filter-care.js';
 import {guideFrames,moveGuide,partNameSpeech} from '../src/guide-content.js';
 import {LESSONS} from '../src/maintenance-lessons.js';
 import {initialInspection,reduceInspection} from '../src/hard-models.js';
@@ -52,13 +52,7 @@ test('weekly filter care rinses and refits the same filter, with washability and
   assert.equal(LESSONS[kind].at(-1).to.complete,true);assert.equal(reducePractice(s,{type:'reset'}).state.filter,'tank');
  }
 });
-test('filter holding targets follow the washing sequence, without replacement or waste-bin targets',()=>{
- const actions={remove:['tray','remove'],wash:['sink','wash'],drain:['rack','rack'],fit:['machine','fit']};
- for(const [phase,[zone,type]] of Object.entries(actions)){
-  const r=FILTER_ZONES[zone],s={...initialPractice('filter'),phase};assert.deepEqual(filterDropAction(s,'filter',{x:r.x+r.width/2,y:r.y+r.height/2}),{type});assert.equal(filterDropAction(s,'filter',{x:999,y:624}),null);
- }
- assert.equal(filterDropAction(initialPractice('filter'),'filter',{x:100,y:100}),null);assert.throws(()=>filterDropAction(initialPractice('filter'),'filter',{x:NaN,y:2}),RangeError);
- assert.deepEqual(filterObjectPose({...initialPractice('filter'),filter:'rack'},'filter'),{x:55,y:75,width:125,height:155,scale:1});assert.throws(()=>filterObjectPose(initialPractice('filter'),'fresh'),RangeError);
+test('filter care has twelve steps, with Hinglish copy',()=>{
  assert.equal(filterCareSteps('hinglish').length,12);assert.match(filterInstruction({phase:'fit'},'hinglish')[0],/Wahi clean filter/);
 });
 test('visual tours explain actual controls in English and conversational Hinglish',()=>{

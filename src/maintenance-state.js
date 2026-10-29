@@ -28,7 +28,7 @@ function applyPractice(previous,action){
    if(action.item==='new'&&s.newBag==='fitted')return result(s,'The clean bag is already fitted.');
    s.selected=action.item;
    if(action.item==='new')return result(s,s.usedBag==='disposed'?'Clean bag selected. Place it in the open machine now.':'Clean bag selected. First remove, seal and dispose of the used bag, then fit this clean replacement.');
-   if(s.usedBag==='sealed')return result(s,'Sealed used bag selected. Put it in the bottom-right bin.');
+   if(s.usedBag==='sealed')return result(s,'Sealed used bag selected. Put it in the bin.');
    if(s.usedBag==='removed')return result(s,'Used bag selected. Seal its opening before putting it in the bin.');
    return result(s,s.headOpen?'Used bag selected. Lift it out, then seal its opening.':'Used bag selected. Isolate the machine and open the head before lifting it out.');
   }
@@ -59,10 +59,10 @@ function applyPractice(previous,action){
   if(action.type==='isolate'){s.isolated=true;s.phase='release';return result(s,'Virtual power isolated. Release the two retaining clips on the machine.');}
   if(action.type==='open'){s.headOpen=true;s.phase='remove';return result(s,'Head open. The training bag is 80% full, above this scenario’s 70% trigger.');}
   if(action.type==='remove'){s.usedBag='removed';s.selected='used';s.phase='seal';return result(s,'Used bag lifted out. Seal its opening to help contain dust.');}
-  if(action.type==='seal'){s.usedBag='sealed';s.phase='dispose';return result(s,'Used bag sealed. Drag it to the bin or use “Put used bag in bin”.');}
+  if(action.type==='seal'){s.usedBag='sealed';s.phase='dispose';return result(s,'Used bag sealed. Carry it to the bin.');}
   if(action.type==='dispose'){
    if(action.item&&action.item!=='used')return result(s,'The bin is for the sealed used bag. Keep the clean bag for the machine.');
-   s.usedBag='disposed';s.selected=null;s.phase='fit';return result(s,'Used bag is in the bin. Take the clean bag from the top left and place it in the machine.');
+   s.usedBag='disposed';s.selected=null;s.phase='fit';return result(s,'Used bag is in the bin. Take the clean bag from the shelf and place it in the machine.');
   }
   if(action.type==='fit'){
    if(action.item&&action.item!=='new')return result(s,'Fit the clean replacement bag, not the used bag.');
@@ -146,24 +146,4 @@ function applyPractice(previous,action){
   throw new RangeError('Unsupported inspection action');
  }
  throw new RangeError('Unknown practice state');
-}
-
-// Coordinates belong to the schematic game board, not the real machine.
-export const BAG_ZONES={rest:{x:675,y:55,width:310,height:175},tray:{x:190,y:330,width:150,height:220},bin:{x:820,y:410,width:160,height:190},machine:{x:350,y:300,width:300,height:235},head:{x:340,y:215,width:325,height:110}};
-export function bagObjectPose(state,id){
- if(id==='head')return {x:state.headOpen?680:350,y:state.headOpen?105:240,width:300,height:90,scale:1};
- if(id==='used'&&state.usedBag==='disposed')return {x:845,y:410,width:125,height:155,scale:.7};
- if(id==='used'){const removed=['removed','sealed'].includes(state.usedBag);return {x:removed?205:430,y:removed?350:320,width:125,height:155,scale:1};}
- if(id==='fresh')return {x:state.newBag==='fitted'?430:55,y:state.newBag==='fitted'?320:75,width:125,height:155,scale:1};
- throw new RangeError('Unknown bag-game object');
-}
-export function bagDropAction(state,id,point){
- if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))throw new RangeError('Invalid drop position');
- const inside=zone=>point.x>=zone.x&&point.x<=zone.x+zone.width&&point.y>=zone.y&&point.y<=zone.y+zone.height;
- if(id==='head'&&state.phase==='open'&&inside(BAG_ZONES.rest))return {type:'open'};
- if(id==='head'&&state.phase==='close'&&inside(BAG_ZONES.head))return {type:'close'};
- if(id==='used'&&state.phase==='remove'&&inside(BAG_ZONES.tray))return {type:'remove'};
- if(id==='used'&&state.phase==='dispose'&&inside(BAG_ZONES.bin))return {type:'dispose',item:'used'};
- if(id==='fresh'&&state.phase==='fit'&&inside(BAG_ZONES.machine))return {type:'fit',item:'new'};
- return null;
 }

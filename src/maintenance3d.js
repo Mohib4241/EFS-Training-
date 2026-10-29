@@ -106,7 +106,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  function openTask(kind){
   closeTask();
   const task=TASKS[kind],taskLife=createLifecycle();let stage,sceneView;
-  try{stage=createStage({renderer,life:taskLife,reducedMotion:reduced});sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,reducedMotion:reduced})||{};}
+  try{stage=createStage({renderer,life:taskLife,reducedMotion:reduced});sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,life:taskLife,reducedMotion:reduced})||{};}
   catch(error){taskLife.dispose();console.error('3D task could not open:',error);toast('This task could not open in 3D. Try another task or reload the page.',true);renderTabs();return;}
   for(const rig of Object.values(rigs))stage.scene.add(rig.object);
   const demo=buildDemo(LESSONS[kind],{script:frame=>task.script(frame,scripts),reduce:reducePractice});
@@ -298,16 +298,17 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   mouse.clicked=false;if(mouse.released){mouse.released=false;if(mouse.touch&&!mouse.sticky)mouse.inside=false;}
   hideRigs();
   if(camera)for(const d of shown.values())placeTracked(d,used);
-  else if(pointers.length){
-   const p=pointers[0],w=mouse.pinchWeight+=((p.pinch?1:0)-mouse.pinchWeight)*(1-Math.exp(-dt*16));
-   const pair=S.task.mouseHands?.(world,p,{state,gesture,pinch:w});
+  else{
+   // a task can show both hands doing something by themselves (scrubbing), even while the pointer is outside the view
+   const p=pointers[0],w=mouse.pinchWeight+=((p?.pinch?1:0)-mouse.pinchWeight)*(1-Math.exp(-dt*16));
+   const pair=S.task.mouseHands?.(world,p??null,{state,gesture,pinch:w});
    if(pair)for(const h of pair)placeSample(h);
-   else placeSample({side:'right',target:world.pointAt(p.nx,p.ny,S.task.rules.carryDepth??0.16),pose:[['point',1-w],['pinch',w]]});
+   else if(p)placeSample({side:'right',target:world.pointAt(p.nx,p.ny,S.task.rules.carryDepth??0.16),pose:[['point',1-w],['pinch',w]]});
   }
   if(report.dwell){const a=world.anchorScreen(report.dwell.part),r=canvas.getBoundingClientRect();dwellEl.hidden=false;dwellEl.style.left=`${(a.nx*0.5+0.5)*r.width}px`;dwellEl.style.top=`${(-a.ny*0.5+0.5)*r.height}px`;dwellEl.style.setProperty('--p',String(report.dwell.progress));}else dwellEl.hidden=true;
   const hover=Object.values(report.hover).find(Boolean);canvas.style.cursor=input==='mouse'?(mouse.down||mouse.sticky&&S.interaction.holding.length?'grabbing':hover?'grab':'default'):'default';
   S.view.frame?.({mode:'practice',state,rigs,wall:dt,gesture,holding:S.interaction.holding});
-  return Boolean(gesture?.active)||mouse.sticky;
+  return Boolean(gesture?.active)||mouse.sticky||Boolean(S.task.mouseHands&&!camera&&S.task.mouseHands(world,null,{state,gesture,pinch:0}));
  }
  const pump=createPump((now,_dt,wall)=>{
   if(!S)return false;let busy=false;

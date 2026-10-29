@@ -20,7 +20,7 @@ const machineFrames=[
 const maintenanceFrames=[
  frame('choose-task','tasks','point',['Choose your task','Choose the machine and task. Filter washing is separate from changing the dust bag.'],['Apna task choose karo','Machine aur task choose karo. Filter wash aur dust bag change alag tasks hain.'],'Machine और task choose करो। Filter wash और dust bag change अलग tasks हैं।'),
  frame('watch','lesson','tap',['Watch the demonstration','Play the animation, or review each action with the arrows.'],['Pehle animation dekho','Animation play karo, ya arrows se har action dekho.'],'Animation play करो, या arrows से हर action देखो।'),
- frame('practise','practice','drag',['Hold, move, release','After the lesson, move each object to its highlighted target. Follow the order.'],['Hold, move, release karo','Lesson ke baad object ko highlighted jagah tak le jao. Har action order mein karo.'],'Lesson के बाद object को highlighted जगह तक ले जाओ। हर action order में करो।')
+ frame('practise','practice','drag',['Practise in 3D','After the demonstration, do each step yourself: pinch or click a part to pick it up, and put it on the highlighted target.'],['3D mein practise karo','Demonstration ke baad har step khud karo: part ko pinch ya click karke uthao aur highlighted jagah par rakho.'],'Demonstration के बाद हर step खुद करो: part को pinch या click करके उठाओ और highlighted जगह पर रखो।')
 ];
 export function guideFrames(kind,machine,language='english',maintenance=false){
  if(!['page','machine'].includes(kind)||!GUIDE_LANGUAGES.includes(language))throw new RangeError('Unknown guide or language');
