@@ -43,7 +43,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
   q('[data-lesson-copy]').textContent=lesson?f.body:inspection.complete?'The damaged filter was reported. The machine stays isolated. This is not a maintenance certificate.':machine.checks[inspection.checked.length]?.body||'A damaged filter rim is shown. Remove from use and report it.';
   q('[data-inspection=isolate]').disabled=inspection.isolated;for(const command of ['report','clear'])q(`[data-inspection=${command}]`).disabled=inspection.complete;q('.scrubber-inspection').innerHTML=machine.checks.map((c,n)=>`<li><button data-observe="${c.part}" ${inspection.complete?'disabled':''} aria-current="${n===inspection.checked.length?'step':'false'}">${n<inspection.checked.length?'✓':n+1} · ${c.title}</button></li>`).join('');
   state.glowParts=faultsFor('hyper-2000b').find(f=>f.id===state.fault)?.parts||[];ui?.update();
-  viewer?.setState({...state,autoRotate,targetPart:mode==='maintenance'?(lesson?f.part:inspection.isolated?machine.checks[inspection.checked.length]?.part:null):null,inspectionFault:mode==='maintenance'&&(inspection.phase==='practice'||inspection.step===frames.length-1),guidePlaying:mode==='maintenance'&&inspection.playing},result);
+  viewer?.setState({...state,faultPart:machine.checks.at(-1).part,autoRotate,targetPart:mode==='maintenance'?(lesson?f.part:inspection.isolated?machine.checks[inspection.checked.length]?.part:null):null,inspectionFault:mode==='maintenance'&&(inspection.phase==='practice'||inspection.step===frames.length-1),guidePlaying:mode==='maintenance'&&inspection.playing},result);
  }
  // ---- shared look-and-controls ----
  const patch=changes=>{state={...state,...changes};render();};

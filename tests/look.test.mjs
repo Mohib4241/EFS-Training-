@@ -77,7 +77,7 @@ test('fault finder offers qualitative conditions built from existing content, wi
   assert.equal(new Set(faults.map(f=>f.id)).size,faults.length,`${id} condition ids are unique`);
  }
  assert.deepEqual(faultsFor('junior-103').map(f=>f.label),['Clear air path','Hose restriction','Loaded filter']);
- assert.match(faultsFor('motor-3ph').at(-1).cause,/terminal-box cover|Heat staining/);
+ assert.match(faultsFor('motor-3ph').find(f=>f.label==='Recognise connection-area damage').cause,/terminal-box cover|Heat staining/);
  assert.ok(faultsFor('hyper-2000b').every(f=>/isolated from power/.test(f.check)));
 });
 

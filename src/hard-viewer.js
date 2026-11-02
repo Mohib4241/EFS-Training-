@@ -10,7 +10,7 @@ import {layerOf} from './look/layers.js';
 export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCallouts=()=>{},tooltip}){
  const studio=createRig({canvas,bounds:{l:-7,r:7,t:7,b:-5},onChange:()=>schedule()}),renderer=studio.renderer,scene=studio.scene;
  const camera=new THREE.PerspectiveCamera(37,1,.1,80),controls=new OrbitControls(camera,canvas);controls.enableZoom=false;controls.enablePan=false;controls.enableDamping=false;controls.touches.TWO=null;controls.minDistance=3;controls.maxDistance=18;controls.maxPolarAngle=Math.PI*.49;
- const root=new THREE.Group();scene.add(root);let groups={},pickables=[],spinners=[],flows=[],paths=[],shells=[],leds=[],field,display,displayContext,displayTexture,displayText='',module,state,model,active=false,visible=true,frame=0,previous=0,opening=0,framing=1,hover=null,hoverPoint=null,hoverMoved=false,shellApplied=null,leadKey='',faultMarker,cameraTween=null,focusY=null,leadCurves=[];
+ const root=new THREE.Group();scene.add(root);let groups={},pickables=[],spinners=[],flows=[],paths=[],shells=[],leds=[],field,display,displayContext,displayTexture,displayText='',module,state,model,active=false,visible=true,frame=0,previous=0,opening=0,framing=1,hover=null,hoverPoint=null,hoverMoved=false,shellApplied=null,leadKey='',faultMarker,markedPart=null,cameraTween=null,focusY=null,leadCurves=[];
  const springs=createLayerSprings(),meshesOf={},anchors=new Map();let lastPaint='',calloutsShown=false,guideLines=null,guidesDrawn=false;
  const abort=new AbortController(),signal=abort.signal,reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const steel='#a7bbc0',dark='#223c44',copper='#c27b41',white='#edf0e8',teal='#178d8d';
@@ -70,7 +70,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   group('leads');const example=new THREE.Group();example.position.set(2,.23,.2);root.add(example);box(example,[1.5,.15,1.15],white);if(meter){box(example,[.7,.2,.25],copper,[0,.14,0]);for(const x of [-.55,.55])cyl(example,.07,.15,steel,[x,.12,0],'y');brandPlate(example,'IDEAL DC',[0,.6,.5]);}else{box(example,[.6,.65,.45],'#a4b6c5',[0,.4,0]);for(const x of [-.45,.45])cyl(example,.07,.2,copper,[x,.15,0],'y');brandPlate(example,'R + C',[0,1,.3]);}
  }
  function rebuildLeads(){
-  const g=groups.leads;if(!g)return;paths=paths.filter(l=>!l.userData.lead);flows=flows.filter(f=>!f.lead);leadCurves=[];const marked=module.checks.at(-1).part==='leads';if(marked)g.remove(faultMarker);const old=new Set();g.traverse(o=>{if(o.geometry)old.add(o.geometry);if(o.material)old.add(o.material);});g.clear();for(const resource of old)resource.dispose();pickables=pickables.filter(o=>o.userData.part!=='leads');
+  const g=groups.leads;if(!g)return;paths=paths.filter(l=>!l.userData.lead);flows=flows.filter(f=>!f.lead);leadCurves=[];const marked=markedPart==='leads';if(marked)g.remove(faultMarker);const old=new Set();g.traverse(o=>{if(o.geometry)old.add(o.geometry);if(o.material)old.add(o.material);});g.clear();for(const resource of old)resource.dispose();pickables=pickables.filter(o=>o.userData.part!=='leads');
   const meter=module.kind==='multimeter',redX=meter?(state.inputs.jack==='A'?-.48:.48):.34,blackX=meter?-.16:-.34;
   const terminalY=.42;const targetA=state.connected?[1.45,.49,.2]:[.8,.12,1.1],targetB=state.connected?[2.55,.49,.2]:[1.2,.12,1.1];
   if(meter&&state.inputs.function==='A'&&state.connected)targetA[0]=2.0;
@@ -117,8 +117,17 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  function load(next){
   clearHover();disposeObject(root);root.clear();if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();guideLines=null;}groups={};pickables=[];spinners=[];flows=[];paths=[];shells=[];shellApplied=null;leds=[];field=null;zigzag=0;root.position.set(0,0,0);root.rotation.set(0,0,0);studio.moveContact(0,0);anchors.clear();for(const key of Object.keys(meshesOf))delete meshesOf[key];lastPaint='';for(const spring of springs)spring.reset(0);calloutsShown=false;guidesDrawn=false;leadCurves=[];display=null;displayContext=null;displayTexture=null;displayText='';leadKey='';opening=0;framing=1;module=next;
   if(['single','three'].includes(module.kind))motor(module.kind==='single');else if(module.kind==='alternator')alternator();else if(module.kind==='cascade')cascade();else if(module.kind==='scrubber')scrubber();else instrument();
-  const faultPart=groups[module.checks.at(-1).part];faultMarker=new THREE.Mesh(new THREE.OctahedronGeometry(.095),new THREE.MeshBasicMaterial({color:'#db873b'}));faultMarker.position.set(0,.16,.62);faultPart.add(faultMarker);faultMarker.visible=false;
+  // the amber concern marker sits on whichever part the chosen checklist ends on (see placeMarker)
+  faultMarker=new THREE.Mesh(new THREE.OctahedronGeometry(.095),new THREE.MeshBasicMaterial({color:'#db873b'}));faultMarker.visible=false;markedPart=null;
   studio.track(Object.values(groups),root);buildGuides();resizeScene();resetCamera();schedule();
+ }
+ // Put the marker above the top of its part, in that part's own space.
+ function placeMarker(partId){
+  if(faultMarker.parent)faultMarker.parent.remove(faultMarker);markedPart=null;
+  const g=groups[partId];if(!g)return;
+  if(partId==='leads')faultMarker.position.set(1.1,.15,1.2);
+  else{const box=new THREE.Box3().setFromObject(g),middle=box.getCenter(new THREE.Vector3());faultMarker.position.set(middle.x-g.position.x,box.max.y-g.position.y+.14,middle.z-g.position.z);}
+  g.add(faultMarker);markedPart=partId;
  }
  function resizeScene(){const r=canvas.parentElement.getBoundingClientRect();if(r.width&&r.height){studio.resize(r.width,r.height);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();schedule();}}
  function resetCamera(){const wide=module?.kind==='cascade',instrumentModel=['megger','multimeter'].includes(module?.kind);camera.position.set(wide?7:instrumentModel?4.2:module?.kind==='scrubber'?-3.8:-4.8,wide?4.5:3.3,wide?9:module?.kind==='scrubber'?5.5:7);controls.target.set(instrumentModel?.7:0,1.15,0);
@@ -201,6 +210,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   if(groups['start-switch'])groups['start-switch'].children.slice(1).forEach((arm,n)=>{arm.position.y=(n===0?-1:1)*(state.running?.32:.2);arm.rotation.z=(n===0?-1:1)*(state.running?.3:0);});
   if(displayTexture){const text=model.display;if(text!==displayText){displayText=text;displayContext.fillStyle='#b6c7ad';displayContext.fillRect(0,0,512,224);displayContext.fillStyle='#203c35';displayContext.font='bold 55px monospace';displayContext.textAlign='center';displayContext.fillText(text,256,133);displayTexture.needsUpdate=true;}}
   if(groups.dial)groups.dial.rotation.z=module.kind==='multimeter'?({V:-.65,A:.65,'Ω':1.4})[state.inputs.function]:Math.log2(state.inputs.testVoltage/50)*.4;
+  if(state.faultPart&&state.faultPart!==markedPart)placeMarker(state.faultPart);
   faultMarker.visible=Boolean(state.inspectionFault);
   studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();

@@ -56,9 +56,9 @@ function enterMaintenance(token){
   }catch(error){console.warn('3D maintenance unavailable:',error.message);maintenance=null;writtenSteps(container,token,'3D could not start on this device, so the written steps are shown instead.');}
  });
 }
-function enterHardLab(id,view,token){
- if(hardLab){hardLab.show(id,view);return;}
- loadLab('hardLab',$('hard-lab'),'equipment lab',token).then(module=>{if(!module)return;if(!hardLab)hardLab=module.mountHardLab($('hard-lab'),{guidance,onMachine:goMachine,onNavigate:(next,mode='explore')=>showPage('hardlab',[next,mode])});hardLab.show(id,view);});
+function enterHardLab(id,view,token,list){
+ if(hardLab){hardLab.show(id,view,list);return;}
+ loadLab('hardLab',$('hard-lab'),'equipment lab',token).then(module=>{if(!module)return;if(!hardLab)hardLab=module.mountHardLab($('hard-lab'),{guidance,onMachine:goMachine,onNavigate:(next,mode='explore')=>showPage('hardlab',[next,mode])});hardLab.show(id,view,list);});
 }
 function enterScrubber(view,token){
  loadLab('scrubber',$('scrubber-lab'),'equipment lab',token).then(module=>{
@@ -176,9 +176,12 @@ for(const summary of document.querySelectorAll('.department>summary'))summary.ad
 $('collapse').addEventListener('click',()=>{const collapsed=document.body.classList.toggle('nav-collapsed');$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');});
 function makeNameTree(items,container,path=[]){for(const item of items){const current=[...path,item.name];if(item.children){const d=document.createElement('details');d.open=true;const s=document.createElement('summary');s.textContent=item.name;d.append(s);makeNameTree(item.children,d,current);container.append(d);}else{const b=document.createElement('button');b.className='nav-leaf';b.textContent=item.name;const module=hardList.find(m=>m.path.join('/')===current.join('/'));if(module){b.dataset.hardModule=module.id;const brand=document.createElement('small');brand.className='nav-equipment-brand';brand.textContent=module.brand;b.append(brand);}b.addEventListener('click',()=>showPage(module?'hardlab':'catalogue',module?[module.id]:current));container.append(b);}}}
 makeNameTree(hardServices,$('hard-tree'));
-function hardNames(container,inspection=false){container.replaceChildren();const grid=document.createElement('div');grid.className='hl-catalogue';for(const m of hardList){const card=document.createElement('article'),tag=document.createElement('span'),title=document.createElement('h2'),brand=document.createElement('strong'),body=document.createElement('p'),count=document.createElement('small'),button=document.createElement('button');tag.className='hl-catalogue-symbol';tag.textContent=m.symbol;title.textContent=m.name;brand.textContent=`${m.brand} · ${m.reference}`;body.textContent=inspection?'Watch the guided observation lesson, then identify the inspection areas and respond to a visible concern.':m.intro;count.textContent=`${m.parts.length} major assemblies · ${m.checks.length} guided inspection areas`;button.textContent=inspection?'Open lesson & practice →':'Open equipment lab →';button.addEventListener('click',()=>showPage('hardlab',[m.id,inspection?'maintenance':'explore']));card.append(tag,title,brand,body,count,button);grid.append(card);}container.append(grid);}
+function hardNames(container,inspection=false){container.replaceChildren();const grid=document.createElement('div');grid.className='hl-catalogue';for(const m of hardList){const card=document.createElement('article'),tag=document.createElement('span'),title=document.createElement('h2'),brand=document.createElement('strong'),body=document.createElement('p'),count=document.createElement('small'),button=document.createElement('button');tag.className='hl-catalogue-symbol';tag.textContent=m.symbol;title.textContent=m.name;brand.textContent=`${m.brand} · ${m.reference}`;body.textContent=inspection?'Three checklists. Watch each guided observation lesson, then identify the areas in order with the supply isolated and respond to the visible concern.':m.intro;count.textContent=inspection?`${m.checklists.length} maintenance checklists · ${m.parts.length} major assemblies`:`${m.parts.length} major assemblies · ${m.checklists.length} maintenance checklists`;card.append(tag,title,brand,body,count);
+  if(inspection){const list=document.createElement('div');list.className='hl-checklist-links';m.checklists.forEach((c,n)=>{const link=document.createElement('button');link.textContent=`${n+1} · ${c.title} →`;link.addEventListener('click',()=>showPage('hardlab',[m.id,'maintenance',String(n)]));list.append(link);});card.append(list);}
+  else{button.textContent='Open equipment lab →';button.addEventListener('click',()=>showPage('hardlab',[m.id,'explore']));card.append(button);}
+  grid.append(card);}container.append(grid);}
 const pageHashes={home:'home','soft-checklist':'maintenance',catalogue:'hard-services','hard-checklist':'hard-maintenance'};
-function readRoute(){const [prefix,id,view]=location.hash.slice(1).split('/');if(Object.hasOwn(vacuumModules,prefix))return {page:'module',path:[prefix]};if(prefix==='equipment'&&Object.hasOwn(hardModules,id))return {page:'hardlab',path:[id,view]};if(prefix==='hyper-2000b')return {page:'scrubber',path:[id||'explore']};return {page:Object.keys(pageHashes).find(p=>pageHashes[p]===prefix)||'home',path:id?[id]:[]};}
+function readRoute(){const [prefix,id,view,list]=location.hash.slice(1).split('/');if(Object.hasOwn(vacuumModules,prefix))return {page:'module',path:[prefix]};if(prefix==='equipment'&&Object.hasOwn(hardModules,id))return {page:'hardlab',path:[id,view,list?String(Number(list)-1):undefined]};if(prefix==='hyper-2000b')return {page:'scrubber',path:[id||'explore']};return {page:Object.keys(pageHashes).find(p=>pageHashes[p]===prefix)||'home',path:id?[id]:[]};}
 function setCollapsed(collapsed){document.body.classList.toggle('nav-collapsed',collapsed);$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');}
 function showPage(next,path=[],historyMode='push'){
  page=next;const token=++navToken;
@@ -198,9 +201,9 @@ function showPage(next,path=[],historyMode='push'){
   }
   title=next==='module'?machine.name:machine.name+' maintenance';
  }else if(next==='hardlab'){
-  hardId=Object.hasOwn(hardModules,path[0])?path[0]:hardList[0].id;const view=['maintenance','experiment'].includes(path[1])?path[1]:'explore';
+  hardId=Object.hasOwn(hardModules,path[0])?path[0]:hardList[0].id;const view=['maintenance','experiment'].includes(path[1])?path[1]:'explore',list=view==='maintenance'&&path[2]!==undefined&&Number.isInteger(Number(path[2]))&&Number(path[2])>=0?Number(path[2]):undefined;
   $('breadcrumb').textContent=`Hard Services / Equipment / ${hardModules[hardId].path.join(' / ')} / ${hardModules[hardId].brand}`;
-  enterHardLab(hardId,view,token);title=hardModules[hardId].name;hash=`equipment/${hardId}${view==='explore'?'':`/${view}`}`;
+  enterHardLab(hardId,view,token,list);title=hardModules[hardId].name;hash=`equipment/${hardId}${view==='explore'?'':`/${view}`}${list===undefined?'':`/${list+1}`}`;
  }else if(next==='scrubber'){
   const view=path[0]==='maintenance'?'maintenance':'explore';enterScrubber(view,token);$('breadcrumb').textContent='Soft Services / Equipment / Scrubber Dryers / Lavor / HYPER 2000B';title='HYPER 2000B';hash=`hyper-2000b${view==='maintenance'?'/maintenance':''}`;
  }else if(next==='home')$('breadcrumb').textContent='Welcome to EFS Learning Academy';
