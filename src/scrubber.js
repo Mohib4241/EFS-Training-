@@ -6,8 +6,9 @@ import {mountLookUI} from './look/ui.js';
 import {faultsFor} from './look/faults.js';
 import {isHidden,layerOf} from './look/layers.js';
 import {revealOpening} from './look/motion.js';
+import {handHandle} from './look/hand-lazy.js';
 const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export function mountScrubber(container,{guidance,onNavigate}){
+export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  let state=initialScrubber(),inspection=initialInspection(),mode='explore',viewer=null,ui=null,timer=null,active=false,autoRotate=true,tourSnapshot=null;
  const q=selector=>container.querySelector(selector),reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const frames=[{part:'overview',title:'Isolate before inspection',body:'Stop the machine and isolate the virtual battery. Real isolation and stored energy checks need the exact authorised procedure.'},...machine.checks,{part:'filter',title:'Keep a visible defect out of service',body:'The training filter has a damaged rim. Keep the machine isolated and report it. Do not bypass a filter or float.'}];
@@ -58,7 +59,8 @@ export function mountScrubber(container,{guidance,onNavigate}){
   setFault:id=>patch({fault:id}),
   camera:(name,animate)=>viewer?.cameraAction(name,animate),
   flyTo:id=>viewer?.flyTo(id),
-  onFocus:value=>guidance.setFocused(value)
+  onFocus:value=>guidance.setFocused(value),
+  hand:handHandle(()=>({host:q('.hl-viewport'),ui,adapter,viewer:()=>viewer,nextMachine:onMachine}))
  };
  function inspectionAction(type){
   if(type==='play'){if(timer){stopLesson();render();return;}inspection=reduceInspection(inspection,{type:'play'},machine).state;state={...state,part:frames[inspection.step].part};render();timer=setInterval(()=>{const atEnd=inspection.step===frames.length-1;inspection=reduceInspection(inspection,{type:'step',direction:1},machine).state;if(atEnd)stopLesson();else inspection={...inspection,playing:true};state={...state,part:frames[inspection.step].part};render();},2900);return;}
@@ -72,5 +74,5 @@ export function mountScrubber(container,{guidance,onNavigate}){
  container.addEventListener('change',e=>{if(e.target.dataset.function)dispatch({type:'input',key:e.target.dataset.function,value:e.target.checked});});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;render();}});
  const observer=new IntersectionObserver(entries=>{if(!entries[0].isIntersecting){stopLesson();if(active)render();}});observer.observe(container);
- return {targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-maintenance]'),practice:q('[data-maintenance]')},tourStart,tourFrame,tourEnd,show(view='explore'){active=true;if(!ui){ui=mountLookUI(q('.hl-viewport'),adapter);ui.slot.append(startup);}if(!viewer){try{viewer=createHardViewer(q('canvas'),{onSelect:part,onReveal:value=>dispatch({type:'open',value}),onHover:guidance.hover,tooltip:q('.hl-tooltip'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});viewer.load(machine);}catch(error){q('.hl-fallback').hidden=false;console.warn('Scrubber 3D unavailable:',error.message);}}viewer?.setActive(true);setMode(view);},pauseLesson(){stopLesson();render();},setAutoRotate(value){autoRotate=value;render();},setFocused(value){ui?.setFocus(value);},pause(){active=false;stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;viewer?.setActive(false);},release(){this.pause();viewer?.destroy();viewer=null;}};
+ return {targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-maintenance]'),practice:q('[data-maintenance]')},tourStart,tourFrame,tourEnd,show(view='explore'){active=true;if(!ui){ui=mountLookUI(q('.hl-viewport'),adapter);ui.slot.append(startup);}if(!viewer){try{viewer=createHardViewer(q('canvas'),{onSelect:part,onReveal:value=>dispatch({type:'open',value}),onHover:guidance.hover,tooltip:q('.hl-tooltip'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});viewer.load(machine);}catch(error){q('.hl-fallback').hidden=false;console.warn('Scrubber 3D unavailable:',error.message);}}adapter.hand.attach();viewer?.setActive(true);setMode(view);},pauseLesson(){stopLesson();render();},setAutoRotate(value){autoRotate=value;render();},setFocused(value){ui?.setFocus(value);},pause(){active=false;stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;viewer?.setActive(false);},release(){this.pause();viewer?.destroy();viewer=null;}};
 }

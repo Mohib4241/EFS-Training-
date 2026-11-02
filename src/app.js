@@ -3,11 +3,12 @@ import {initialState,transition} from './machine-state.js';
 import {hardList,hardModules} from './hard-content.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from './soft-content.js';
 import {mountGuidance} from './guidance.js';
-import {initLook} from './look/look.js';
+import {initLook,setLook,getLook} from './look/look.js';
 import {isHidden} from './look/layers.js';
 import {revealOpening} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 import {faultsFor} from './look/faults.js';
+import {handHandle,stopHands} from './look/hand-lazy.js';
 initLook();
 const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,ui,uiReady,maintenance,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
 // three.js and the labs are separate chunks: the home page and navigation never wait for them.
@@ -31,7 +32,7 @@ function ensureViewer(){
  $('viewer-loading').hidden=false;$('viewer-fallback').hidden=true;
  return viewerReady=loadModule('viewer').then(({createViewer})=>{
   viewer=createViewer($('machine'),selectPart,value=>action('open',value),progress=>{$('pickup-progress').textContent=`${progress.picked} / ${progress.total} markers picked up`;$('pickup-progress').classList.toggle('complete',progress.picked===progress.total);if(progress.picked===progress.total)$('operation-message').textContent='All virtual debris markers collected. Reset dust to practise again.';},{onHover:guidance.hover,onFloor:()=>action('floor',state.floorMode==='hard'?'soft':'hard'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});
-  $('viewer-loading').hidden=true;viewer.setActive(page==='module');render();return viewer;
+  $('viewer-loading').hidden=true;viewer.setActive(page==='module');render();if(ui)vacuumAdapter.hand.attach();return viewer;
  }).catch(error=>{viewerReady=undefined;$('viewer-loading').hidden=true;$('viewer-fallback').hidden=false;console.warn('3D view unavailable:',error.message);return null;});
 }
 // ---- Maintenance checklist: every task is a 3D simulation (a lazy chunk). Without WebGL2 the written steps are shown instead. ----
@@ -57,11 +58,11 @@ function enterMaintenance(token){
 }
 function enterHardLab(id,view,token){
  if(hardLab){hardLab.show(id,view);return;}
- loadLab('hardLab',$('hard-lab'),'equipment lab',token).then(module=>{if(!module)return;if(!hardLab)hardLab=module.mountHardLab($('hard-lab'),{guidance,onNavigate:(next,mode='explore')=>showPage('hardlab',[next,mode])});hardLab.show(id,view);});
+ loadLab('hardLab',$('hard-lab'),'equipment lab',token).then(module=>{if(!module)return;if(!hardLab)hardLab=module.mountHardLab($('hard-lab'),{guidance,onMachine:goMachine,onNavigate:(next,mode='explore')=>showPage('hardlab',[next,mode])});hardLab.show(id,view);});
 }
 function enterScrubber(view,token){
  loadLab('scrubber',$('scrubber-lab'),'equipment lab',token).then(module=>{
-  if(!module)return;if(!scrubber)scrubber=module.mountScrubber($('scrubber-lab'),{guidance,onNavigate:next=>showPage('scrubber',[next])});scrubber.show(view);
+  if(!module)return;if(!scrubber)scrubber=module.mountScrubber($('scrubber-lab'),{guidance,onMachine:goMachine,onNavigate:next=>showPage('scrubber',[next])});scrubber.show(view);
   guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:false});
  });
 }
@@ -126,6 +127,12 @@ $('reset-dust').addEventListener('click',()=>viewer?.resetDust());
 $('single-pass').addEventListener('click',()=>{if(state.open>0||!state.connected||!state.running){$('operation-message').textContent='Assemble the machine, connect the plug and switch on before a pickup pass.';return;}if(state.condition!=='clear'){$('operation-message').textContent='Choose Clear air path for the pickup practice. Fault-specific pickup rates are not modelled.';return;}state.stroke=false;render();withViewer(ready=>{ready.cameraAction('floor');ready.makeCleaningPass();});$('operation-message').textContent='The tool is making a full practice pass. Markers are counted, not cleaning efficiency.';});
 // ---- shared look-and-controls: the adapter lets the lazy UI module drive this page without knowing about it ----
 const ELECTRICAL=['cable','plug','switch','motor','fan'];
+// Flicking a palm (hand control) steps through all nine equipment pages in this order.
+const MACHINE_ORDER=[['module','junior-103'],['module','junior-429'],['scrubber'],['hardlab','motor-1ph'],['hardlab','motor-3ph'],['hardlab','alternator'],['hardlab','megger'],['hardlab','multimeter'],['hardlab','cascade']];
+function goMachine(direction){
+ const route=readRoute(),here=Math.max(0,MACHINE_ORDER.findIndex(([kind,id])=>kind===route.page&&(kind==='scrubber'||id===route.path[0]))),next=MACHINE_ORDER[(here+direction+MACHINE_ORDER.length)%MACHINE_ORDER.length];
+ showPage(next[0],next[1]?[next[1]]:[]);
+}
 function setFault(id){
  state.fault=id;state.condition=id||'clear';if(id)state.air=true;
  if(id&&state.open>0){const result=transition(state,{type:'open',value:0});state=result.state;state.fault=id;state.condition=id;$('operation-message').textContent='Machine assembled for the airflow lesson. Connect the plug, then switch on.';}
@@ -149,13 +156,14 @@ const vacuumAdapter={
  setFlag,setFault,
  camera:(name,animate)=>viewer?.cameraAction(name,animate),
  flyTo:id=>viewer?.flyTo(id),
- onFocus:value=>{guidance.setFocused(value);}
+ onFocus:value=>{guidance.setFocused(value);},
+ hand:handHandle(()=>({host:$('viewport'),ui,adapter:vacuumAdapter,viewer:()=>viewer,nextMachine:goMachine}))
 };
 function ensureUi(){
  if(ui)return Promise.resolve(ui);
  return uiReady??=loadModule('lookUi').then(({mountLookUI})=>{
   ui=mountLookUI($('viewport'),vacuumAdapter,{ids:{'rotate-left':'rotate-left','rotate-right':'rotate-right','zoom-out':'zoom-out','zoom-in':'zoom-in','camera-reset':'camera-reset'}});
-  ui.slot.append($('startup-panel'));render();return ui;
+  ui.slot.append($('startup-panel'));render();if(viewer)vacuumAdapter.hand.attach();return ui;
  }).catch(error=>{uiReady=undefined;console.warn('Controls unavailable:',error.message);return null;});
 }
 const narrowNav=window.matchMedia('(max-width:1050px)');
@@ -200,6 +208,8 @@ function showPage(next,path=[],historyMode='push'){
  for(const b of document.querySelectorAll('[data-hard-module]')){const selected=next==='hardlab'&&b.dataset.hardModule===hardId;b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
  if(['hardlab','catalogue','hard-checklist'].includes(next))$('hard-nav').open=true;
  for(const b of document.querySelectorAll('[data-page]')){const selected=b.dataset.page===next;b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}
+ document.body.dataset.view=['module','hardlab','scrubber'].includes(next)?'equipment':next;
+ if(document.body.dataset.view!=='equipment')stopHands();
  document.title=title==='EFS Learning Academy'?title:`${title} · EFS Learning Academy`;
  if(historyMode!=='none')history[historyMode==='replace'?'replaceState':'pushState']({page:next,path},'',`#${hash}`);
  closeMenu();window.scrollTo({top:0,behavior:'instant'});render();
@@ -218,5 +228,9 @@ function updateChecks(changed){const inputs=[...document.querySelectorAll('#oper
 $('clear-checks').addEventListener('click',()=>{for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();});
 buildVacuumContent();
 document.addEventListener('efs-guide-language',()=>render());
+// The maintenance practice has no floating panels, so its look switch lives in the page toolbar.
+const syncLookSwitch=()=>{for(const b of document.querySelectorAll('.maintenance-look [data-look]'))b.setAttribute('aria-pressed',String(b.dataset.look===getLook()));};
+for(const b of document.querySelectorAll('.maintenance-look [data-look]'))b.addEventListener('click',()=>setLook(b.dataset.look));
+document.addEventListener('efs-look',syncLookSwitch);syncLookSwitch();
 render();
 const route=readRoute();showPage(route.page,route.path,'replace');

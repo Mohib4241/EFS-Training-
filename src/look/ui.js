@@ -1,5 +1,5 @@
 import {getLook,setLook} from './look.js';
-import {partRows} from './layers.js';
+import {partRows,isHidden} from './layers.js';
 import {STOPS,stageName} from './motion.js';
 import {faultsFor} from './faults.js';
 
@@ -123,7 +123,13 @@ export function mountLookUI(host,adapter,{ids={}}={}){
  // ---- fault finder ----
  const select=q('.lk-fault select');
  function paintFaults(){faults=faultsFor(machineId);select.innerHTML=`<option value="">Fault finder…</option>`+faults.map(f=>`<option value="${f.id}">${escape(f.label)}</option>`).join('');select.value=adapter.get().fault||'';}
- select.addEventListener('change',()=>adapter.setFault(select.value),{signal});
+ // Choosing a condition shows its parts: X-ray if some are hidden inside the shell, then the camera goes to the first.
+ select.addEventListener('change',()=>{
+  adapter.setFault(select.value);
+  const fault=faults.find(f=>f.id===select.value);if(!fault)return;
+  if(fault.parts.some(id=>isHidden(machineId,id))&&!adapter.get().flags.xray)adapter.setFlag('xray',true);
+  if(fault.parts.length===1)adapter.flyTo(fault.parts[0]);
+ },{signal});
  function paintBanner(id){
   const banner=q('.lk-banner'),fault=faults.find(f=>f.id===id);banner.hidden=!fault;
   if(fault)banner.innerHTML=`<div><code>CONDITION</code><strong>${escape(fault.label)}</strong></div><p><b>Cause.</b> ${escape(fault.cause)}</p><p><b>Check.</b> ${escape(fault.check)}</p><button type="button" data-clear aria-label="Clear the condition">Clear</button>`;
@@ -150,7 +156,11 @@ export function mountLookUI(host,adapter,{ids={}}={}){
  // ---- keyboard: [ ] step parts, F focus, R reset, arrows orbit and open, Esc deselect ----
  document.addEventListener('keydown',e=>{
   if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey||!host.offsetParent)return;
-  const target=e.target;if(target.closest?.('input,textarea,select,[contenteditable],dialog,[role=dialog]'))return;
+  // Shortcuts belong to the stage: they work when focus is inside it, or when nothing is focused and the stage is what is on screen,
+  // so the arrow keys can still scroll the page when you are reading below it.
+  const target=e.target,box=host.getBoundingClientRect(),onScreen=box.bottom>innerHeight*.3&&box.top<innerHeight*.7;
+  if(target.closest?.('input,textarea,select,[contenteditable],dialog,[role=dialog]'))return;
+  if(!host.contains(target)&&!(target===document.body&&onScreen))return;
   const key=e.key,state=adapter.get();let used=true;
   if(key==='['||key===']')step(key===']'?1:-1);
   else if(key==='f'||key==='F')setFocus(!focus);
@@ -174,7 +184,7 @@ export function mountLookUI(host,adapter,{ids={}}={}){
   sides.forEach((side,s)=>{
    side.sort((a,b)=>a.y-b.y);let previous=-1e9;
    for(const item of side){
-    const y=Math.max(item.y,previous+24),x=s?Math.min(item.x+90,width-12):Math.max(item.x-90,12);previous=y;
+    const wide=item.name.length*6.3+20,y=Math.max(item.y,previous+24),x=s?Math.min(item.x+70,width-wide-8):Math.max(item.x-70,wide+8);previous=y;
     svg+=`<path d="M${item.x.toFixed(1)} ${item.y.toFixed(1)}L${(x+(s?-6:6)).toFixed(1)} ${y.toFixed(1)}"/><circle cx="${item.x.toFixed(1)}" cy="${item.y.toFixed(1)}" r="2.5"/>`;
     html+=`<span style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px" class="${s?'right':'left'}">${escape(item.name)}</span>`;
    }

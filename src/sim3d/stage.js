@@ -4,6 +4,7 @@ import {createKit} from './kit.js';
 import {createTileTextures,createBlobTexture} from './tiles.js';
 import {VIEW,WIDE,cameraPose,mixFocus} from './layout.js';
 import {anchorPoint} from './parts.js';
+import {getLook} from '../look/look.js';
 
 const AMBER=new THREE.Color('#ee8c45');
 // The shared 3D stage for every maintenance task: a tiled room lit by one image-based environment and one real light,
@@ -29,6 +30,15 @@ export function createStage({renderer,life,reducedMotion=false}){
  const wall=kit.mesh(new THREE.PlaneGeometry(16,7),tiled(wallTex,16,7));wall.position.set(0,3.5,-0.75);
  kit.mesh(new THREE.BoxGeometry(16,0.09,0.012),kit.std('#d3dbd7',0.4)).position.set(0,0.045,-0.744);
 
+ // ---- look: the same two looks as the equipment pages (bright studio light, or the dark hologram room) ----
+ const LOOK={studio:{env:0.85,key:['#fff3e2',2.1],tint:'#ffffff',fog:null},hologram:{env:0.32,key:['#8fd8ff',1.15],tint:'#3b6c88',fog:['#03080f',0.07]}};
+ function applyLook(look){
+  const t=LOOK[look]||LOOK.studio;scene.environmentIntensity=t.env;key.color.set(t.key[0]);key.intensity=t.key[1];
+  for(const m of [floor.material,wall.material])m.color.set(t.tint);
+  scene.fog=t.fog?new THREE.FogExp2(...t.fog):null;api.onLook?.(look);
+ }
+ document.addEventListener('efs-look',event=>applyLook(event.detail),{signal:life.signal});
+
  // ---- contact shadows ----
  const blobTexture=createBlobTexture(life),staticShadow=kit.own(new THREE.MeshBasicMaterial({map:blobTexture,transparent:true,depthWrite:false,opacity:0.85}));
  const blobGeometry=kit.own(new THREE.PlaneGeometry(1,1));
@@ -50,7 +60,7 @@ export function createStage({renderer,life,reducedMotion=false}){
  ring.rotation.x=-Math.PI/2;ring.visible=false;ring.renderOrder=3;scene.add(ring);
  let highlight={part:null,ring:null,color:AMBER};
  const api={
-  scene,camera,kit,blob,parts,
+  scene,camera,kit,blob,parts,applyLook,onLook:null,
   addPart,
   addUpdater(fn){updaters.push(fn);},
   // pure pose lookups, so tasks and tests agree with what is drawn
