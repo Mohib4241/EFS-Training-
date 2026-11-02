@@ -1,5 +1,7 @@
 # EFS Learning Academy — equipment exploration and maintenance practice
 
+**Look and controls (branch `look-and-controls`).** All nine equipment pages share one studio-style renderer, two switchable looks (Studio and Hologram) and one set of engineering controls: a staged teardown slider, a layer dock, a colour-coded parts panel with a detail sheet, a fault finder and optional webcam hand control. See [the look-and-controls record](docs/look-and-controls.md) for what changed, what was tested and the known limits.
+
 Soft Services now includes the Junior 103 dry vacuum, Junior 429 wet/dry vacuum and HYPER 2000B scrubber dryer. Hard Services includes six electrical/MEP labs. All nine equipment pages share opt-in spoken part guides, Machine Guide and Page Guide, focused/collapsible panels and controlled auto orbit. Read the [current increment, source register, responsibilities and validation record](docs/guides-and-soft-equipment.md) for the latest delivery. The later sections preserve the earlier module implementation records.
 
 ## Run locally
@@ -58,14 +60,22 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 |---|---|
 | `src/content.js` | Part lessons, specifications, catalogue names, operator checks and qualitative fault explanations |
 | `src/machine-state.js` | Testable connection/power/opening state transitions and interlocks |
-| `src/viewer.js` | Procedural geometry, selection, camera, part motion, lighting and render scheduling |
+| `src/viewer.js` | Procedural geometry, selection, camera, part motion, finishes, layered spring motion, callouts, guides, fly-to, hand-control hooks and render scheduling (Junior 103 and 429) |
+| `src/hard-viewer.js` | The same for the HYPER 2000B and the six Hard Services labs: geometry, finishes, layered spring motion, flow paths, callouts, guides, fly-to and hand-control hooks |
+| `src/look/look.js` | The two looks: `data-look` on the root element, remembered in `localStorage` (the only part of the look module in the first load, with `layers.js`, `motion.js` and `faults.js`, which are small and pure) |
+| `src/look/rig.js`, `src/look/bloom.js` | Lazy: the shared WebGL rig (ACES tone mapping, image-based light, one soft key light, fog, floor that follows the lowest part, contact shadow, finishes, quality governor, video backdrop) and the UnrealBloom composer, created only in the Hologram look |
+| `src/look/ui.js` | Lazy, three.js-free: look switch, parts panel with category chips, detail sheet, staged teardown, layer dock, fault finder, callout layout, keyboard shortcuts. Each page hands it an adapter |
+| `src/look/layers.js`, `src/look/motion.js`, `src/look/faults.js` | Pure and tested: part layers and categories, spring and wave maths, quality ladder, fault conditions built from existing content |
+| `src/look/hand.js`, `hand-overlay.js`, `gestures.js`, `hand-lazy.js` | Hand control: the camera session and tracker (the same on-device tracker as the maintenance practice), the 3D hands, the tested gesture recogniser, and the small handle the pages hold |
+| `src/look/look.css`, `src/look/fonts.css` | Both looks, the floating panels, bottom sheets and hand card; self-hosted latin woff2 fonts (hashed by the build) |
+| `tests/look.test.mjs`, `tests/look-hands.test.mjs` | Springs, waves, layers, categories, faults and the gesture recogniser |
 | `src/app.js` | Authoritative interaction state, UI rendering, navigation and checklist |
 | `src/index.html`, `src/style.css`, `src/styles.css` | Semantic layout, responsive navigation, controls and styling; `styles.css` is the single stylesheet entry that bundles the three CSS files |
 | `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
 | `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
 | `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
 | `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/sim3d/tasks/`, `src/maintenance-text.js` | The Maintenance Checklist, in 3D only (see [the record](docs/sim3d-stages.md)): every task for both Junior machines (weekly filter wash, dust bag, connector inspection), each shown by two hands and then practised with the learner's own hands (webcam, MediaPipe in a Web Worker, first-person view, 0.75 m distance coach) or the mouse/touch (click to pick up and click to put down, or drag). Browsers without WebGL2 get the written steps instead. |
-| `tests/delivery.test.mjs` | Bundle graph (3D and labs stay lazy), first-load budget, caching, compression and path-allowlist checks |
+| `tests/delivery.test.mjs` | Bundle graph (3D, the look module, bloom, hand control and the tracker stay lazy), first-load budget, self-hosted fonts, caching, compression and path-allowlist checks |
 | `tests/content.test.mjs` | Meaningful content, taxonomy, provenance and state regressions |
 
 Logical specialist roles covered: architecture, engineering education, domain review, graphics, frontend, QA and reliability. An independent QA subagent reviewed hover/gesture handling read-only during the Phantas interaction update; implementation remained with the main agent.

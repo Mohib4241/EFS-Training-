@@ -36,6 +36,28 @@ test('first load stays inside its size budget (gzip)',()=>{
  assert.ok(total<90*1024,`first load is ${(total/1024).toFixed(1)} KB gzip; budget is 90 KB`);
 });
 
+test('the look module is lazy: the first load has the look switch state only, never the rig, bloom, controls or hand control',()=>{
+ const eager=[entryUrl,...preloads].map(read).join('\n');
+ for(const pattern of [/MeshPhysicalMaterial/,/UnrealBloom|luminosityHighPass/i,/FogExp2/,/ShadowMaterial/,/createFromOptions/,/lk-dock|lk-teardown/])assert.doesNotMatch(eager,pattern,`${pattern} stays out of the eager graph`);
+ assert.match(read(entryUrl),/import\("\.\/chunks\/ui-[A-Za-z0-9]+\.js"\)/,'the controls are a dynamic import');
+ assert.match(eager,/efs-look/,'only the look state itself is eager (data-look, localStorage)');
+ const lazy=name=>chunks.filter(url=>new RegExp(`^/static/chunks/${name}-[A-Za-z0-9]+\\.js$`).test(url));
+ assert.equal(lazy('bloom').length,1,'bloom is its own chunk');assert.equal(lazy('hand').length,1,'hand control is its own chunk');assert.ok(chunks.some(url=>/lk-dock/.test(read(url))),'the controls exist in a lazy chunk');
+ const bloomName=lazy('bloom')[0].split('/').pop();
+ const importers=chunks.filter(url=>read(url).includes(`import("./${bloomName}")`));assert.ok(importers.length>0,'bloom is loaded by a dynamic import, in the look rig');
+ assert.ok(!chunks.some(url=>new RegExp(`from"\\./${bloomName.replace('.','\\.')}"`).test(read(url))),'nothing imports bloom statically');
+});
+
+test('fonts are self-hosted latin woff2 files with hashed names, and nothing is fetched from a font service',()=>{
+ const fonts=readdirSync(join(dist,'static','fonts')).filter(name=>name.endsWith('.woff2'));
+ assert.equal(fonts.length,7,'Chakra Petch (2), IBM Plex Sans Condensed (3) and IBM Plex Mono (2)');
+ for(const name of fonts)assert.match(name,/^(chakra-petch|ibm-plex-sans-condensed|ibm-plex-mono)-latin-\d{3}-normal-[A-Z0-9]{8}\.woff2$/,`${name} is latin-subset and content-hashed`);
+ const css=read(html.match(/href="(\/static\/styles-[^"]+\.css)"/)[1]);
+ const urls=[...css.matchAll(/url\("?\.\/fonts\/([^)"]+\.woff2)"?\)/g)].map(m=>m[1]);assert.deepEqual([...urls].sort(),[...fonts].sort(),'the stylesheet references exactly the built fonts');
+ for(const family of ['Chakra Petch','IBM Plex Sans Condensed','IBM Plex Mono'])assert.ok(css.includes(family),`${family} is declared`);
+ assert.doesNotMatch(css+html,/fonts\.googleapis|fonts\.gstatic|https?:\/\//,'no remote font or other remote reference');
+});
+
 test('maintenance practice is 3D only: a lazy 3D chunk, a written fallback without three.js, and no 2D simulation',()=>{
  const named=prefix=>chunks.filter(url=>new RegExp(`^/static/chunks/${prefix}-[A-Za-z0-9]+\\.js$`).test(url)),staticImports=url=>[...read(url).matchAll(/from"(\.\/[^"]+)"/g)].map(m=>`/static/chunks/${m[1].slice(2)}`);
  assert.deepEqual(named('maintenance'),[],'the 2D simulation chunk is gone');
@@ -50,15 +72,21 @@ test('maintenance practice is 3D only: a lazy 3D chunk, a written fallback witho
  assert.ok(staticImports(text).every(dep=>staticImports(solid).includes(dep)),'the written steps reuse the 3D practice\'s lesson content, not a copy');
 });
 
-test('hand tracking runs in a worker that is its own hashed file, loaded only by the 3D practice',()=>{
+test('hand tracking runs in a worker that is its own hashed file, loaded only by lazy 3D code',()=>{
  const workers=readdirSync(join(dist,'static')).filter(name=>/^hand-worker-[A-Za-z0-9]+\.js$/.test(name));
  assert.equal(workers.length,1,'one content-hashed worker script');
  const url=`/static/${workers[0]}`,code=read(url);
  assert.ok(code.startsWith('(()=>{')&&!/^import |from"\.\//m.test(code),'a classic worker: one self-contained script with no module imports of its own');
  assert.match(code,/createFromOptions/,'it runs the MediaPipe hand landmarker');
  assert.match(code,/flush\((\w+),(\w+)\)\{this\.i=\[\],\1\?\.\(\);return;/,'MediaPipe\'s usage-logging upload is switched off in the worker too');
+ // Both the maintenance practice and the equipment hand control use the tracker, so its code is one shared lazy chunk that only they reach.
  const refs=[entryUrl,...preloads,...chunks].filter(chunk=>read(chunk).includes(workers[0]));
- assert.deepEqual(refs.map(ref=>ref.replace(/-[A-Za-z0-9]+\.js$/,'')),['/static/chunks/maintenance3d'],'only the 3D practice knows where the worker is');
+ assert.equal(refs.length,1,'exactly one chunk knows where the worker is');
+ const [shared]=refs,sharedName=shared.split('/').pop(),stem=url=>url.replace(/-[A-Za-z0-9]+\.js$/,'');
+ assert.ok(![entryUrl,...preloads].includes(shared),'it is never part of the first load');
+ const importers=chunks.filter(url=>url!==shared&&read(url).includes(`"./${sharedName}"`)).map(stem).sort();
+ assert.deepEqual(importers.filter(name=>/maintenance3d|hand-tracking/.test(name)),['/static/chunks/hand-tracking','/static/chunks/maintenance3d'],'the 3D practice and the hand-control tracker entry both import it');
+ const handChunk=chunks.find(url=>/\/hand-[A-Za-z0-9]+\.js$/.test(url));assert.ok(read(handChunk).includes('import("./hand-tracking-'),'hand control loads the tracker by a dynamic import, when the camera is started');
  assert.doesNotMatch(html,/hand-worker/,'no page load fetches it');
 });
 
@@ -97,8 +125,10 @@ test('hand tracking is opt-in: model and WebAssembly are same-origin files that 
  for(const url of [entryUrl,...preloads])assert.doesNotMatch(read(url),/hand_landmarker|vision_wasm|HandLandmarker/,`${url} knows nothing about hand tracking`);
  assert.doesNotMatch(html,/hand_landmarker|\.wasm|mediapipe/,'the page never preloads the model');
  const vision=chunks.find(url=>url.includes('/vision_bundle-'));assert.ok(vision&&/createFromOptions/.test(read(vision)),'the MediaPipe code is its own chunk');
- const solid=chunks.find(url=>url.includes('/maintenance3d-'));assert.match(read(solid),/import\("\.\/vision_bundle-[A-Za-z0-9]+\.js"\)/,'it is loaded by a dynamic import, only after the learner allows the camera');
- assert.match(read(solid),/hand_landmarker-[A-Za-z0-9]+\.task/,'the 3D chunk points at the hashed model');
+ const tracker=chunks.find(url=>/import\("\.\/vision_bundle-[A-Za-z0-9]+\.js"\)/.test(read(url)));assert.ok(tracker,'the tracker loads MediaPipe by a dynamic import, only after the learner allows the camera');
+ assert.ok(![entryUrl,...preloads].includes(tracker)&&!preloads.includes(tracker),'the tracker is never preloaded');
+ assert.match(read(tracker),/hand_landmarker-[A-Za-z0-9]+\.task/,'the tracker chunk points at the hashed model');
+ assert.equal(chunks.filter(url=>/\/hand-[A-Za-z0-9]+\.js$/.test(url)).length,1,'hand control (camera, gestures, drawing) is a lazy chunk of its own');
  assert.match(read(vision),/flush\((\w+),(\w+)\)\{this\.i=\[\],\1\?\.\(\);return;/,'MediaPipe\'s usage-logging upload is switched off, so no video-derived data can leave the page');
 });
 
@@ -113,4 +143,11 @@ test('camera and WebAssembly are allowed for this site only, on the dev server a
  // the production host (render.yaml) must send exactly what the preview server sends
  const yaml=readFileSync(join(root,'render.yaml'),'utf8'),value=name=>new RegExp(`name: ${name}\\s+value: "?([^\\n"]+)"?`).exec(yaml)?.[1];
  assert.equal(value('Content-Security-Policy'),csp);assert.equal(value('Permissions-Policy'),page.headers.get('permissions-policy'));
+});
+
+test('woff2 fonts are served as font/woff2 with immutable caching from the build output only',async()=>{
+ const name=readdirSync(join(dist,'static','fonts')).find(file=>file.endsWith('.woff2')),font=await get(`/static/fonts/${name}`,{headers:{'Accept-Encoding':'identity'}});
+ assert.equal(font.status,200);assert.equal(font.headers.get('content-type'),'font/woff2');assert.equal(font.headers.get('cache-control'),'public, max-age=31536000, immutable');assert.equal(font.headers.get('x-content-type-options'),'nosniff');
+ assert.ok((await font.arrayBuffer()).byteLength>5000,'a real font file, not an error page');
+ assert.equal((await get('/static/fonts/missing.woff2')).status,404);
 });

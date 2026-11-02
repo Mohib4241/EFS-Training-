@@ -17,6 +17,15 @@ export function createSpring({stiffness=90,damping=.7,value=0}={}){
  };
 }
 
+// The exact step response of a damped spring, as an easing curve for camera moves: p in [0,1] -> position, with a slight overshoot
+// that settles. Used instead of a cubic ease so every move in the viewer shares the same weight.
+const SPRING={zeta:.72,omega:11,span:.9};
+export function springEase(p){
+ if(p<=0)return 0;if(p>=1)return 1;
+ const {zeta,omega,span}=SPRING,t=p*span,wd=omega*Math.sqrt(1-zeta*zeta),decay=Math.exp(-zeta*omega*t);
+ return 1-decay*(Math.cos(wd*t)+zeta*omega/wd*Math.sin(wd*t));
+}
+
 // Heavier layers are slower to start and settle, so a teardown reads as weight rather than a slide.
 export const LAYER_STIFFNESS=[120,92,70,54];
 export const createLayerSprings=()=>LAYER_STIFFNESS.map(stiffness=>createSpring({stiffness,damping:.72}));

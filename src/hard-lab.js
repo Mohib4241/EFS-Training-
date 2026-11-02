@@ -5,6 +5,7 @@ import {mountLookUI} from './look/ui.js';
 import {faultsFor} from './look/faults.js';
 import {isHidden,layerOf} from './look/layers.js';
 import {revealOpening} from './look/motion.js';
+import {handHandle} from './look/hand-lazy.js';
 
 const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>n===null?'—':Number.isInteger(n)?n.toLocaleString('en-GB'):n.toLocaleString('en-GB',{maximumFractionDigits:2});
@@ -18,7 +19,7 @@ function chart(module,s,m){
  else{label='Calculated steady requests for three equal assumed 40 kilowatt stages';body=Array.from({length:3},(_,n)=>{const enabled=m.requested.includes(n),unavailable=s.inputs.unavailable===n+1;return text(10,23+n*34,`Unit ${n+1} · ${[120,70,95][n]} h`)+`<rect x="130" y="9" width="210" height="20" rx="4" fill="none" transform="translate(0 ${n*34})"/><rect x="130" y="${9+n*34}" width="210" height="20" rx="4" fill="#e6eee5"/><rect x="130" y="${9+n*34}" width="${enabled?210*m.modulation:0}" height="20" rx="4" fill="#a8cdc0"/>`+text(350,23+n*34,unavailable?'Unavailable':enabled?`${format(m.delivered/m.requested.length)} kW`:'Standby');}).join('');}
  return `<svg viewBox="0 0 460 125" role="img" aria-label="${escape(label)}">${body}</svg><span>${escape(label)}</span>`;
 }
-export function mountHardLab(container,{onNavigate,guidance}){
+export function mountHardLab(container,{onNavigate,onMachine,guidance}){
  const q=selector=>container.querySelector(selector),all=selector=>[...container.querySelectorAll(selector)],states=new Map(),inspections=new Map();
  let autoRotate=true,tourSnapshot=null;
  let id=null,module=null,state=null,inspection=null,mode='explore',viewer=null,ui=null,live=false,message='',lessonTimer=null,dischargeTimer=null,lastDischarge=0;
@@ -116,7 +117,8 @@ export function mountHardLab(container,{onNavigate,guidance}){
   setFault:faultId=>patch({fault:faultId}),
   camera:(name,animate)=>viewer?.cameraAction(name,animate),
   flyTo:partId=>viewer?.flyTo(partId),
-  onFocus:value=>guidance?.setFocused(value)
+  onFocus:value=>guidance?.setFocused(value),
+  hand:handHandle(()=>({host:q('.hl-viewport'),ui,adapter,viewer:()=>viewer,nextMachine:onMachine}))
  };
  function mountUi(){if(ui){ui.setMachine();return;}ui=mountLookUI(q('.hl-viewport'),adapter);ui.slot.append(startup);}
  function guideOptions({autoGuide=false}={}){const maintenance=mode==='maintenance';return {maintenance,autoGuide:autoGuide&&!maintenance,toolbarHost:q('.hl-heading'),dock:true,focused:false,targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-hl-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-hl=maintenance]'),practice:q('[data-hl=maintenance]')},onTourStart:maintenance?undefined:tourStart,onTourFrame:maintenance?undefined:tourFrame,onTourEnd:maintenance?undefined:tourEnd,onGuideOpen:()=>{stopLesson();paint();},onAutoRotate:value=>{autoRotate=value;paint();},onPanels:value=>ui?.setFocus(value)};}
@@ -139,5 +141,5 @@ export function mountHardLab(container,{onNavigate,guidance}){
  container.addEventListener('change',e=>{if(e.target===q('[data-hl="equipment"]')){onNavigate(e.target.value);return;}const spec=module?.inputs.find(p=>p.key===e.target.dataset.field);if(spec&&spec.type!=='range')dispatch({type:'input',key:spec.key,value:spec.type==='checkbox'?e.target.checked:typeof spec.value==='number'?Number(e.target.value):e.target.value});},{signal});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopLesson();stopDischarge();if(state?.running)state=reduceHard(state,{type:'isolate'}).state;if(state)paint();}else if(live)startDischarge();},{signal});
  const observer=new IntersectionObserver(entries=>{if(!entries[0].isIntersecting){stopLesson();stopDischarge();if(state)paint();}else if(live)startDischarge();});observer.observe(container);
- return {show(next,view='explore'){if(id!==next){pause();id=next;module=getHardModule(id);state=states.get(id)||initialHardState(id);inspection=inspections.get(id)||initialInspection();populate();viewer?.load(module);}mountUi();if(!viewer){setupViewer();viewer?.load(module);}live=true;viewer?.setActive(true);message='Explore the referenced equipment. All geometry and examples are educational.';setMode(view);guidance?.setMachine(module,guideOptions({autoGuide:true}));startDischarge();},pause,release,destroy(){pause();abort.abort();observer.disconnect();viewer?.destroy();ui?.destroy();container.replaceChildren();}};
+ return {show(next,view='explore'){if(id!==next){pause();id=next;module=getHardModule(id);state=states.get(id)||initialHardState(id);inspection=inspections.get(id)||initialInspection();populate();viewer?.load(module);}mountUi();if(!viewer){setupViewer();viewer?.load(module);}adapter.hand.attach();live=true;viewer?.setActive(true);message='Explore the referenced equipment. All geometry and examples are educational.';setMode(view);guidance?.setMachine(module,guideOptions({autoGuide:true}));startDischarge();},pause,release,destroy(){pause();abort.abort();observer.disconnect();viewer?.destroy();ui?.destroy();container.replaceChildren();}};
 }

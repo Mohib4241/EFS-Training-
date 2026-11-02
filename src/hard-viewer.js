@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {openingFromPixels} from './machine-state.js';
 import {createRig,finish,ghost} from './look/rig.js';
-import {createLayerSprings,waveFactor} from './look/motion.js';
+import {createLayerSprings,waveFactor,springEase} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
 // Reused by the electrical/MEP labs and the Soft Services scrubber. Previous module GPU resources are released on load.
@@ -134,6 +134,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   controls.update();schedule();
  }
  const ray=new THREE.Raycaster(),point=new THREE.Vector2(),projected=new THREE.Vector3();
+ const reachable=object=>{for(let o=object;o;o=o.parent)if(!o.visible)return false;return true;};
  function hitAt(p){const r=canvas.getBoundingClientRect();if(!r.width||!r.height||p.x<0||p.y<0||p.x>r.width||p.y>r.height)return null;point.set(p.x/r.width*2-1,-p.y/r.height*2+1);ray.setFromCamera(point,camera);return ray.intersectObjects(pickables,false).find(hit=>{for(let o=hit.object;o;o=o.parent)if(!o.visible)return false;return hit.object.material.opacity>.25;})?.object.userData.part;}
  const meshesFor=id=>meshesOf[id]??=(()=>{const list=[];groups[id].traverse(o=>{if(o.material?.emissive)list.push(o);});return list;})();
  function paintHighlights(time=0){
@@ -169,7 +170,8 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   positions.needsUpdate=true;guideLines.computeLineDistances();guideLines.material.color.set(studio.look==='hologram'?0x3de0ff:0x0a8f9c);guideLines.visible=true;guidesDrawn=true;
  }
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
- function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):null;if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
+ function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
+ let handHover=null,overlay=null;
  let bottomBar=null;const inset=()=>(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0;
  function render(time){
   frame=0;if(!module||!state||!active||!visible||document.hidden)return;const dt=Math.min(previous?(time-previous)/1000:.016,.05);previous=time;
@@ -178,7 +180,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   opening=(springs[0].value+springs[1].value+springs[2].value+springs[3].value)/4;
   for(const g of Object.values(groups)){const f=springs[g.userData.layer].value;g.position.copy(g.userData.base).addScaledVector(g.userData.offset,f);if(g.userData.spread)for(const c of g.children)c.position.x=c.userData.homeX*(1+f);}
   const nextFraming=1+opening*.3;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
-  if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=t.progress*t.progress*(3-2*t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
+  if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
   const turning=state.running&&!reduced.matches;
   if(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches){const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),dt*.025);camera.position.copy(controls.target).add(offset);}
   for(const {o,axis,unit} of spinners){const enabled=unit===null?turning:turning&&model.requested?.includes(unit);if(enabled)o.rotation[axis]+=dt*(module.kind==='cascade'?3.2:(model.speed||1200)/60*Math.PI*2*.025)*(model.direction||1);}
@@ -194,7 +196,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();
   const moving=Boolean(cameraTween)||turning||springing||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches);
-  studio.render(camera,time,moving);if(moving)schedule();
+  overlay?.frame(time);studio.render(camera,time,moving||Boolean(overlay?.object.visible));if(moving||overlay?.object.visible)schedule();
  }
  function schedule(){if(!frame&&active&&visible&&!document.hidden)frame=requestAnimationFrame(render);}
  const pointers=new Map();let down=null,multiple=false,span=null;
@@ -211,5 +213,14 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  document.addEventListener('visibilitychange',()=>{previous=0;if(document.hidden)cancelGesture();else{clearHover();schedule();}},{signal});reduced.addEventListener('change',schedule,{signal});controls.addEventListener('start',()=>{cameraTween=null;});controls.addEventListener('change',schedule);
  const resize=new ResizeObserver(resizeScene);resize.observe(canvas.parentElement);const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;previous=0;if(visible)schedule();else clearHover();});observer.observe(canvas);
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();canvas.dispatchEvent(new CustomEvent('viewer-unavailable'));},{signal});
- return {load,flyTo,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
+ const hands={
+  get scene(){return scene;},camera,target:controls.target,get look(){return studio.look;},
+  pick(ndc){if(Math.abs(ndc[0])>1||Math.abs(ndc[1])>1)return null;point.set(ndc[0],ndc[1]);ray.setFromCamera(point,camera);const hit=ray.intersectObjects(pickables,false).find(h=>reachable(h.object)&&h.object.material.opacity>.25);return hit?{id:hit.object.userData.part,point:hit.point.clone()}:null;},
+  orbit(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;schedule();},
+  setHover(id){if(handHover!==id){handHover=id;schedule();}},
+  setOverlay(next){overlay=next;schedule();},
+  setBackdrop(video){studio.setBackdrop(video);schedule();},
+  invalidate:schedule
+ };
+ return {load,flyTo,hands,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
 }

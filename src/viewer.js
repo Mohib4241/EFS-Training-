@@ -5,7 +5,7 @@ import {vacuumModules,vacuumPartList} from './soft-content.js';
 import {openingFromPixels} from './machine-state.js';
 import {createDust,collectDust} from './cleaning-state.js';
 import {createRig,finish,cloneFinish,ghost} from './look/rig.js';
-import {createSpring,createLayerSprings,waveFactor} from './look/motion.js';
+import {createSpring,createLayerSprings,waveFactor,springEase} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
 // Each machine has its own lacquer: the shared finishes are recoloured when the variant changes.
@@ -114,6 +114,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   pointer.set(point.x/rect.width*2-1,-point.y/rect.height*2+1);ray.setFromCamera(pointer,camera);
   return ray.intersectObjects(pickables,false).find(hit=>{for(let o=hit.object;o;o=o.parent)if(!o.visible)return false;return hit.object.material.opacity>.3;});
  }
+ let handHover=null,overlay=null;
  const meshesOf={};
  const meshesFor=id=>meshesOf[id]??=(()=>{const list=[];groups[id].traverse(o=>{if(o.isMesh&&o.material.emissive)list.push(o);});return list;})();
  let lastPaint='';
@@ -130,9 +131,9 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
  function clearHover(){hoverPoint=null;if(hovered)onHover(null);hovered=null;tooltip.hidden=true;canvas.style.cursor='grab';paintHighlights();schedule();}
  function updateHover(){
   const hit=hoverPoint&&activePointers.size===0?hitAt(hoverPoint):null;
-  const nextHover=hit?.object.userData.part||null;if(nextHover!==hovered)onHover(nextHover,hoverMoved);hoverMoved=false;hovered=nextHover;paintHighlights();
-  const info=partInfo.get(hovered);tooltip.hidden=!info;canvas.style.cursor=activePointers.size?'grabbing':info?'pointer':'grab';
-  if(!info)return;
+  const nextHover=hit?.object.userData.part||(hoverPoint?null:handHover);if(nextHover!==hovered)onHover(nextHover,hoverMoved);hoverMoved=false;hovered=nextHover;paintHighlights();
+  const info=partInfo.get(hovered);tooltip.hidden=!info||!hoverPoint;canvas.style.cursor=activePointers.size?'grabbing':info?'pointer':'grab';
+  if(!info||!hoverPoint)return;
   if(tipId!==info.id){
    tipId=info.id;document.getElementById('tooltip-group').textContent=info.group;
    document.getElementById('tooltip-name').textContent=info.name;
@@ -190,7 +191,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   calloutsShown=true;onCallouts(items,width,height);
  }
  let bottomBar=null;const inset=()=>(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0;
- function render(moving=false,time=performance.now()){studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts();updateHover();paintHighlights(time/1000);updateGuides();studio.render(camera,time,moving);}
+ function render(moving=false,time=performance.now()){studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts();updateHover();paintHighlights(time/1000);updateGuides();overlay?.frame(time);studio.render(camera,time,moving);}
  function schedule(){if(!frame&&active&&visible&&!document.hidden)frame=requestAnimationFrame(update);}
 function update(time){frame=0;if(!active||!visible||document.hidden)return;const dt=Math.min((time-previous)/1000||.016,.05);previous=time;tick+=dt;
  // Each layer chases its own wave of the slider with a spring of its own weight; the plug has one too.
@@ -207,7 +208,7 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
  if(state.autoRotate&&!pointerInside&&!activePointers.size&&!floorView&&!reduced.matches){const orbit=camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0,1,0),dt*.09);camera.position.copy(controls.target).add(orbit);}
  const framing=1+progress*.22;camera.position.sub(controls.target).multiplyScalar(framing/lastFraming).add(controls.target);lastFraming=framing;
  const targetY=focusY??((floorView?.75:1.25)+progress*.55);camera.position.y+=targetY-controls.target.y;controls.target.y=targetY;
- if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=t.progress*t.progress*(3-2*t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
+ if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
  const t=animated.plug;plug.position.set(THREE.MathUtils.lerp(-2,-2.15,t),THREE.MathUtils.lerp(.12,.76,t),THREE.MathUtils.lerp(.5,-.33,t));
  if(Math.abs(lastPlug-t)>.00001||Math.abs(lastOpen-animated.open)>.00001){lastPlug=t;lastOpen=animated.open;cableCurve.points[0].set(0,groups.cover.position.y-.07,-.63);cableCurve.points[3].copy(plug.position).add(new THREE.Vector3(0,-.09,.02));const wirePositions=wire.geometry.attributes.position;const tempGeometry=new THREE.TubeGeometry(cableCurve,72,.025,8,false);wirePositions.copy(tempGeometry.attributes.position);wirePositions.needsUpdate=true;wire.geometry.attributes.normal.copy(tempGeometry.attributes.normal);wire.geometry.attributes.normal.needsUpdate=true;tempGeometry.dispose();}
  rocker.rotation.x=state.running?-.2:.2;const operating=state.running&&!reduced.matches;if(operating){rotor.rotation.y+=dt*6;blades.rotation.y+=dt*9;twinRotor.rotation.y+=dt*6;twinBlades.rotation.y+=dt*9;}
@@ -222,7 +223,7 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
  previousNozzle={z:tool.position.z,active:canPick};
  const shellSeeThrough=Boolean(state.xray);if(shellApplied!==shellSeeThrough){shellApplied=shellSeeThrough;for(const id of ['cover','tank'])ghost(groups[id],shellSeeThrough,.065);}
  flow.visible=state.air&&state.open===0;for(let i=0;i<dots.length;i++){dots[i].visible=state.running;dots[i].position.copy(flowCurve.getPointAt((i/dots.length+(reduced.matches?0:tick*.16))%1));}
- const moving=Boolean(cameraTween)||(state.autoRotate&&!pointerInside&&!floorView&&!reduced.matches)||springing||singlePass||((state.running||(state.stroke&&state.open===0))&&!reduced.matches)||((state.glowParts?.length>0)&&!reduced.matches);
+ const moving=Boolean(cameraTween)||(state.autoRotate&&!pointerInside&&!floorView&&!reduced.matches)||springing||singlePass||((state.running||(state.stroke&&state.open===0))&&!reduced.matches)||((state.glowParts?.length>0)&&!reduced.matches)||Boolean(overlay?.object.visible);
  render(moving,time);if(moving)schedule();}
   function setState(next){state={...next};setFinish(state.variant);studio.setGlow(state.glow!==false);if(currentVariant!==state.variant+state.pickupMode){currentVariant=state.variant+state.pickupMode;const module=vacuumModules[state.variant]||vacuumModules['junior-103'];partInfo=new Map(vacuumPartList(module.id,state.pickupMode).map(p=>[p.id,p]));tipId=null;ctx.fillStyle='#edf1e9';ctx.fillRect(0,117,1024,75);ctx.font='26px Arial';ctx.fillStyle='#40535a';ctx.fillText(`${module.name.toUpperCase()}   •   ${module.category.toUpperCase()} VACUUM`,235,154);texture.needsUpdate=true;}
  const water=state.pickupMode==='wet';dustMaterial.color.set(water?'#55b7c5':'#8c6845');paperMaterial.color.set(water?'#55b7c5':'#d7bd83');dustMeshes.forEach((m,i)=>{m.scale.set(water?2:.8+(i%4)*.15,water?.18:.8+(i%4)*.15,water?2:.8+(i%4)*.15);m.position.y=water?.006:i%5===0?.012:.025;});if(state.open>0&&floorView)cameraAction('reset');paintHighlights();schedule();}
@@ -249,6 +250,16 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
   if(reduced.matches){camera.position.copy(to);controls.target.copy(spot);cameraTween=null;}else cameraTween={from,fromTarget,to,toTarget:spot,progress:0};
   controls.update();schedule();
  }
+ // Hand control: the shared hand module draws into this scene and drives the camera, hover and picking through here.
+ const hands={
+  get scene(){return scene;},camera,target:controls.target,get look(){return studio.look;},
+  pick(ndc){if(Math.abs(ndc[0])>1||Math.abs(ndc[1])>1)return null;pointer.set(ndc[0],ndc[1]);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(pickables,false).find(h=>shown(h.object)&&h.object.material.opacity>.3);return hit?{id:hit.object.userData.part,point:hit.point.clone()}:null;},
+  orbit(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;schedule();},
+  setHover(id){if(handHover!==id){handHover=id;schedule();}},
+  setOverlay(next){overlay=next;schedule();},
+  setBackdrop(video){studio.setBackdrop(video);schedule();},
+  invalidate:schedule
+ };
  // Leaving the page releases the GPU: geometry, textures, materials, the composer and the renderer.
  function destroy(){
   active=false;if(frame)cancelAnimationFrame(frame);frame=0;abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);
@@ -256,5 +267,5 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
   studio.dispose();
  }
 
- publishDust();controls.update();schedule();return {setActive(value){active=value;previous=0;activePointers.clear();pointerDown=null;multiGesture=false;pinchDistance=null;clearHover();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active)schedule();},setState,cameraAction,flyTo,destroy,clearHover,resetDust,makeCleaningPass};
+ publishDust();controls.update();schedule();return {setActive(value){active=value;previous=0;activePointers.clear();pointerDown=null;multiGesture=false;pinchDistance=null;clearHover();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active)schedule();},setState,cameraAction,flyTo,destroy,clearHover,resetDust,makeCleaningPass,hands};
 }

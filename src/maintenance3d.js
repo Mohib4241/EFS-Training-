@@ -7,6 +7,7 @@ import {createLifecycle} from './sim3d/lifecycle.js';
 import {createPump} from './sim3d/pump.js';
 import {createGovernor} from './sim3d/governor.js';
 import {createStage} from './sim3d/stage.js';
+import {getLook} from './look/look.js';
 import {createHandRig,handMaterial} from './sim3d/hand-rig.js';
 import {placeAtContact,orientationForBlend,handOrientation} from './sim3d/hand-placement.js';
 import {buildDemo,sampleDemo,cameraAt,scripts} from './sim3d/demo.js';
@@ -106,7 +107,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  function openTask(kind){
   closeTask();
   const task=TASKS[kind],taskLife=createLifecycle();let stage,sceneView;
-  try{stage=createStage({renderer,life:taskLife,reducedMotion:reduced});sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,life:taskLife,reducedMotion:reduced})||{};}
+  try{stage=createStage({renderer,life:taskLife,reducedMotion:reduced});stage.applyLook(getLook());stage.onLook=()=>pump.invalidate();sceneView=task.build(stage,{label:MACHINE_LABELS[machineId],machine:machineId,language,rigs,life:taskLife,reducedMotion:reduced})||{};}
   catch(error){taskLife.dispose();console.error('3D task could not open:',error);toast('This task could not open in 3D. Try another task or reload the page.',true);renderTabs();return;}
   for(const rig of Object.values(rigs))stage.scene.add(rig.object);
   const demo=buildDemo(LESSONS[kind],{script:frame=>task.script(frame,scripts),reduce:reducePractice});

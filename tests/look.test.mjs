@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS} from '../src/look/motion.js';
+import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase} from '../src/look/motion.js';
 import {layerOf,isHidden,categorise,partRows} from '../src/look/layers.js';
 import {faultsFor} from '../src/look/faults.js';
 import {hardList} from '../src/hard-content.js';
@@ -79,4 +79,10 @@ test('fault finder offers qualitative conditions built from existing content, wi
  assert.deepEqual(faultsFor('junior-103').map(f=>f.label),['Clear air path','Hose restriction','Loaded filter']);
  assert.match(faultsFor('motor-3ph').at(-1).cause,/terminal-box cover|Heat staining/);
  assert.ok(faultsFor('hyper-2000b').every(f=>/isolated from power/.test(f.check)));
+});
+
+test('camera moves ease like a spring: they start slowly, overshoot slightly and land exactly',()=>{
+ assert.equal(springEase(0),0);assert.equal(springEase(1),1);assert.ok(springEase(.05)<.15,'a gentle start');
+ let peak=0;for(let p=0;p<=1;p+=.01)peak=Math.max(peak,springEase(p));assert.ok(peak>1&&peak<1.06,`slight overshoot (${peak.toFixed(3)})`);
+ assert.ok(springEase(.5)>.6,'most of the move is done by the middle');
 });
