@@ -1,4 +1,4 @@
-export function initialScrubber(){return {part:'overview',open:0,xray:false,labels:true,connected:false,running:false,inputs:{brush:true,suction:true,solution:true}};}
+export function initialScrubber(){return {part:'overview',open:0,xray:false,labels:true,fault:'',guides:false,glow:true,flow:false,connected:false,running:false,inputs:{brush:true,suction:true,solution:true}};}
 export function reduceScrubber(previous,action){
  const s={...previous,inputs:{...previous.inputs}},out=(message='',blocked=false)=>({state:s,message,blocked});
  if(action.type==='reset')return {state:initialScrubber(),message:'Reset. Virtual battery isolated and machine stopped.'};
