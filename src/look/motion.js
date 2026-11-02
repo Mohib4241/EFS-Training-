@@ -26,6 +26,24 @@ export function springEase(p){
  return 1-decay*(Math.cos(wd*t)+zeta*omega/wd*Math.sin(wd*t));
 }
 
+// Starting a machine shows what it does: the shell goes see-through (so the motor and fan are seen turning) and the flow path
+// appears. Stopping puts the view back as the learner had it. Idempotent, so it can run on every repaint.
+export function runView(state,flowKey='flow'){
+ if(state.running&&!state.runView)return {...state,runView:{xray:Boolean(state.xray),flow:Boolean(state[flowKey])},xray:true,[flowKey]:true};
+ if(!state.running&&state.runView)return {...state,xray:state.runView.xray,[flowKey]:state.runView.flow,runView:null};
+ return state;
+}
+
+// The scrubber travels in a zigzag while it runs, like a floor pass. u in [0,1] goes along the path; the result is where the
+// machine is (x, z in scene units) and how far it turns toward its direction of travel (yaw, radians, kept small).
+export const ZIGZAG=[[-1,-1.3],[1,-.45],[-1,.4],[1,1.25]];
+export function zigzagPose(u){
+ const t=clamp(u)*(ZIGZAG.length-1),i=Math.min(ZIGZAG.length-2,Math.floor(t)),f=t-i,a=ZIGZAG[i],b=ZIGZAG[i+1];
+ return {x:a[0]+(b[0]-a[0])*f,z:a[1]+(b[1]-a[1])*f,yaw:Math.atan2(b[0]-a[0],b[1]-a[1])*.35};
+}
+// Ping-pong a steadily rising phase so the machine goes along the path and back again.
+export const pingPong=phase=>{const p=((phase%2)+2)%2;return p<1?p:2-p;};
+
 // Heavier layers are slower to start and settle, so a teardown reads as weight rather than a slide.
 export const LAYER_STIFFNESS=[120,92,70,54];
 export const createLayerSprings=()=>LAYER_STIFFNESS.map(stiffness=>createSpring({stiffness,damping:.72}));

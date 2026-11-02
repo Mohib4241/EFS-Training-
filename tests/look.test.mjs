@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase} from '../src/look/motion.js';
+import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase,runView,zigzagPose,pingPong,ZIGZAG} from '../src/look/motion.js';
 import {layerOf,isHidden,categorise,partRows} from '../src/look/layers.js';
 import {faultsFor} from '../src/look/faults.js';
 import {hardList} from '../src/hard-content.js';
@@ -85,4 +85,21 @@ test('camera moves ease like a spring: they start slowly, overshoot slightly and
  assert.equal(springEase(0),0);assert.equal(springEase(1),1);assert.ok(springEase(.05)<.15,'a gentle start');
  let peak=0;for(let p=0;p<=1;p+=.01)peak=Math.max(peak,springEase(p));assert.ok(peak>1&&peak<1.06,`slight overshoot (${peak.toFixed(3)})`);
  assert.ok(springEase(.5)>.6,'most of the move is done by the middle');
+});
+
+test('starting a machine shows its motion (see-through shell, flow path) and stopping puts the view back',()=>{
+ const idle={running:false,xray:false,flow:false},run=runView({...idle,running:true});
+ assert.equal(run.xray,true);assert.equal(run.flow,true);assert.deepEqual(run.runView,{xray:false,flow:false});
+ assert.strictEqual(runView(run),run,'running again changes nothing');
+ const stopped=runView({...run,running:false});assert.equal(stopped.xray,false);assert.equal(stopped.flow,false);assert.equal(stopped.runView,null);
+ const kept=runView({...runView({running:true,xray:true,flow:false}),running:false});assert.equal(kept.xray,true,'a view the learner chose is kept');assert.equal(kept.flow,false);
+ const vacuum=runView({running:true,xray:false,air:false},'air');assert.equal(vacuum.air,true);assert.equal(runView({...vacuum,running:false},'air').air,false);
+ assert.strictEqual(runView(idle),idle,'nothing happens while stopped');
+});
+
+test('the scrubber zigzag stays on its path, turns only a little and ping-pongs without jumps',()=>{
+ for(let u=0;u<=1;u+=.05){const p=zigzagPose(u);assert.ok(Math.abs(p.x)<=1.0001&&p.z>=-1.31&&p.z<=1.26&&Math.abs(p.yaw)<.5,`u=${u.toFixed(2)}`);}
+ assert.deepEqual([zigzagPose(0).x,zigzagPose(0).z],ZIGZAG[0]);assert.deepEqual([zigzagPose(1).x,zigzagPose(1).z],ZIGZAG[3]);
+ assert.ok(zigzagPose(1/6).x>-1&&zigzagPose(1/3).x===1,'it really zigzags from side to side');
+ assert.equal(pingPong(0),0);assert.equal(pingPong(1),1);assert.equal(pingPong(1.5),.5);assert.equal(pingPong(2),0);assert.equal(pingPong(-.25),.25);
 });

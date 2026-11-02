@@ -4,7 +4,7 @@ import {createHardViewer} from './hard-viewer.js';
 import {mountLookUI} from './look/ui.js';
 import {faultsFor} from './look/faults.js';
 import {isHidden,layerOf} from './look/layers.js';
-import {revealOpening} from './look/motion.js';
+import {revealOpening,runView} from './look/motion.js';
 import {handHandle} from './look/hand-lazy.js';
 
 const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -83,7 +83,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
   q('.hl-report-buttons').hidden=inspection.checked.length!==module.checks.length||inspection.complete;put('finding',inspection.checked.length===module.checks.length?module.checks.at(-1).finding:'');if(!lesson){put('overlay-step',inspection.complete?'PRACTICE COMPLETE':`YOUR PRACTICE · ${inspection.checked.length} / ${module.checks.length} OBSERVATIONS`);put('overlay-title',q('[data-hl=lesson-title]').textContent);put('overlay-copy',q('[data-hl=lesson-copy]').textContent);}
  }
  function paint(){
-  if(!state)return;const result=calculateHard(state);put('cause',result.explanation);
+  if(!state)return;state=runView(state,'flow');const result=calculateHard(state);put('cause',result.explanation);
   all('[data-hl-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.hlMode===mode)));
   const instrument=['megger','multimeter'].includes(module.kind);q('[data-hl-action=connect]').disabled=mode==='maintenance'||state.residualV>0;q('[data-hl-action=run]').disabled=mode==='maintenance'||state.testPhase==='discharging';q('[data-hl-action="connect"]').textContent=state.connected?instrument?'Disconnect virtual leads':module.kind==='alternator'?'Disconnect virtual drive':'Disconnect virtual supply':instrument?'Connect virtual leads':module.kind==='alternator'?'Connect virtual prime mover':'Connect virtual supply';q('[data-hl-action="run"]').textContent=state.running?module.kind==='megger'?'End test & discharge':'Stop demonstration':module.kind==='megger'?'Run virtual test':'Run demonstration';q('[data-hl-action="run"]').setAttribute('aria-pressed',String(state.running));put('power-status',state.testPhase==='discharging'?'Illustrative discharge':state.running?'Demonstration running':state.connected?'Connected · off':'Disconnected');put('feedback',message);
   q('[data-hl="metrics"]').innerHTML=result.metrics.map(v=>`<div><span>${escape(v.label)}</span><strong>${format(v.value)} <small>${escape(v.unit)}</small></strong>${v.note?`<small>${escape(v.note)}</small>`:''}</div>`).join('');q('[data-hl="chart"]').innerHTML=chart(module,state,result);

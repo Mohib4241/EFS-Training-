@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {openingFromPixels} from './machine-state.js';
 import {createRig,finish,ghost} from './look/rig.js';
-import {createLayerSprings,waveFactor,springEase} from './look/motion.js';
+import {createLayerSprings,waveFactor,springEase,zigzagPose,pingPong} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
 // Reused by the electrical/MEP labs and the Soft Services scrubber. Previous module GPU resources are released on load.
@@ -115,7 +115,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  function addFlow(points,color,unit){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(80)),new THREE.LineDashedMaterial({color,dashSize:.07,gapSize:.05,transparent:true,opacity:.85,depthTest:false}));line.computeLineDistances();line.visible=false;line.renderOrder=3;root.add(line);paths.push(line);for(let n=0;n<8;n++){const o=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),new THREE.MeshBasicMaterial({color}));root.add(o);flows.push({o,curve,unit,phase:n/8});}}
  function disposeObject(object){const resources=new Set();object.traverse(o=>{if(o.geometry)resources.add(o.geometry);for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[]){if(m.map)resources.add(m.map);resources.add(m);}});for(const r of resources)r.dispose();}
  function load(next){
-  clearHover();disposeObject(root);root.clear();if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();guideLines=null;}groups={};pickables=[];spinners=[];flows=[];paths=[];shells=[];shellApplied=null;leds=[];field=null;anchors.clear();for(const key of Object.keys(meshesOf))delete meshesOf[key];lastPaint='';for(const spring of springs)spring.reset(0);calloutsShown=false;guidesDrawn=false;leadCurves=[];display=null;displayContext=null;displayTexture=null;displayText='';leadKey='';opening=0;framing=1;module=next;
+  clearHover();disposeObject(root);root.clear();if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();guideLines=null;}groups={};pickables=[];spinners=[];flows=[];paths=[];shells=[];shellApplied=null;leds=[];field=null;zigzag=0;root.position.set(0,0,0);root.rotation.set(0,0,0);studio.moveContact(0,0);anchors.clear();for(const key of Object.keys(meshesOf))delete meshesOf[key];lastPaint='';for(const spring of springs)spring.reset(0);calloutsShown=false;guidesDrawn=false;leadCurves=[];display=null;displayContext=null;displayTexture=null;displayText='';leadKey='';opening=0;framing=1;module=next;
   if(['single','three'].includes(module.kind))motor(module.kind==='single');else if(module.kind==='alternator')alternator();else if(module.kind==='cascade')cascade();else if(module.kind==='scrubber')scrubber();else instrument();
   const faultPart=groups[module.checks.at(-1).part];faultMarker=new THREE.Mesh(new THREE.OctahedronGeometry(.095),new THREE.MeshBasicMaterial({color:'#db873b'}));faultMarker.position.set(0,.16,.62);faultPart.add(faultMarker);faultMarker.visible=false;
   studio.track(Object.values(groups),root);buildGuides();resizeScene();resetCamera();schedule();
@@ -174,7 +174,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  }
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
  function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
- let handHover=null,overlay=null;
+ let handHover=null,overlay=null,zigzag=0;
  let bottomBar=null;const inset=()=>(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0;
  function render(time){
   frame=0;if(!module||!state||!active||!visible||document.hidden)return;const dt=Math.min(previous?(time-previous)/1000:.016,.05);previous=time;
@@ -185,6 +185,12 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   const nextFraming=1+opening*.3;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
   if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
   const turning=state.running&&!reduced.matches;
+  // Only the scrubber travels: a zigzag floor pass while it runs, easing back to its place when it stops.
+  if(module.kind==='scrubber'){
+   const travelling=turning&&opening<.05;if(travelling)zigzag+=dt*.2;
+   const goal=travelling?zigzagPose(pingPong(zigzag)):{x:0,z:0,yaw:0},ease=1-Math.exp(-dt*3);
+   root.position.x+=(goal.x-root.position.x)*ease;root.position.z+=(goal.z-root.position.z)*ease;root.rotation.y+=(goal.yaw-root.rotation.y)*ease;studio.moveContact(root.position.x,root.position.z);
+  }
   if(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches){const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),dt*.025);camera.position.copy(controls.target).add(offset);}
   for(const {o,axis,unit} of spinners){const enabled=unit===null?turning:turning&&model.requested?.includes(unit);if(enabled)o.rotation[axis]+=dt*(module.kind==='cascade'?3.2:(model.speed||1200)/60*Math.PI*2*.025)*(model.direction||1);}
   if(field){field.visible=Boolean(state.flow)||(state.xray&&state.running);if(turning)field.rotation.x+=dt*(model.synchronous||1500)/60*Math.PI*2*.025;}
@@ -198,7 +204,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   faultMarker.visible=Boolean(state.inspectionFault);
   studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();
-  const moving=Boolean(cameraTween)||turning||springing||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches);
+  const moving=Boolean(cameraTween)||turning||springing||(module.kind==='scrubber'&&(Math.abs(root.position.x)>.002||Math.abs(root.position.z)>.002))||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches);
   overlay?.frame(time);studio.render(camera,time,moving||Boolean(overlay?.object.visible));if(moving||overlay?.object.visible)schedule();
  }
  function schedule(){if(!frame&&active&&visible&&!document.hidden)frame=requestAnimationFrame(render);}

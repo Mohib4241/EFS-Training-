@@ -139,6 +139,8 @@ export function createRig({canvas,bounds={l:-7,r:7,t:7,b:-5},onChange=()=>{}}){
   renderer,scene,key,hemi,fill,floor,track,finish,ghost,
   get look(){return look;},get bloomActive(){return Boolean(bloom);},get pixelRatio(){return pixelRatio;},
   settleFloor,
+  // The contact shadow follows a machine that travels (the scrubber's zigzag).
+  moveContact(x,z){blob.position.x=x;blob.position.z=z;},
   // The controls cover the bottom of the stage: shift the picture up so the machine sits in the clear space above them.
   fit(camera,width,height,bottom=0){const key=`${width}|${height}|${bottom}`;if(key===fitKey)return;fitKey=key;if(bottom>0)camera.setViewOffset(width,height,0,Math.round(bottom/2),width,height);else camera.clearViewOffset();camera.updateProjectionMatrix();},
   setGlow(on){glow=on;syncBloom();},
