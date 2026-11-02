@@ -5,7 +5,7 @@ import {initialInspection,reduceInspection} from './hard-models.js';
 import {mountLookUI} from './look/ui.js';
 import {faultsFor} from './look/faults.js';
 import {isHidden,layerOf} from './look/layers.js';
-import {revealOpening} from './look/motion.js';
+import {revealOpening,runView} from './look/motion.js';
 import {handHandle} from './look/hand-lazy.js';
 const escape=text=>String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function mountScrubber(container,{guidance,onNavigate,onMachine}){
@@ -35,7 +35,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  function stopLesson(){clearInterval(timer);timer=null;inspection={...inspection,playing:false};}
  function part(id){if(id!=='overview'&&!machine.parts.some(p=>p.id===id))return;state={...state,part:id};if(isHidden('hyper-2000b',id)){if(state.running)state.xray=true;else{state=reduceScrubber(state,{type:'open',value:Math.max(state.open,revealOpening(layerOf('hyper-2000b',id)))}).state;state.xray=true;}}if(mode==='maintenance'&&inspection.phase==='practice'){const out=reduceInspection(inspection,{type:'check',id},machine);inspection=out.state;q('[data-inspection-feedback]').textContent=out.message;if(out.blocked)guidance.notify('Complete the previous step. '+out.message);else guidance.clearNotice();}render();}
  function render(){
-  const result=scrubberResult(state);
+  state=runView(state,'flow');const result=scrubberResult(state);
   container.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));
   q('[data-action=connect]').textContent=state.connected?'Isolate virtual battery':'Enable virtual battery';q('[data-action=run]').textContent=state.running?'Stop demonstration':'Run demonstration';for(const key of ['connect','run'])q(`[data-action=${key}]`).disabled=mode==='maintenance';for(const input of container.querySelectorAll('[data-function]')){input.checked=state.inputs[input.dataset.function];input.disabled=mode==='maintenance';}q('[data-cause]').textContent=result.explanation;
   q('[data-maintenance]').hidden=mode!=='maintenance';const f=frames[inspection.step],lesson=inspection.phase==='lesson';q('[data-lesson-controls]').hidden=!lesson;q('[data-practice]').hidden=lesson;q('[data-inspection=practice]').disabled=!inspection.reviewed;

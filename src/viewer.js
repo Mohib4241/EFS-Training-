@@ -23,7 +23,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
  const tileContext=tileCanvas.getContext('2d');tileContext.fillStyle='#b4c5bb';tileContext.fillRect(0,0,512,512);
  for(let row=0;row<6;row++)for(let col=0;col<6;col++){tileContext.fillStyle=(row+col)%2?'#e3e9df':'#e9ede5';tileContext.fillRect(col*512/6+1.5,row*512/6+1.5,512/6-3,512/6-3);}
  const tilesTexture=new THREE.CanvasTexture(tileCanvas);tilesTexture.colorSpace=THREE.SRGBColorSpace;tilesTexture.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
- const tiles=new THREE.Mesh(new THREE.PlaneGeometry(5.8,4.5),new THREE.MeshStandardMaterial({map:tilesTexture,roughness:.82}));tiles.rotation.x=-Math.PI/2;tiles.position.set(.4,-.007,.65);tiles.receiveShadow=true;scene.add(tiles);
+ const tiles=new THREE.Mesh(new THREE.CircleGeometry(1,96),new THREE.MeshStandardMaterial({map:tilesTexture,roughness:.82}));tiles.scale.set(2.9,2.25,1);tiles.rotation.x=-Math.PI/2;tiles.position.set(.4,-.007,.65);tiles.receiveShadow=true;scene.add(tiles);
  function tint(look){tiles.material.color.set(look==='hologram'?'#37596b':'#ffffff');}tint(studio.look);
  let dust=createDust(),lastPicked=-1,cleaningTime=0,manualOffset=null,singlePass=false,passProgress=0,previousNozzle=null,lastHoseOffset=0,floorView=false;
  const dustGeometry=new THREE.DodecahedronGeometry(.032,0),paperGeometry=new THREE.BoxGeometry(.055,.008,.044);
@@ -87,7 +87,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
  const plug=part('plug',[-2,.12,.5],[0,0,0]);box(plug,[.18,.2,.1],dark,[0,0,0],.025);for(const [x,y] of [[0,.06],[-.045,-.025],[.045,-.025]])box(plug,[.018,.035,.075],metal,[x,y,-.075],.002);
  const socket=new THREE.Group();socket.position.set(-2.15,.76,-.48);scene.add(socket);box(socket,[.44,.48,.07],white,[0,0,0],.025);box(socket,[.075,.12,.016],orange,[.13,.12,.044],.008);
  for(const [x,y] of [[0,.06],[-.045,-.025],[.045,-.025]])box(socket,[.021,.035,.008],rubber,[x,y,.041],.002);
- const wall=new THREE.Group();scene.add(wall);box(wall,[.8,1.18,.08],matte,[-2.15,.57,-.57],.02);
+ const wall=new THREE.Group();scene.add(wall);box(wall,[.8,1.18,.16],matte,[-2.15,.57,-.61],.07);
  const flowCurve=new THREE.CatmullRomCurve3([[1.29,.16,1.53],[1.3,.5,1.14],[1.42,1.15,.75],[1.66,1.6,.15],[2,1.4,-.25],[1.93,.45,-.02],[1.4,.55,.65],[.5,1.02,.66],[0,.95,.2],[0,1.46,0],[0,1.85,0],[0,2.0,-.5]].map(p=>new THREE.Vector3(...p)));
  const flow=new THREE.Group();scene.add(flow);const dots=[];const dotGeometry=new THREE.SphereGeometry(.033,8,6);const dotMaterial=new THREE.MeshBasicMaterial({color:0x16aba2});for(let i=0;i<28;i++){const dot=new THREE.Mesh(dotGeometry,dotMaterial);flow.add(dot);dots.push(dot);}
  const staticFlow=new THREE.Line(new THREE.BufferGeometry().setFromPoints(flowCurve.getPoints(110)),new THREE.LineDashedMaterial({color:0x119a92,dashSize:.06,gapSize:.045,transparent:true,opacity:.75,depthTest:false}));staticFlow.computeLineDistances();flow.add(staticFlow);

@@ -5,7 +5,7 @@ import {vacuumModules,vacuumPartList,scrubberModule} from './soft-content.js';
 import {mountGuidance} from './guidance.js';
 import {initLook,setLook,getLook} from './look/look.js';
 import {isHidden} from './look/layers.js';
-import {revealOpening} from './look/motion.js';
+import {revealOpening,runView} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 import {faultsFor} from './look/faults.js';
 import {handHandle,stopHands} from './look/hand-lazy.js';
@@ -75,6 +75,7 @@ function selectPart(id){
  render();
 }
 function render(){
+ state=runView(state,'air');
  if(partsKey!==machine.id+state.pickupMode){buildVacuumContent();guidance.updateMachine({...machine,parts});ui?.refreshParts();}
  state.glowParts=faultsFor(machine.id).find(f=>f.id===state.fault)?.parts||[];
  for(const [id,key] of [['stroke-toggle','stroke'],['power-toggle','running']])$(id).setAttribute('aria-pressed',String(state[key]));
