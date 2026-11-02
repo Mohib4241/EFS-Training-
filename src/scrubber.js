@@ -22,7 +22,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  function tourFrame(frame,kind){
   startup.open=kind==='machine'&&['connect','run','isolate'].includes(frame.id);
   if(kind==='page'){
-   if(frame.id==='rotate')viewer?.cameraAction('rotate-left',true);if(frame.id==='open')dispatch({type:'open',value:55});if(frame.id==='close')dispatch({type:'open',value:0});if(frame.id==='zoom-in'||frame.id==='zoom-out')viewer?.cameraAction(frame.id,true);
+   if(frame.id==='rotate')viewer?.cameraAction('rotate-left',true);if(frame.id==='open')dispatch({type:'open',value:55});if(frame.id==='close')dispatch({type:'open',value:0});if(frame.id==='zoom-in'||frame.id==='zoom-out'){guidance.setFocused(false);viewer?.cameraAction(frame.id,true);}
   }else{
    if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
    if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
@@ -31,7 +31,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
    if(frame.id==='isolate')dispatch({type:'isolate'});
   }
  }
- function tourEnd(preserve){if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false};startup.open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
+ function tourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false};startup.open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
  function stopLesson(){clearInterval(timer);timer=null;inspection={...inspection,playing:false};}
  function part(id){if(id!=='overview'&&!machine.parts.some(p=>p.id===id))return;state={...state,part:id};if(isHidden('hyper-2000b',id)){if(state.running)state.xray=true;else{state=reduceScrubber(state,{type:'open',value:Math.max(state.open,revealOpening(layerOf('hyper-2000b',id)))}).state;state.xray=true;}}if(mode==='maintenance'&&inspection.phase==='practice'){const out=reduceInspection(inspection,{type:'check',id},machine);inspection=out.state;q('[data-inspection-feedback]').textContent=out.message;if(out.blocked)guidance.notify('Complete the previous step. '+out.message);else guidance.clearNotice();}render();}
  function render(){
@@ -59,7 +59,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
   setFault:id=>patch({fault:id}),
   camera:(name,animate)=>viewer?.cameraAction(name,animate),
   flyTo:id=>viewer?.flyTo(id),
-  onFocus:value=>guidance.setFocused(value),
+  onFocus:value=>{guidance.setFocused(value);viewer?.hands.invalidate();},
   hand:handHandle(()=>({host:q('.hl-viewport'),ui,adapter,viewer:()=>viewer,nextMachine:onMachine}))
  };
  function inspectionAction(type){
@@ -74,5 +74,5 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  container.addEventListener('change',e=>{if(e.target.dataset.function)dispatch({type:'input',key:e.target.dataset.function,value:e.target.checked});});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;render();}});
  const observer=new IntersectionObserver(entries=>{if(!entries[0].isIntersecting){stopLesson();if(active)render();}});observer.observe(container);
- return {targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-maintenance]'),practice:q('[data-maintenance]')},tourStart,tourFrame,tourEnd,show(view='explore'){active=true;if(!ui){ui=mountLookUI(q('.hl-viewport'),adapter);ui.slot.append(startup);}if(!viewer){try{viewer=createHardViewer(q('canvas'),{onSelect:part,onReveal:value=>dispatch({type:'open',value}),onHover:guidance.hover,tooltip:q('.hl-tooltip'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});viewer.load(machine);}catch(error){q('.hl-fallback').hidden=false;console.warn('Scrubber 3D unavailable:',error.message);}}adapter.hand.attach();viewer?.setActive(true);setMode(view);},pauseLesson(){stopLesson();render();},setAutoRotate(value){autoRotate=value;render();},setFocused(value){ui?.setFocus(value);},pause(){active=false;stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;viewer?.setActive(false);},release(){this.pause();viewer?.destroy();viewer=null;}};
+ return {targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-maintenance]'),practice:q('[data-maintenance]')},tourStart,tourFrame,tourEnd,show(view='explore'){active=true;if(!ui){ui=mountLookUI(q('.hl-viewport'),adapter,{focus:true});ui.slot.append(startup);}if(!viewer){try{viewer=createHardViewer(q('canvas'),{onSelect:part,onReveal:value=>dispatch({type:'open',value}),onHover:guidance.hover,tooltip:q('.hl-tooltip'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});viewer.load(machine);}catch(error){q('.hl-fallback').hidden=false;console.warn('Scrubber 3D unavailable:',error.message);}}adapter.hand.attach();viewer?.setActive(true);setMode(view);},pauseLesson(){stopLesson();render();},setAutoRotate(value){autoRotate=value;render();},setFocused(value){ui?.setFocus(value);},pause(){active=false;stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;viewer?.setActive(false);},release(){this.pause();viewer?.destroy();viewer=null;}};
 }

@@ -206,7 +206,7 @@ kbd{display:inline-block;min-width:17px;padding:1px 5px;margin:0 1px;border:1px 
 /* ---- equipment pages: one full-width stage, the learning material stacked underneath ---- */
 :root{--lk-page:#f2f5f4}
 :root[data-look="hologram"]{--lk-page:#02060b}
-html:has(body[data-view=equipment]){background:var(--lk-page)}
+html:has(body:is([data-view=equipment],[data-view=soft-checklist])){background:var(--lk-page)}
 .hl-layout{display:block}
 .hl-centre{min-width:0}
 .hl-explorer{border:0;background:transparent;box-shadow:none;border-radius:0;overflow:visible}
@@ -222,17 +222,17 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) h1{color:var(--lk-text)
 body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)}
 
 /* hologram: the page around the stage goes dark too, and the older sections follow */
-:root[data-look="hologram"] body[data-view=equipment] .app{background:var(--lk-page);color:var(--lk-text)}
-:root[data-look="hologram"] body[data-view=equipment] header{background:rgba(3,10,18,.92);border-color:var(--lk-line);color:var(--lk-text)}
-:root[data-look="hologram"] body[data-view=equipment] header button{background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
-:root[data-look="hologram"] body[data-view=equipment] .breadcrumb,:root[data-look="hologram"] body[data-view=equipment] .breadcrumb strong,:root[data-look="hologram"] body[data-view=equipment] .version{color:var(--lk-muted)}
-:root[data-look="hologram"] body[data-view=equipment] .breadcrumb strong{color:var(--lk-text)}
-:root[data-look="hologram"] body[data-view=equipment] :is(.module-badge,.module-footer,.app-footer,.hl-heading label,.equipment-toolbar){color:var(--lk-muted)}
-:root[data-look="hologram"] body[data-view=equipment] .module-badge{background:var(--lk-card);border-color:var(--lk-line)}
-:root[data-look="hologram"] body[data-view=equipment] .app-footer{background:transparent;border-color:var(--lk-line)}
-:root[data-look="hologram"] body[data-view=equipment] :is(.equipment-toolbar,.hl-mode-row,.hl-heading,.page-heading) :is(button,select){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
-:root[data-look="hologram"] body[data-view=equipment] :is(.equipment-toolbar,.hl-mode-row) [aria-pressed=true]{background:var(--lk-accent-soft);border-color:var(--lk-accent);color:var(--lk-accent);box-shadow:var(--lk-glow)}
-:root[data-look="hologram"] body[data-view=equipment] select option{color:#16212b;background:#fff}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .app{background:var(--lk-page);color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) header{background:rgba(3,10,18,.92);border-color:var(--lk-line);color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) header button{background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb strong,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .version{color:var(--lk-muted)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb strong{color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.module-badge,.module-footer,.app-footer,.hl-heading label,.equipment-toolbar){color:var(--lk-muted)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .module-badge{background:var(--lk-card);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .app-footer{background:transparent;border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.equipment-toolbar,.hl-mode-row,.hl-heading,.page-heading) :is(button,select){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.equipment-toolbar,.hl-mode-row) [aria-pressed=true]{background:var(--lk-accent-soft);border-color:var(--lk-accent);color:var(--lk-accent);box-shadow:var(--lk-glow)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) select option{color:#16212b;background:#fff}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(h1,h2,h3,h4,p,span,strong,label,summary,dt,dd,li,output,code,div,a){color:var(--lk-text)}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(small,.eyebrow,dt,.hl-metrics span){color:var(--lk-muted)}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(.eyebrow,a){color:var(--lk-accent)}
@@ -280,3 +280,21 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 :root[data-look="hologram"] .s3 .s3-panel{-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur);box-shadow:var(--lk-shadow)}
 .maintenance-look{margin:0 0 0 auto;min-width:180px}
 .maintenance-toolbar{align-items:center}
+
+/* maintenance checklist page in the hologram look (the 3D HUD, .s3, has its own colours above) */
+:root[data-look="hologram"] body[data-view=soft-checklist] :is(h1,h2,h3,p,.page-intro,label,summary,span,strong,small,li):not(.s3 *){color:var(--lk-text)}
+:root[data-look="hologram"] body[data-view=soft-checklist] :is(.page-intro,small,.eyebrow):not(.s3 *){color:var(--lk-muted)}
+:root[data-look="hologram"] body[data-view=soft-checklist] .eyebrow:not(.s3 *){color:var(--lk-accent)}
+:root[data-look="hologram"] body[data-view=soft-checklist] :is(.operator-record,.checklist-card,.maintenance-toolbar select,.practice-machine-tag select){background:var(--lk-card);border-color:var(--lk-line);color:var(--lk-text)}
+:root[data-look="hologram"] body[data-view=soft-checklist] :is(button,select):not(.s3 *){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+
+/* ---- collapsed start: only the machine, "Start the machine" and the guides show; one button opens the rest ---- */
+.lk-focus-pill{display:none}
+.look-stage.lk-focus .lk-right{display:flex}
+.look-stage.lk-focus .lk-detail,.look-stage.lk-focus .lk-dock,.look-stage.lk-focus .lk-sheet-tabs{display:none}
+.look-stage.lk-focus .lk-focus-pill{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;font:600 13px var(--font-body);color:var(--lk-text);background:var(--lk-panel);-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur);border:1px solid var(--lk-line);border-radius:999px;box-shadow:var(--lk-shadow);pointer-events:auto}
+.look-stage.lk-focus .lk-focus-pill svg{width:18px;height:18px;color:var(--lk-accent)}
+.look-stage.lk-focus .lk-focus-pill:hover{border-color:var(--lk-accent);color:var(--lk-accent)}
+@media(max-width:768px){
+ .look-stage.lk-focus .lk-right{top:10px;right:8px;left:auto;bottom:auto;width:min(280px,calc(100% - 16px));max-height:none;transform:none}
+}
