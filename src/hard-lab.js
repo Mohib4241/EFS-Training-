@@ -40,7 +40,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
   if(kind==='page'){
    if(frame.id==='rotate')viewer?.cameraAction('rotate-left',true);
    if(frame.id==='open')dispatch({type:'open',value:55});if(frame.id==='close')dispatch({type:'open',value:0});
-   if(frame.id==='zoom-in'||frame.id==='zoom-out')viewer?.cameraAction(frame.id,true);
+   if(frame.id==='zoom-in'||frame.id==='zoom-out'){guidance?.setFocused(false);viewer?.cameraAction(frame.id,true);}
   }else{
    if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
    if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
@@ -49,7 +49,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
    if(frame.id==='isolate')dispatch({type:'isolate'});
   }
  }
- function tourEnd(preserve){if(!preserve&&tourSnapshot){state={...state,...tourSnapshot};state=reduceHard(state,{type:'isolate'}).state;startup.open=false;viewer?.cameraAction('reset');paint();startDischarge();}tourSnapshot=null;}
+ function tourEnd(preserve){if(!preserve)guidance?.setFocused(true);if(!preserve&&tourSnapshot){state={...state,...tourSnapshot};state=reduceHard(state,{type:'isolate'}).state;startup.open=false;viewer?.cameraAction('reset');paint();startDischarge();}tourSnapshot=null;}
  const put=(key,text)=>q(`[data-hl="${key}"]`).textContent=text;
  function remember(){if(id){states.set(id,state);inspections.set(id,inspection);}}
  function stopLesson(){if(lessonTimer)clearInterval(lessonTimer);lessonTimer=null;if(inspection)inspection={...inspection,playing:false};}
@@ -117,11 +117,11 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
   setFault:faultId=>patch({fault:faultId}),
   camera:(name,animate)=>viewer?.cameraAction(name,animate),
   flyTo:partId=>viewer?.flyTo(partId),
-  onFocus:value=>guidance?.setFocused(value),
+  onFocus:value=>{guidance?.setFocused(value);viewer?.hands.invalidate();},
   hand:handHandle(()=>({host:q('.hl-viewport'),ui,adapter,viewer:()=>viewer,nextMachine:onMachine}))
  };
- function mountUi(){if(ui){ui.setMachine();return;}ui=mountLookUI(q('.hl-viewport'),adapter);ui.slot.append(startup);}
- function guideOptions({autoGuide=false}={}){const maintenance=mode==='maintenance';return {maintenance,autoGuide:autoGuide&&!maintenance,toolbarHost:q('.hl-heading'),dock:true,focused:false,targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-hl-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-hl=maintenance]'),practice:q('[data-hl=maintenance]')},onTourStart:maintenance?undefined:tourStart,onTourFrame:maintenance?undefined:tourFrame,onTourEnd:maintenance?undefined:tourEnd,onGuideOpen:()=>{stopLesson();paint();},onAutoRotate:value=>{autoRotate=value;paint();},onPanels:value=>ui?.setFocus(value)};}
+ function mountUi(){if(ui){ui.setMachine();return;}ui=mountLookUI(q('.hl-viewport'),adapter,{focus:true});ui.slot.append(startup);}
+ function guideOptions({autoGuide=false}={}){const maintenance=mode==='maintenance';return {maintenance,autoGuide:autoGuide&&!maintenance,toolbarHost:q('.hl-heading'),dock:true,focused:true,targets:{canvas:q('canvas'),get camera(){return ui?.cameraGroup||q('.hl-viewport');},startup,maintenance:q('[data-hl-mode=maintenance]'),tasks:q('.hl-mode-row'),lesson:q('[data-hl=maintenance]'),practice:q('[data-hl=maintenance]')},onTourStart:maintenance?undefined:tourStart,onTourFrame:maintenance?undefined:tourFrame,onTourEnd:maintenance?undefined:tourEnd,onGuideOpen:()=>{stopLesson();paint();},onAutoRotate:value=>{autoRotate=value;paint();},onPanels:value=>ui?.setFocus(value)};}
  function setupViewer(){try{viewer=createHardViewer(q('canvas'),{onSelect:selectPart,onHover:(id,user)=>guidance?.hover(id,user),onReveal:value=>dispatch({type:'open',value}),tooltip:q('.hl-tooltip'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});q('canvas').addEventListener('viewer-unavailable',()=>q('.hl-fallback').hidden=false,{signal});}catch(error){q('.hl-fallback').hidden=false;console.warn('Hard Services 3D unavailable:',error.message);}}
  function pause(){live=false;stopLesson();stopDischarge();if(state){const out=reduceHard(state,{type:'isolate'});state=out.state;remember();}viewer?.setActive(false);}
  // Leaving the lab page releases the GPU: geometry, textures and the bloom composer go; show() rebuilds them.

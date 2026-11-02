@@ -31,7 +31,7 @@ const CAMERA_BUTTONS=[['rotate-left','↶','Rotate left'],['rotate-right','↷',
 const element=(tag,className,html='')=>{const el=document.createElement(tag);if(className)el.className=className;if(html)el.innerHTML=html;return el;};
 const escape=text=>String(text??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-export function mountLookUI(host,adapter,{ids={}}={}){
+export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const abort=new AbortController(),{signal}=abort;
  let rows=[],categories=[],filter='all',machineId=adapter.machine.id,faults=[],focus=false,last='',sheet='',handActive=false;
  host.classList.add('look-stage');
@@ -47,6 +47,7 @@ export function mountLookUI(host,adapter,{ids={}}={}){
   <div class="lk-right"><div class="lk-slot"></div><aside class="lk-panel lk-detail" aria-label="Part details" aria-live="polite"></aside></div>
   <div class="lk-bottom">
    <div class="lk-teardown"><div class="lk-readout"><output class="lk-percent"></output><span class="lk-stage"></span></div><div class="lk-track"><input class="lk-slider" type="range" min="0" max="100" step="0.1" value="0" aria-label="Staged teardown"><div class="lk-stops"></div></div></div>
+   <button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts, details and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button>
    <div class="lk-sheet-tabs"><button type="button" data-sheet="parts">${icon('parts')}<span>Parts</span></button><button type="button" data-sheet="detail">${icon('detail')}<span>Details</span></button><button type="button" data-look-cycle>${icon('glow')}<span class="lk-look-name"></span></button></div>
    <div class="lk-dock" role="toolbar" aria-label="Layers and camera"></div>
   </div>
@@ -145,7 +146,7 @@ export function mountLookUI(host,adapter,{ids={}}={}){
   if(tool.dataset.tool==='hand'){adapter.hand.toggle();return;}
   adapter.setFlag(tool.dataset.tool,tool.getAttribute('aria-pressed')!=='true');
  },{signal});
- function setFocus(on){if(focus===on)return;focus=on;host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
+ function setFocus(on){if(focus===on)return;focus=on;calloutKey='';host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
 
  // ---- narrow screens: the panels become bottom sheets ----
  const narrow=matchMedia('(max-width:768px)');
@@ -176,7 +177,8 @@ export function mountLookUI(host,adapter,{ids={}}={}){
  // ---- callouts: leader lines from each part to a name, spread so labels never overlap ----
  const leaders=q('.lk-leaders'),labels=q('.lk-labels');let calloutKey='';
  function drawCallouts(items,width,height){
-  if(!items?.length){if(calloutKey){leaders.replaceChildren();labels.replaceChildren();calloutKey='';}return;}
+  // the collapsed (focus) view is just the machine: no name tags until the controls are opened
+  if(!items?.length||focus){if(calloutKey){leaders.replaceChildren();labels.replaceChildren();calloutKey='';}return;}
   const centre=width/2,sides=[[],[]];
   for(const item of items)sides[item.x<centre?0:1].push(item);
   const key=items.map(i=>`${i.id}${Math.round(i.x/3)}${Math.round(i.y/3)}`).join('');if(key===calloutKey)return;calloutKey=key;
@@ -205,7 +207,9 @@ export function mountLookUI(host,adapter,{ids={}}={}){
   for(const b of all('[data-part]'))b.toggleAttribute('data-related',Boolean(faults.find(f=>f.id===state.fault)?.parts.includes(b.dataset.part)));
  }
 
+ q('[data-focus-exit]').addEventListener('click',()=>setFocus(false),{signal});
  paintParts();paintFaults();update();
+ if(startFocused)setFocus(true);
  return {
   update,drawCallouts,setFocus,
   get focus(){return focus;},

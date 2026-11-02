@@ -63,7 +63,7 @@ function enterHardLab(id,view,token){
 function enterScrubber(view,token){
  loadLab('scrubber',$('scrubber-lab'),'equipment lab',token).then(module=>{
   if(!module)return;if(!scrubber)scrubber=module.mountScrubber($('scrubber-lab'),{guidance,onMachine:goMachine,onNavigate:next=>showPage('scrubber',[next])});scrubber.show(view);
-  guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:false});
+  guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:true});
  });
 }
 function action(type,value){const result=transition(state,{type,value});state=result.state;state.autoRotate=guidance.autoRotate;if(type==='pickup')viewer?.resetDust();if(result.message)$('operation-message').textContent=result.message;render();}
@@ -93,7 +93,7 @@ function vacuumTourFrame(frame,kind){
  if(kind==='page'){
   if(frame.id==='rotate')viewer?.cameraAction('rotate-left',true);
   if(frame.id==='open')action('open',70);if(frame.id==='close')action('open',0);
-  if(frame.id==='zoom-in'||frame.id==='zoom-out')viewer?.cameraAction(frame.id,true);
+  if(frame.id==='zoom-in'||frame.id==='zoom-out'){guidance.setFocused(false);viewer?.cameraAction(frame.id,true);}
   if(frame.id==='hover'){state.part='cover';render();}
  }else{
   if(frame.id==='connect'&&!state.connected)action('plug');
@@ -103,11 +103,11 @@ function vacuumTourFrame(frame,kind){
   if(frame.id==='isolate'){if(state.running)action('power');if(state.connected)action('plug');state.air=false;state.xray=false;render();}
  }
 }
-function vacuumTourEnd(preserve){if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
+function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
 // Tour targets on the 3D checklist, looked up when the tour reaches them (the 3D view mounts after the page opens).
 const inPractice=selector=>$('maintenance-practice').querySelector(selector)||$('maintenance-practice');
 const maintenanceTargets={get canvas(){return inPractice('.s3-stage');},get tasks(){return inPractice('.s3-tabs');},get lesson(){return inPractice('.s3-modes');},get practice(){return inPractice('.s3-stage');}};
-function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),dock:!maintenanceView,focused:false,targets:maintenanceView?maintenanceTargets:{canvas:$('machine'),get camera(){return ui?.cameraGroup||$('viewport');},startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;render();},onPanels:value=>ui?.setFocus(value)});}
+function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:maintenanceView?$('machine-guidance'):$('vacuum-guides-host'),dock:!maintenanceView,focused:true,targets:maintenanceView?maintenanceTargets:{canvas:$('machine'),get camera(){return ui?.cameraGroup||$('viewport');},startup:$('startup-panel'),maintenance:$('open-checklist')},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;render();},onPanels:value=>ui?.setFocus(value)});}
 function loadVacuum(id){if(!Object.hasOwn(vacuumModules,id))id='junior-103';if(machine.id!==id){machine=vacuumModules[id];parts=machine.parts;state=initialState(id);for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();viewer?.clearHover();viewer?.resetDust();viewer?.cameraAction('reset');}buildVacuumContent();render();}
 
 function buildVacuumContent(){
@@ -156,13 +156,13 @@ const vacuumAdapter={
  setFlag,setFault,
  camera:(name,animate)=>viewer?.cameraAction(name,animate),
  flyTo:id=>viewer?.flyTo(id),
- onFocus:value=>{guidance.setFocused(value);},
+ onFocus:value=>{guidance.setFocused(value);viewer?.hands.invalidate();},
  hand:handHandle(()=>({host:$('viewport'),ui,adapter:vacuumAdapter,viewer:()=>viewer,nextMachine:goMachine}))
 };
 function ensureUi(){
  if(ui)return Promise.resolve(ui);
  return uiReady??=loadModule('lookUi').then(({mountLookUI})=>{
-  ui=mountLookUI($('viewport'),vacuumAdapter,{ids:{'rotate-left':'rotate-left','rotate-right':'rotate-right','zoom-out':'zoom-out','zoom-in':'zoom-in','camera-reset':'camera-reset'}});
+  ui=mountLookUI($('viewport'),vacuumAdapter,{focus:true,ids:{'rotate-left':'rotate-left','rotate-right':'rotate-right','zoom-out':'zoom-out','zoom-in':'zoom-in','camera-reset':'camera-reset'}});
   ui.slot.append($('startup-panel'));render();if(viewer)vacuumAdapter.hand.attach();return ui;
  }).catch(error=>{uiReady=undefined;console.warn('Controls unavailable:',error.message);return null;});
 }
