@@ -4,7 +4,7 @@
 const LAYERS={
  'junior-103':['cover handle clips switch','tank collector filter float inlet hose wand tool cable plug','motor fan','base wheels'],
  'junior-429':['cover handle clips switch','tank collector filter float inlet hose wand tool cable plug','motor fan','base wheels'],
- 'hyper-2000b':['handle controls recovery','solution filter solution-filter valve','vacuum brush-motor battery recovery-hose drain','body wheels brush squeegee'],
+ 'hyper-2000b':['handle controls recovery','solution filter solution-filter valve de-bearing nde-bearing bearing exciter-stator start-switch','vacuum brush-motor battery recovery-hose drain','body wheels brush squeegee'],
  'motor-1ph':['frame cowl terminal-box endshields','fan terminal-board earth capacitors start-switch','stator windings auxiliary de-bearing nde-bearing','rotor shaft feet'],
  'motor-3ph':['frame cowl terminal-box endshields','fan terminal-board earth','stator windings de-bearing nde-bearing','rotor shaft feet'],
  'alternator':['frame cowl terminal-box','fan avr coupling','stator windings exciter-stator bearing rectifier','rotor shaft exciter-rotor'],

@@ -6,7 +6,8 @@ import {scrubberModule} from '../soft-content.js';
 // vacuums, and the inspection findings of each machine. No error codes, pressures or other numbers are added here.
 const VACUUM_PARTS={clear:['tool','wand','hose','inlet','collector','filter','fan'],hose:['tool','wand','hose','inlet'],filter:['filter','collector']};
 const ISOLATED='Check with the machine switched off and isolated from power.';
-const fromChecks=(module,partName)=>module.checks.map((check,index)=>({id:`${check.part}-${index}`,label:check.title,parts:[check.part],cause:check.finding||check.body,check:`${check.body} ${ISOLATED}`,partName:partName(check.part)}));
+// Every checklist of a machine contributes its inspection areas, so the dropdown covers all of them.
+const fromChecks=(module,partName)=>(module.checklists?module.checklists.flatMap((list,l)=>list.checks.map(check=>({check,l}))):module.checks.map(check=>({check,l:0}))).map(({check,l},index)=>({id:`${check.part}-${l}-${index}`,label:check.title,parts:[check.part],cause:check.finding||check.body,check:`${check.body} ${ISOLATED}`,partName:partName(check.part)}));
 
 export function faultsFor(machineId){
  if(machineId.startsWith('junior-')){

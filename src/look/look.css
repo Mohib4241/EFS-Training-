@@ -206,7 +206,7 @@ kbd{display:inline-block;min-width:17px;padding:1px 5px;margin:0 1px;border:1px 
 /* ---- equipment pages: one full-width stage, the learning material stacked underneath ---- */
 :root{--lk-page:#f2f5f4}
 :root[data-look="hologram"]{--lk-page:#02060b}
-html:has(body:is([data-view=equipment],[data-view=soft-checklist])){background:var(--lk-page)}
+html:has(body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue])){background:var(--lk-page)}
 .hl-layout{display:block}
 .hl-centre{min-width:0}
 .hl-explorer{border:0;background:transparent;box-shadow:none;border-radius:0;overflow:visible}
@@ -222,17 +222,17 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) h1{color:var(--lk-text)
 body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)}
 
 /* hologram: the page around the stage goes dark too, and the older sections follow */
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .app{background:var(--lk-page);color:var(--lk-text)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) header{background:rgba(3,10,18,.92);border-color:var(--lk-line);color:var(--lk-text)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) header button{background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb strong,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .version{color:var(--lk-muted)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .breadcrumb strong{color:var(--lk-text)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.module-badge,.module-footer,.app-footer,.hl-heading label,.equipment-toolbar){color:var(--lk-muted)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .module-badge{background:var(--lk-card);border-color:var(--lk-line)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) .app-footer{background:transparent;border-color:var(--lk-line)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.equipment-toolbar,.hl-mode-row,.hl-heading,.page-heading) :is(button,select){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) :is(.equipment-toolbar,.hl-mode-row) [aria-pressed=true]{background:var(--lk-accent-soft);border-color:var(--lk-accent);color:var(--lk-accent);box-shadow:var(--lk-glow)}
-:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist]) select option{color:#16212b;background:#fff}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .app{background:var(--lk-page);color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) header{background:rgba(3,10,18,.92);border-color:var(--lk-line);color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) header button{background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .breadcrumb,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .breadcrumb strong,:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .version{color:var(--lk-muted)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .breadcrumb strong{color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) :is(.module-badge,.module-footer,.app-footer,.hl-heading label,.equipment-toolbar){color:var(--lk-muted)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .module-badge{background:var(--lk-card);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) .app-footer{background:transparent;border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) :is(.equipment-toolbar,.hl-mode-row,.hl-heading,.page-heading) :is(button,select){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) :is(.equipment-toolbar,.hl-mode-row) [aria-pressed=true]{background:var(--lk-accent-soft);border-color:var(--lk-accent);color:var(--lk-accent);box-shadow:var(--lk-glow)}
+:root[data-look="hologram"] body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue]) select option{color:#16212b;background:#fff}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(h1,h2,h3,h4,p,span,strong,label,summary,dt,dd,li,output,code,div,a){color:var(--lk-text)}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(small,.eyebrow,dt,.hl-metrics span){color:var(--lk-muted)}
 :root[data-look="hologram"] :is(.hl-calculation,.hl-experiment,.hl-maintenance,.scrubber-functions,.hl-learn,.stage-card,.stage-below details,.hl-view-controls) :is(.eyebrow,a){color:var(--lk-accent)}
@@ -298,3 +298,23 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 @media(max-width:768px){
  .look-stage.lk-focus .lk-right{top:10px;right:8px;left:auto;bottom:auto;width:min(280px,calc(100% - 16px));max-height:none;transform:none}
 }
+
+/* ---- Hard Services maintenance checklists ---- */
+.hl-checklists{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.hl-checklists button{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;font:600 13px var(--font-body);border:1px solid var(--lk-line);border-radius:10px;background:var(--lk-field);color:var(--lk-text)}
+.hl-checklists button b{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;font:600 11px var(--font-mono);background:var(--lk-accent-soft);color:var(--lk-accent)}
+.hl-checklists button[aria-pressed=true]{border-color:var(--lk-accent);background:var(--lk-accent-soft);color:var(--lk-accent);box-shadow:var(--lk-glow)}
+.hl-checklist-summary{margin:0 0 14px;color:var(--lk-muted);font-size:13px;line-height:1.6}
+.hl-checklist-links{display:grid;gap:6px;margin-top:12px}
+.hl-checklist-links button{text-align:left;padding:9px 12px;font:500 13px var(--font-body);border:1px solid var(--lk-line);border-radius:9px;background:var(--lk-field);color:var(--lk-text)}
+.hl-checklist-links button:hover{border-color:var(--lk-accent);color:var(--lk-accent)}
+
+/* Hard Services equipment and checklist cards in the hologram look */
+:root[data-look="hologram"] body:is([data-view=hard-checklist],[data-view=catalogue]) :is(h1,h2,h3,p,span,strong,small,label){color:var(--lk-text)}
+:root[data-look="hologram"] body:is([data-view=hard-checklist],[data-view=catalogue]) :is(small,.eyebrow,p){color:var(--lk-muted)}
+:root[data-look="hologram"] body:is([data-view=hard-checklist],[data-view=catalogue]) .eyebrow{color:var(--lk-accent)}
+:root[data-look="hologram"] .hl-catalogue article{background:var(--lk-card);border-color:var(--lk-line);box-shadow:var(--lk-shadow)}
+:root[data-look="hologram"] .hl-catalogue article :is(button){background:var(--lk-field);color:var(--lk-text);border-color:var(--lk-line)}
+.hl-start-check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--lk-text)}
+.hl-start-check[hidden]{display:none}
+:root[data-look="hologram"] .hl-catalogue-symbol{background:var(--lk-accent-soft);color:var(--lk-accent);border-color:var(--lk-line)}

@@ -1,3 +1,4 @@
+import {attachChecklists} from './hard-checklists.js';
 // Original teaching copy. Manufacturer references establish family features, not exact internal geometry.
 const part=(id,name,group,body,why,motion)=>({id,name,group,body,why,motion});
 const source=(title,url)=>({title,url});
@@ -110,5 +111,6 @@ export const hardModules={
  }
 
 };
+attachChecklists(hardModules);
 export const hardList=Object.values(hardModules);
 export function getHardModule(id){if(!Object.hasOwn(hardModules,id))throw new RangeError('Unknown equipment module');return hardModules[id];}

@@ -62,6 +62,7 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `src/machine-state.js` | Testable connection/power/opening state transitions and interlocks |
 | `src/viewer.js` | Procedural geometry, selection, camera, part motion, finishes, layered spring motion, callouts, guides, fly-to, hand-control hooks and render scheduling (Junior 103 and 429) |
 | `src/hard-viewer.js` | The same for the HYPER 2000B and the six Hard Services labs: geometry, finishes, layered spring motion, flow paths, callouts, guides, fly-to and hand-control hooks |
+| `src/hard-checklists.js` | Three maintenance checklists for each Hard Services machine (lesson, isolate, ordered observations, report the concern), attached to the module content as `module.checklists` |
 | `src/look/look.js` | The two looks: `data-look` on the root element, remembered in `localStorage` (the only part of the look module in the first load, with `layers.js`, `motion.js` and `faults.js`, which are small and pure) |
 | `src/look/rig.js`, `src/look/bloom.js` | Lazy: the shared WebGL rig (ACES tone mapping, image-based light, one soft key light, fog, floor that follows the lowest part, contact shadow, finishes, quality governor, video backdrop) and the UnrealBloom composer, created only in the Hologram look |
 | `src/look/ui.js` | Lazy, three.js-free: look switch, parts panel with category chips, detail sheet, staged teardown, layer dock, fault finder, callout layout, keyboard shortcuts. Each page hands it an adapter |
