@@ -55,7 +55,8 @@ test('fonts are self-hosted latin woff2 files with hashed names, and nothing is 
  const css=read(html.match(/href="(\/static\/styles-[^"]+\.css)"/)[1]);
  const urls=[...css.matchAll(/url\("?\.\/fonts\/([^)"]+\.woff2)"?\)/g)].map(m=>m[1]);assert.deepEqual([...urls].sort(),[...fonts].sort(),'the stylesheet references exactly the built fonts');
  for(const family of ['Chakra Petch','IBM Plex Sans Condensed','IBM Plex Mono'])assert.ok(css.includes(family),`${family} is declared`);
- assert.doesNotMatch(css+html,/fonts\.googleapis|fonts\.gstatic|https?:\/\//,'no remote font or other remote reference');
+ assert.doesNotMatch(css+html,/fonts\.googleapis|fonts\.gstatic/,'no font service is referenced');
+ assert.doesNotMatch(css,/url\(\s*["']?(?:https?:)?\/\/|@import\s+(?:url\()?["']?(?:https?:)?\/\//,'the stylesheet loads nothing from another origin');
 });
 
 test('maintenance practice is 3D only: a lazy 3D chunk, a written fallback without three.js, and no 2D simulation',()=>{

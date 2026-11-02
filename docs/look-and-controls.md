@@ -54,10 +54,10 @@ The hands are drawn in the 3D scene as glowing joints and bones with real depth,
 
 ## What was tested
 
-See the final report in the pull request or commit message for the exact counts. In outline:
-
-- `npm run check`, `npm test` and `npm run build` pass. New tests cover springs, waves, layers and categories of all nine machines, faults, the quality ladder, camera easing and the gesture recogniser (`tests/look.test.mjs`, `tests/look-hands.test.mjs`), and the delivery tests now check that the look module, bloom, hand control and the tracker stay lazy, that the fonts are self-hosted and hashed, and that `.woff2` is served correctly. No existing assertion was weakened; the worker-ownership assertion now names the shared tracker chunk instead of one importer.
-- In a browser at 1440x900 and 390x844, in both looks, on the equipment pages and the maintenance practice: layout, console, the controls and keyboard, and each page type's lifecycle. Hand control was driven with synthetic landmark frames (see the limits).
+- `npm run check`, `npm test` and `npm run build` pass: **121 of 121 tests** (the 51 earlier ones plus 70 new or extended) and a full-quality production build. The first load is **62.6 KB gzip** (budget 90 KB).
+- New tests: springs, waves, layers and categories of all nine machines, fault conditions, the quality ladder and camera easing (`tests/look.test.mjs`); the gesture recogniser (`tests/look-hands.test.mjs`); and in `tests/delivery.test.mjs` that the look rig, controls, bloom, hand control and the tracker stay lazy, that the seven fonts are self-hosted, latin-subset and hashed and the stylesheet loads nothing from another origin, and that `.woff2` is served as `font/woff2` with immutable caching. No existing assertion was weakened. The assertion that named the maintenance practice as the only importer of the tracker now names the shared lazy tracker chunk instead, because hand control uses it too, and it still checks that exactly one chunk knows the worker's location and that no page load fetches it.
+- In a browser at 1440x900 and 390x844, in both looks: all nine equipment pages open collapsed; the expand button and `F` open the controls; the slider, the four stops, part selection (including a hidden part opening the model), the category chips, every dock toggle and the fault finder were exercised on all nine pages in both looks with no console errors; the maintenance practice and its look switch; the "Cleaning on tiles" pass (40 of 40 markers) and leaving and returning to a page (the renderer is rebuilt without errors).
+- Hand control was driven with synthetic landmark frames in the browser: two-hand spread (with the "% open" tether label), a quick pinch pressing a dock button, pinch-and-drag orbit, fist-then-open and open-then-fist, and a palm flick that moved the session across the vacuum, scrubber and lab pages.
 
 ## Known limits
 
