@@ -1,4 +1,4 @@
-export function initialState(variant='junior-103'){return {variant,pickupMode:variant==='junior-429'?'wet':'dry',floorMode:'hard',part:'overview',open:0,connected:false,running:false,xray:false,air:false,callouts:true,condition:'clear',stroke:false};}
+export function initialState(variant='junior-103'){return {variant,pickupMode:variant==='junior-429'?'wet':'dry',floorMode:'hard',part:'overview',open:0,connected:false,running:false,xray:false,air:false,callouts:true,condition:'clear',stroke:false,fault:'',guides:false,glow:true};}
 // Positive pixels reveal parts; wheel-up and outward pinch map to this direction.
 export function openingFromPixels(open,pixels){
  if(!Number.isFinite(open)||open<0||open>100||!Number.isFinite(pixels))throw new RangeError('Invalid reveal gesture');
