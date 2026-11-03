@@ -3,7 +3,7 @@
  --font-display:'Chakra Petch',system-ui,sans-serif;
  --font-body:'IBM Plex Sans Condensed','Arial Narrow',system-ui,sans-serif;
  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
- --lk-stage:radial-gradient(120% 90% at 50% 58%,#e9edf0,#dce1e6 55%,#d0d6db);
+ --lk-stage:radial-gradient(120% 90% at 50% 58%,#ffffff,#ffffff 55%,#f3f5f7);
  --lk-accent:#0a8f9c;--lk-accent-soft:rgba(10,143,156,.12);--lk-amber:#c98a1a;--lk-ok:#0f9d6e;
  --lk-text:#16212b;--lk-muted:#52626f;
  --lk-panel:rgba(255,255,255,.84);--lk-blur:blur(16px) saturate(1.1);--lk-line:rgba(22,40,56,.13);--lk-shadow:0 10px 32px -14px rgba(20,35,50,.4);
@@ -204,7 +204,8 @@ kbd{display:inline-block;min-width:17px;padding:1px 5px;margin:0 1px;border:1px 
 .lk-dock .lk-tool[aria-pressed=true]{background:var(--lk-accent-soft)}
 
 /* ---- equipment pages: one full-width stage, the learning material stacked underneath ---- */
-:root{--lk-page:#f2f5f4}
+:root{--lk-page:#ffffff}
+:root[data-look="studio"],:root[data-look="studio"] body{background:#ffffff}
 :root[data-look="hologram"]{--lk-page:#02060b}
 html:has(body:is([data-view=equipment],[data-view=soft-checklist],[data-view=hard-checklist],[data-view=catalogue])){background:var(--lk-page)}
 .hl-layout{display:block}

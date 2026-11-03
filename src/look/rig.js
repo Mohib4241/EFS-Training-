@@ -7,7 +7,7 @@ import {getLook} from './look.js';
 // stage colour, a floor that follows the lowest part and a contact shadow that fades as parts lift apart. Looks only change
 // tokens (colours, light, floor, rim glow, bloom); the machines themselves are never rebuilt.
 export const TOKENS={
- studio:{stops:['#e9edf0','#dce1e6','#d0d6db'],fog:'#dce1e6',density:.014,env:1,hemi:['#ffffff','#9fb0b9',.55],key:['#fff6ea',2.6],fill:['#cfe2ec',.7],accent:'#0a8f9c',rim:0,shadow:.2},
+ studio:{stops:['#ffffff','#ffffff','#f3f5f7'],fog:'#ffffff',density:.014,env:1,hemi:['#ffffff','#9fb0b9',.55],key:['#fff6ea',2.6],fill:['#cfe2ec',.7],accent:'#0a8f9c',rim:0,shadow:.2},
  hologram:{stops:['#08182a','#03080f','#02060b'],fog:'#03080f',density:.026,env:.42,hemi:['#3de0ff','#04101c',.5],key:['#bfeaff',1.5],fill:['#2aa6d4',1.1],accent:'#3de0ff',rim:.7,shadow:.5}
 };
 

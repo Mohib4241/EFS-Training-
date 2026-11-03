@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNarrator,speechChunks,voiceForLanguage} from '../src/guidance.js';
+import {createNarrator,speechChunks,voiceForLanguage,soundPreference} from '../src/guidance.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.js';
 import {initialState,transition} from '../src/machine-state.js';
 import {initialPractice,reducePractice} from '../src/maintenance-state.js';
@@ -120,4 +120,21 @@ test('guide speech is split at sentence ends into short pieces, and reports when
  for(let i=0;i<chunks.length;i++){assert.equal(finished,0,'not finished while pieces remain');calls[i].onend();}
  assert.equal(finished,1,'finished once, after the last piece');
  const quiet=createNarrator({synth:{cancel(){},getVoices:()=>[],speak(){}},Utterance:class{}});let told=0;quiet.speak('x','k',null,()=>told++);assert.equal(told,1,'with sound off it reports done at once, so a tour never waits for silence');
+});
+
+test('the voice is on by default in English, and stays off only if the learner turned it off',()=>{
+ const store=value=>({getItem:key=>key==='efs-guide-sound'?value:null});
+ assert.equal(soundPreference(store(null)),true,'nothing saved: on');assert.equal(soundPreference(store('on')),true);assert.equal(soundPreference(store('off')),false,'a learner who turned it off stays off');
+ assert.equal(soundPreference({getItem(){throw new Error('blocked');}}),true,'storage that cannot be read does not silence the guide');
+ const synth={cancel(){},speak(){},getVoices(){return [{name:'Daniel',lang:'en-GB',localService:true},{name:'Lekha',lang:'hi-IN',localService:true}];}};
+ const narrator=createNarrator({synth,Utterance:class{constructor(text){this.text=text;}}});narrator.setEnabled(soundPreference(store(null)));
+ assert.equal(narrator.enabled,true);assert.equal(narrator.language,'english','the voice language starts as English');
+});
+
+test('a browser that refuses speech before any click or key press is told so, and the guide carries on',()=>{
+ const statuses=[];let spoken;const synth={cancel(){},speak(u){spoken=u;},getVoices(){return [{name:'Daniel',lang:'en-GB',localService:true}];}};
+ const narrator=createNarrator({synth,Utterance:class{constructor(text){this.text=text;}},onStatus:v=>statuses.push(v)});narrator.setEnabled(true);
+ let done=0;narrator.speak('Meet your machine.','guide',null,()=>done++);spoken.onerror({error:'not-allowed'});
+ assert.equal(narrator.blocked,true);assert.equal(done,1,'the visual guide is not held up');assert.match(statuses.at(-1),/Click or press a key/);assert.equal(narrator.enabled,true,'sound stays on');
+ narrator.speak('Again.','guide');spoken.onstart();assert.equal(narrator.blocked,false,'speech working again clears the notice');
 });

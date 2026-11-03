@@ -2,7 +2,7 @@
 
 **Look and controls (branch `look-and-controls`).** All nine equipment pages share one studio-style renderer, two switchable looks (Studio and Hologram) and one set of engineering controls (collapsed at first: pages open with just the machine, "Start the machine" and the guides; one button opens the rest): a staged teardown slider, a layer dock, a colour-coded parts panel with a detail sheet, a fault finder and optional webcam hand control. See [the look-and-controls record](docs/look-and-controls.md) for what changed, what was tested and the known limits.
 
-Soft Services now includes the Junior 103 dry vacuum, Junior 429 wet/dry vacuum and HYPER 2000B scrubber dryer. Hard Services includes six electrical/MEP labs. All nine equipment pages share opt-in spoken part guides, Machine Guide and Page Guide, focused/collapsible panels and controlled auto orbit. Read the [current increment, source register, responsibilities and validation record](docs/guides-and-soft-equipment.md) for the latest delivery. The later sections preserve the earlier module implementation records.
+Soft Services now includes the Junior 103 dry vacuum, Junior 429 wet/dry vacuum and HYPER 2000B scrubber dryer. Hard Services includes six electrical/MEP labs. All nine equipment pages share spoken part guides (on by default, in English), Machine Guide and Page Guide, focused/collapsible panels and controlled auto orbit. Read the [current increment, source register, responsibilities and validation record](docs/guides-and-soft-equipment.md) for the latest delivery. The later sections preserve the earlier module implementation records.
 
 ## Run locally
 
@@ -215,7 +215,7 @@ Physical multi-touch, broad FPS/device benchmarking, a complete assistive-techno
 
 ## Shared guides and Soft Services equipment — previous increment
 
-See [guides-and-soft-equipment.md](docs/guides-and-soft-equipment.md) for the current work packages, changed-file map, reference evidence, executed checks and remaining limits. Direct routes are `#junior-103`, `#junior-429`, `#hyper-2000b`, `#maintenance/junior-103`, `#maintenance/junior-429` and `#hyper-2000b/maintenance`. Sound starts off and requires a user action. Narration uses an available system/browser voice, cancels on navigation or hiding, and has written transcripts. The wet/dry vacuum is a separate teaching configuration, not permission to use dry filters for liquid collection. Supplied photos remain outside the source and build assets.
+See [guides-and-soft-equipment.md](docs/guides-and-soft-equipment.md) for the current work packages, changed-file map, reference evidence, executed checks and remaining limits. Direct routes are `#junior-103`, `#junior-429`, `#hyper-2000b`, `#maintenance/junior-103`, `#maintenance/junior-429` and `#hyper-2000b/maintenance`. Sound is on by default in English; a learner can turn it off (the choice is remembered) and browsers only allow speech after a first click or key press, which the guide says once. Narration uses an available system/browser voice, cancels on navigation or hiding, and has written transcripts. The wet/dry vacuum is a separate teaching configuration, not permission to use dry filters for liquid collection. Supplied photos remain outside the source and build assets.
 
 
 ## Visual tours and weekly filter care — current correction
