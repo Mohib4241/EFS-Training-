@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase,runView,zigzagPose,pingPong,ZIGZAG} from '../src/look/motion.js';
+import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase,runView,zigzagPose,pingPong,ZIGZAG,createGlide} from '../src/look/motion.js';
 import {layerOf,isHidden,categorise,partRows} from '../src/look/layers.js';
 import {faultsFor} from '../src/look/faults.js';
 import {hardList} from '../src/hard-content.js';
@@ -102,4 +102,13 @@ test('the scrubber zigzag stays on its path, turns only a little and ping-pongs 
  assert.deepEqual([zigzagPose(0).x,zigzagPose(0).z],ZIGZAG[0]);assert.deepEqual([zigzagPose(1).x,zigzagPose(1).z],ZIGZAG[3]);
  assert.ok(zigzagPose(1/6).x>-1&&zigzagPose(1/3).x===1,'it really zigzags from side to side');
  assert.equal(pingPong(0),0);assert.equal(pingPong(1),1);assert.equal(pingPong(1.5),.5);assert.equal(pingPong(2),0);assert.equal(pingPong(-.25),.25);
+});
+
+test('a hand\'s orbit glides: steps that arrive in bursts come out as smooth shares, and nothing is lost',()=>{
+ const glide=createGlide();assert.equal(glide.step(.016),null,'nothing owed, nothing moves');assert.equal(glide.pending,false);
+ glide.push(.2,-.1);glide.push(.1,0);assert.equal(glide.pending,true);
+ let sx=0,sy=0,previous=Infinity;
+ for(let i=0;i<200&&glide.pending;i++){const [dx,dy]=glide.step(1/60);assert.ok(dx>=0&&dy<=0,'keeps its direction');assert.ok(dx<=previous+1e-4,'each share is no bigger than the last (bar the final crumb)');previous=dx;sx+=dx;sy+=dy;}
+ assert.equal(glide.pending,false);assert.ok(Math.abs(sx-.3)<1e-9&&Math.abs(sy+.1)<1e-9,'the whole owed amount is delivered');
+ glide.push(1,1);const [a]=glide.step(.1);assert.ok(a>0&&a<1,'a long frame never overshoots');glide.reset();assert.equal(glide.pending,false);
 });

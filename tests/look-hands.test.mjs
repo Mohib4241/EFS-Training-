@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as THREE from 'three';
 import {createGestures,SPREAD_GAIN,CLICK,DWELL,FLICK,ndcToClient} from '../src/look/gestures.js';
+import {createHandOverlay,FOLLOW,HOLD,follow} from '../src/look/hand-overlay.js';
 
 // A synthetic tracked hand: open (extended fingers), pinching (thumb to index) or a fist.
 const hand=(id,{x=0,y=0,posture='open'}={})=>({id,palmNdc:[x,y],pinchNdc:[x,y],tipNdc:[x,y+.1],wristNdc:[x,y-.2],pinchRatio:posture==='pinch'?.2:.9,closedRatio:posture==='fist'?1.3:2});
@@ -63,4 +65,64 @@ test('the pointer follows the index finger, or the pinch point while pinching',(
 test('screen positions map into the stage rectangle',()=>{
  const rect={left:100,top:50,width:800,height:400};
  assert.deepEqual(ndcToClient([0,0],rect),{x:500,y:250});assert.deepEqual(ndcToClient([-1,1],rect),{x:100,y:50});assert.deepEqual(ndcToClient([1,-1],rect),{x:900,y:450});
+});
+
+// ---- the drawn hands glide instead of stepping ----
+const scene3=()=>{
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(40,1.6,.1,100),target=new THREE.Vector3(0,1,0);
+ camera.position.set(0,1.25,5);camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld(true);
+ return {scene,camera,target,overlay:createHandOverlay({scene,camera,target})};
+};
+// A tracked hand with every joint at the same picture position (x, y in 0..1 of the camera image), depth zero.
+const tracked=(id,x=.5,y=.5,posture='open')=>({id,posture,norm:Float32Array.from({length:42},(_,k)=>k%2?y:x),world:new Float32Array(63)});
+// the instanced meshes are, in order: left joints, left bones, right joints, right bones
+const jointNdc=(overlay,camera,id='R',index=8)=>{
+ const joints=overlay.object.children.filter(c=>c.isInstancedMesh)[id==='L'?0:2],m=new THREE.Matrix4();joints.getMatrixAt(index,m);
+ return new THREE.Vector3().setFromMatrixPosition(m).project(camera);
+};
+// picture x of .3 is this far right of the middle of the screen (mirror view, gain 1.35)
+const NDC_AT_30=(.5-.3)*2*1.35;
+
+test('a hand that appears is drawn where it is; a moving hand glides toward the new reading instead of jumping',()=>{
+ const {camera,overlay}=scene3();
+ overlay.update({hands:[tracked('R',.5)],time:0});overlay.frame(16);
+ assert.ok(Math.abs(jointNdc(overlay,camera).x)<1e-3,'first reading draws in place');
+ overlay.update({hands:[tracked('R',.3)],time:33});overlay.frame(33);
+ const part=jointNdc(overlay,camera).x;assert.ok(part>0&&part<NDC_AT_30*.6,`one frame moves part of the way (${part.toFixed(3)} of ${NDC_AT_30.toFixed(3)})`);
+ let previous=part;
+ for(let i=2;i<30;i++){const time=i*16.7;if(i%2===0)overlay.update({hands:[tracked('R',.3)],time});overlay.frame(time);const x=jointNdc(overlay,camera).x;assert.ok(x>=previous-1e-9,'never goes backwards');previous=x;}
+ assert.ok(Math.abs(previous-NDC_AT_30)<.02,'and arrives');
+});
+
+test('the glide is a fraction of the remaining distance, the same whatever the frame rate',()=>{
+ assert.ok(Math.abs(follow(.016)-(1-Math.exp(-.016/FOLLOW)))<1e-12);
+ const slow=1-(1-follow(.033))**1,fast=1-(1-follow(.0165))**2;assert.ok(Math.abs(slow-fast)<1e-9,'two short frames equal one long one');
+ assert.equal(follow(0),0);assert.ok(follow(10)>.999&&follow(10)<=1);
+});
+
+test('one empty reading does not make the hands flicker; a lost hand disappears after a moment',()=>{
+ const {overlay}=scene3();
+ overlay.update({hands:[tracked('L',.6),tracked('R',.4)],time:0});assert.equal(overlay.frame(10),true);
+ overlay.update({hands:[],time:50});assert.equal(overlay.frame(60),true,'still drawn shortly after the last reading');
+ assert.equal(overlay.frame(HOLD*1000+100),false,'gone once the hold has passed');assert.equal(overlay.object.visible,false);
+});
+
+test('the hands stay on the screen while the camera orbits (they are placed with the camera of the moment)',()=>{
+ const {camera,target,overlay}=scene3();
+ overlay.update({hands:[tracked('R',.3)],time:0});overlay.frame(10);
+ const before=jointNdc(overlay,camera);
+ camera.position.set(3,2,4);camera.lookAt(target);camera.updateMatrixWorld(true);overlay.update({hands:[tracked('R',.3)],time:20});overlay.frame(30);
+ const after=jointNdc(overlay,camera);assert.ok(Math.abs(after.x-before.x)<.01&&Math.abs(after.y-before.y)<.01);
+});
+
+test('the pinch beam and the tether glide too, and the tether label only changes when its text or place does',()=>{
+ const {overlay}=scene3(),label={hidden:true,style:{},textContent:'',writes:0};
+ let writes=0;const proxy=new Proxy(label,{set(o,k,v){if(k==='textContent'||k==='left'||k==='top')writes++;o[k]=v;return true;}});proxy.style=new Proxy({},{set(o,k,v){writes++;o[k]=v;return true;}});
+ overlay.setLabel(proxy);
+ const link={from:[-.5,0],to:[.5,0],value:40};
+ overlay.update({hands:[tracked('L',.6),tracked('R',.4)],tether:link,time:0});overlay.frame(10);
+ assert.equal(label.hidden,false);assert.equal(label.textContent,'40% open');
+ const settled=writes;overlay.update({hands:[tracked('L',.6),tracked('R',.4)],tether:link,time:20});overlay.frame(30);assert.equal(writes,settled,'unchanged label is not rewritten');
+ for(let i=0;i<60;i++){const time=40+i*16;if(i%2===0)overlay.update({hands:[tracked('L',.6),tracked('R',.4)],tether:{...link,value:80},time});overlay.frame(time);}
+ assert.equal(label.textContent,'80% open');
 });

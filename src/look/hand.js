@@ -5,7 +5,7 @@ import {getLook} from './look.js';
 
 // Hand control for the equipment pages: the webcam, the on-device tracker (the same one the maintenance practice uses), the
 // gesture engine and the 3D drawing of the hands. The camera is asked for only when the learner presses "Start camera"; the
-// video is read by the on-device model and never uploaded or recorded. One session lives across machine changes: each page
+// video is read by the on-device model and never uploaded or recorded, and its picture is never shown: only the hands are drawn. One session lives across machine changes: each page
 // calls attach() when it has built its viewer, and the session moves over to it.
 export let active=false;
 let session=null;
@@ -15,7 +15,7 @@ const clamp=(x,lo=0,hi=1)=>Math.min(hi,Math.max(lo,x));
 // ctx: {host, ui, adapter, viewer(), nextMachine(direction)}
 export function togglePanel(ctx){if(session){stop();return false;}open(ctx);return true;}
 function open(ctx){
- session={ctx,running:false,card:null,label:null,overlay:null,tracker:null,life:null,video:null,prevFocus:ctx.ui.focus,backdrop:false,starting:false,gestures:null};
+ session={ctx,running:false,card:null,label:null,overlay:null,tracker:null,life:null,video:null,prevFocus:ctx.ui.focus,starting:false,gestures:null};
  session.gestures=createGestures({getOpen:()=>session.ctx.adapter.get().open});
  active=true;mount();
 }
@@ -34,13 +34,13 @@ function mount(){
  s.card=document.createElement('div');s.card.className='lk-hand-card';
  s.card.innerHTML=`<div class="lk-hand-head"><strong>Hand control</strong><button type="button" data-hand="close" aria-label="Close hand control">×</button></div>
   <p class="lk-hand-status" role="status"></p><p class="lk-hand-coach"></p>
-  <div class="lk-hand-actions"><button type="button" class="lk-hand-start" data-hand="start">Start camera</button><label class="lk-hand-backdrop" hidden><input type="checkbox" data-hand="backdrop"> Camera backdrop</label></div>
+  <div class="lk-hand-actions"><button type="button" class="lk-hand-start" data-hand="start">Start camera</button></div>
   <ul class="lk-hand-keys"><li><b>Two hands apart or together</b> open or close it</li><li><b>Pinch and drag</b> orbit</li><li><b>Quick pinch</b> click</li><li><b>Fist, then open hand</b> open fully</li><li><b>Open hand, then fist</b> close</li><li><b>Sideways palm flick</b> next machine</li></ul>
-  <small>Your camera is asked for only when you press Start. Video is read on this device and is never uploaded or recorded.</small>`;
+  <small>Your camera is asked for only when you press Start. Only your hands appear on the model: the camera picture is never shown, uploaded or recorded.</small>`;
  s.label=document.createElement('div');s.label.className='lk-hand-label';s.label.hidden=true;s.label.setAttribute('aria-hidden','true');
  ctx.host.append(s.card,s.label);
- s.card.addEventListener('click',onCard);s.card.querySelector('[data-hand=backdrop]').addEventListener('change',e=>{s.backdrop=e.target.checked;viewer()?.hands.setBackdrop(s.backdrop?s.video:null);});
- const v=viewer();s.viewerRef=v;if(v){s.overlay=createHandOverlay({scene:v.hands.scene,camera:v.hands.camera,target:v.hands.target,color:ACCENT[getLook()]});s.overlay.setLabel(s.label);v.hands.setOverlay(s.overlay);if(s.backdrop&&s.video)v.hands.setBackdrop(s.video);}
+ s.card.addEventListener('click',onCard);
+ const v=viewer();s.viewerRef=v;if(v){s.overlay=createHandOverlay({scene:v.hands.scene,camera:v.hands.camera,target:v.hands.target,color:ACCENT[getLook()]});s.overlay.setLabel(s.label);v.hands.setOverlay(s.overlay);}
  ctx.ui.setHandActive(true);paintCard();
 }
 const viewer=()=>session?.ctx.viewer?.()||null;
@@ -53,7 +53,7 @@ function setStatus(text){const s=session;if(s?.card)s.card.querySelector('.lk-ha
 function paintCard(info){
  const s=session;if(!s?.card)return;
  s.card.querySelector('.lk-hand-start').textContent=s.running?'Stop camera':s.starting?'Starting…':'Start camera';s.card.querySelector('.lk-hand-start').disabled=s.starting;
- s.card.querySelector('.lk-hand-backdrop').hidden=!s.running;
+ s.card.classList.toggle('is-running',s.running);
  s.card.querySelector('.lk-hand-coach').textContent=s.running&&info?distanceAdvice(info.distance):'';
  if(!s.running&&!s.starting)setStatus('Control the model with your hands. Nothing starts until you press Start camera.');
 }
@@ -75,8 +75,8 @@ async function start(){
 }
 function stopCamera(){
  const s=session;if(!s)return;
- s.tracker?.stop();s.life?.dispose();s.life=null;s.tracker=null;s.video?.remove();s.video=null;s.backdrop=false;
- viewer()?.hands.setBackdrop(null);viewer()?.hands.setHover(null);s.overlay?.clear();s.card.querySelector('[data-hand=backdrop]').checked=false;
+ s.tracker?.stop();s.life?.dispose();s.life=null;s.tracker=null;s.video?.remove();s.video=null;
+ viewer()?.hands.setHover(null);s.overlay?.clear();
  if(s.running)s.ctx.ui.setFocus(s.prevFocus);
  s.running=false;paintCard();
 }
@@ -105,7 +105,7 @@ export function ingest(hands,info={},time=performance.now()/1000){
  const aimed=result.pointer&&result.mode!=='spread'?v?.hands.pick(result.pointer.ndc)||null:null;
  v?.hands.setHover(aimed?.id||null);
  s.overlay?.update({hands:result.hands,hit:aimed,pointerHand:result.pointer?.hand.id,tether:result.tether});
- v?.hands.invalidate();
+ v?.hands.wake();
  if(info&&Object.keys(info).length)paintCard(info);
  return result;
 }

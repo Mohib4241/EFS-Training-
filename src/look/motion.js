@@ -44,6 +44,23 @@ export function zigzagPose(u){
 // Ping-pong a steadily rising phase so the machine goes along the path and back again.
 export const pingPong=phase=>{const p=((phase%2)+2)%2;return p<1?p:2-p;};
 
+// Smooths a stream of small steps that arrive unevenly (a hand's orbit, a few dozen times a second) into movement at the
+// display's own rate: each frame hands out a share of what is still owed, and the last crumbs all at once, so nothing is lost.
+export function createGlide(tau=.06){
+ let x=0,y=0;
+ return {
+  push(dx,dy){x+=dx;y+=dy;},
+  step(dt){
+   if(x===0&&y===0)return null;
+   const f=1-Math.exp(-Math.max(0,dt)/tau);let dx=x*f,dy=y*f;
+   if(Math.abs(x-dx)<1e-5&&Math.abs(y-dy)<1e-5){dx=x;dy=y;}
+   x-=dx;y-=dy;return [dx,dy];
+  },
+  get pending(){return x!==0||y!==0;},
+  reset(){x=y=0;}
+ };
+}
+
 // Heavier layers are slower to start and settle, so a teardown reads as weight rather than a slide.
 export const LAYER_STIFFNESS=[120,92,70,54];
 export const createLayerSprings=()=>LAYER_STIFFNESS.map(stiffness=>createSpring({stiffness,damping:.72}));

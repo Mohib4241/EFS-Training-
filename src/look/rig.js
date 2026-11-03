@@ -108,21 +108,15 @@ export function createRig({canvas,bounds={l:-7,r:7,t:7,b:-5},onChange=()=>{}}){
  }
 
  // ---- looks ----
- let look=getLook(),background=null,bloom=null,bloomWanted=false,bloomAllowed=true,bloomBusy=false,glow=true,backdrop=null,backdropVideo=null,reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ let look=getLook(),background=null,bloom=null,bloomWanted=false,bloomAllowed=true,bloomBusy=false,glow=true,reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const quality=createQuality(),size={width:1,height:1};
  function applyLook(next,notify=true){
   look=next;const t=TOKENS[look];
-  background?.dispose();background=gradientTexture(t.stops);if(!backdrop)scene.background=background;
+  background?.dispose();background=gradientTexture(t.stops);scene.background=background;
   fog.color.set(t.fog);fog.density=t.density;scene.environmentIntensity=t.env;
   hemi.color.set(t.hemi[0]);hemi.groundColor.set(t.hemi[1]);hemi.intensity=t.hemi[2];key.color.set(t.key[0]);key.intensity=t.key[1];fill.color.set(t.fill[0]);fill.intensity=t.fill[1];
   rimUniforms.uRimAmount.value=t.rim;catcher.material.opacity=t.shadow;holo.visible=look==='hologram';blob.visible=look==='studio';
   syncBloom();if(notify)onChange(look);
- }
- // Mirror the video and crop it to cover the stage, whatever the shapes of the two.
- function fitBackdrop(){
-  if(!backdrop||!backdropVideo?.videoWidth)return;
-  const video=backdropVideo.videoWidth/backdropVideo.videoHeight,stage=size.width/size.height,w=Math.min(1,stage/video),h=Math.min(1,video/stage);
-  backdrop.repeat.set(-w,h);backdrop.offset.set((1-w)/2+w,(1-h)/2);
  }
  // The composer (and its three.js addons) is created lazily, only in the hologram look.
  function syncBloom(){
@@ -144,19 +138,12 @@ export function createRig({canvas,bounds={l:-7,r:7,t:7,b:-5},onChange=()=>{}}){
   // The controls cover the bottom of the stage: shift the picture up so the machine sits in the clear space above them.
   fit(camera,width,height,bottom=0){const key=`${width}|${height}|${bottom}`;if(key===fitKey)return;fitKey=key;if(bottom>0)camera.setViewOffset(width,height,0,Math.round(bottom/2),width,height);else camera.clearViewOffset();camera.updateProjectionMatrix();},
   setGlow(on){glow=on;syncBloom();},
-  // A mirrored live-video backdrop, drawn on this device only. Pass null to restore the stage colour.
-  setBackdrop(video){
-   backdrop?.dispose();backdrop=null;backdropVideo=video||null;
-   if(video){backdrop=new THREE.VideoTexture(video);backdrop.colorSpace=THREE.SRGBColorSpace;backdrop.wrapS=THREE.RepeatWrapping;scene.background=backdrop;scene.backgroundIntensity=look==='hologram'?.55:.85;fitBackdrop();}
-   else{scene.background=background;scene.backgroundIntensity=1;}
-   onChange(look);
-  },
   resize(width,height){size.width=width;size.height=height;renderer.setSize(width,height,false);bloom?.setSize(width,height,pixelRatio);},
   // Draw one frame. `moving` tells the quality governor whether frames are continuous, so idle gaps are never counted as slow.
   render(camera,time,moving){
    currentCamera=camera;
    if(look==='hologram'&&!reduced.matches){arcSpin=time*.00008;arcs.rotation.z=arcSpin;rings[1].material.opacity=.55+.15*Math.sin(time*.002);}
-   settleFloor();fitBackdrop();
+   settleFloor();
    if(bloom){bloom.camera=camera;bloom.render();}else renderer.render(scene,camera);
    const interval=time-last;last=time;
    if(moving&&lastMoving){

@@ -5,7 +5,7 @@ import {vacuumModules,vacuumPartList} from './soft-content.js';
 import {openingFromPixels} from './machine-state.js';
 import {createDust,collectDust} from './cleaning-state.js';
 import {createRig,finish,cloneFinish,ghost} from './look/rig.js';
-import {createSpring,createLayerSprings,waveFactor,springEase} from './look/motion.js';
+import {createSpring,createLayerSprings,waveFactor,springEase,createGlide} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
 // Each machine has its own lacquer: the shared finishes are recoloured when the variant changes.
@@ -117,7 +117,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   pointer.set(point.x/rect.width*2-1,-point.y/rect.height*2+1);ray.setFromCamera(pointer,camera);
   return ray.intersectObjects(pickables,false).find(hit=>{for(let o=hit.object;o;o=o.parent)if(!o.visible)return false;return hit.object.material.opacity>.3;});
  }
- let handHover=null,overlay=null;
+ let handHover=null,overlay=null;const glide=createGlide();
  const meshesOf={};
  const meshesFor=id=>meshesOf[id]??=(()=>{const list=[];groups[id].traverse(o=>{if(o.isMesh&&o.material.emissive)list.push(o);});return list;})();
  let lastPaint='';
@@ -198,7 +198,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
  const measure=time=>{if(time-measuredAt>300){measuredAt=time;measured=[canvas.clientWidth,canvas.clientHeight,(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0];}return measured;};
  function render(moving=false,time=performance.now()){studio.fit(camera,...measure(time));camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts();updateHover();paintHighlights(time/1000);updateGuides();overlay?.frame(time);studio.render(camera,time,moving);}
  function schedule(){if(!frame&&active&&visible&&!document.hidden)frame=requestAnimationFrame(update);}
-function update(time){frame=0;if(!active||!visible||document.hidden)return;const dt=Math.min((time-previous)/1000||.016,.05);previous=time;tick+=dt;
+function update(time){frame=0;if(!active||!visible||document.hidden)return;const dt=Math.min((time-previous)/1000||.016,.05);previous=time;tick+=dt;const turn=glide.step(dt);if(turn)turnBy(turn[0],turn[1]);
  // Each layer chases its own wave of the slider with a spring of its own weight; the plug has one too.
  const goal=state.open/100,snap=reduced.matches;let springing=false;
  springs.forEach((spring,layer)=>{if(spring.step(dt,waveFactor(layer,goal),snap))springing=true;});if(plugSpring.step(dt,state.connected?1:0,snap))springing=true;
@@ -228,7 +228,7 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
  previousNozzle={z:tool.position.z,active:canPick};
  const shellSeeThrough=Boolean(state.xray);if(shellApplied!==shellSeeThrough){shellApplied=shellSeeThrough;for(const id of ['cover','tank'])ghost(groups[id],shellSeeThrough,.065);}
  flow.visible=state.air&&state.open===0;for(let i=0;i<dots.length;i++){dots[i].visible=state.running;dots[i].position.copy(flowCurve.getPointAt((i/dots.length+(reduced.matches?0:tick*.16))%1));}
- const moving=Boolean(cameraTween)||(state.autoRotate&&!pointerInside&&!floorView&&!reduced.matches)||springing||singlePass||((state.running||(state.stroke&&state.open===0))&&!reduced.matches)||((state.glowParts?.length>0)&&!reduced.matches)||Boolean(overlay?.object.visible);
+ const moving=Boolean(cameraTween)||(state.autoRotate&&!pointerInside&&!floorView&&!reduced.matches)||springing||singlePass||((state.running||(state.stroke&&state.open===0))&&!reduced.matches)||((state.glowParts?.length>0)&&!reduced.matches)||Boolean(overlay?.object.visible)||glide.pending;
  render(moving,time);if(moving)schedule();}
   function setState(next){state={...next};setFinish(state.variant);studio.setGlow(state.glow!==false);if(currentVariant!==state.variant+state.pickupMode){currentVariant=state.variant+state.pickupMode;const module=vacuumModules[state.variant]||vacuumModules['junior-103'];partInfo=new Map(vacuumPartList(module.id,state.pickupMode).map(p=>[p.id,p]));tipId=null;ctx.fillStyle='#edf1e9';ctx.fillRect(0,117,1024,75);ctx.font='26px Arial';ctx.fillStyle='#40535a';ctx.fillText(`${module.name.toUpperCase()}   •   ${module.category.toUpperCase()} VACUUM`,235,154);texture.needsUpdate=true;}
  const water=state.pickupMode==='wet';dustMaterial.color.set(water?'#55b7c5':'#8c6845');paperMaterial.color.set(water?'#55b7c5':'#d7bd83');dustMeshes.forEach((m,i)=>{m.scale.set(water?2:.8+(i%4)*.15,water?.18:.8+(i%4)*.15,water?2:.8+(i%4)*.15);m.position.y=water?.006:i%5===0?.012:.025;});if(state.open>0&&floorView)cameraAction('reset');paintHighlights();schedule();}
@@ -256,14 +256,16 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
   if(reduced.matches){camera.position.copy(to);controls.target.copy(spot);cameraTween=null;}else cameraTween={from,fromTarget,to,toTarget:spot,progress:0};
   controls.update();schedule();
  }
+ // A share of a hand's orbit, applied at the start of a frame (before the camera is aimed).
+ function turnBy(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;}
  // Hand control: the shared hand module draws into this scene and drives the camera, hover and picking through here.
  const hands={
   get scene(){return scene;},camera,target:controls.target,get look(){return studio.look;},
   pick(ndc){if(Math.abs(ndc[0])>1||Math.abs(ndc[1])>1)return null;pointer.set(ndc[0],ndc[1]);ray.setFromCamera(pointer,camera);const hit=ray.intersectObjects(pickables,false).find(h=>shown(h.object)&&h.object.material.opacity>.3);return hit?{id:hit.object.userData.part,point:hit.point.clone()}:null;},
-  orbit(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;schedule();},
+  orbit(dx,dy){glide.push(dx,dy);schedule();},
   setHover(id){if(handHover!==id){handHover=id;schedule();}},
   setOverlay(next){overlay=next;schedule();},
-  setBackdrop(video){studio.setBackdrop(video);schedule();},
+  wake(){schedule();},
   invalidate(){measuredAt=-1e9;schedule();}
  };
  // Leaving the page releases the GPU: geometry, textures, materials, the composer and the renderer.
