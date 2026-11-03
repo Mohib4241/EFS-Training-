@@ -129,7 +129,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   else{const box=new THREE.Box3().setFromObject(g),middle=box.getCenter(new THREE.Vector3());faultMarker.position.set(middle.x-g.position.x,box.max.y-g.position.y+.14,middle.z-g.position.z);}
   g.add(faultMarker);markedPart=partId;
  }
- function resizeScene(){const r=canvas.parentElement.getBoundingClientRect();if(r.width&&r.height){studio.resize(r.width,r.height);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();schedule();}}
+ function resizeScene(){measuredAt=-1e9;const r=canvas.parentElement.getBoundingClientRect();if(r.width&&r.height){studio.resize(r.width,r.height);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();schedule();}}
  function resetCamera(){const wide=module?.kind==='cascade',instrumentModel=['megger','multimeter'].includes(module?.kind);camera.position.set(wide?7:instrumentModel?4.2:module?.kind==='scrubber'?-3.8:-4.8,wide?4.5:3.3,wide?9:module?.kind==='scrubber'?5.5:7);controls.target.set(instrumentModel?.7:0,1.15,0);
   // a tall, narrow stage sees less to the sides: stand back so the whole machine fits
   if(camera.aspect<1.25)camera.position.sub(controls.target).multiplyScalar(Math.min(2,1.25/camera.aspect)).add(controls.target);
@@ -184,7 +184,9 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
  function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
  let handHover=null,overlay=null,zigzag=0;
- let bottomBar=null;const inset=()=>(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0;
+ // Layout is measured a few times a second, not every frame (reading sizes during an animation forces layout).
+ let bottomBar=null,measuredAt=-1e9,measured=[1,1,0];
+ const measure=time=>{if(time-measuredAt>300){measuredAt=time;measured=[canvas.clientWidth,canvas.clientHeight,(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0];}return measured;};
  function render(time){
   frame=0;if(!module||!state||!active||!visible||document.hidden)return;const dt=Math.min(previous?(time-previous)/1000:.016,.05);previous=time;
   // Each layer chases its own wave of the slider with a spring of its own weight.
@@ -212,7 +214,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   if(groups.dial)groups.dial.rotation.z=module.kind==='multimeter'?({V:-.65,A:.65,'Ω':1.4})[state.inputs.function]:Math.log2(state.inputs.testVoltage/50)*.4;
   if(state.faultPart&&state.faultPart!==markedPart)placeMarker(state.faultPart);
   faultMarker.visible=Boolean(state.inspectionFault);
-  studio.fit(camera,canvas.clientWidth,canvas.clientHeight,inset());camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
+  studio.fit(camera,...measure(time));camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();
   const moving=Boolean(cameraTween)||turning||springing||(module.kind==='scrubber'&&(Math.abs(root.position.x)>.002||Math.abs(root.position.z)>.002))||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches);
   overlay?.frame(time);studio.render(camera,time,moving||Boolean(overlay?.object.visible));if(moving||overlay?.object.visible)schedule();
@@ -239,7 +241,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   setHover(id){if(handHover!==id){handHover=id;schedule();}},
   setOverlay(next){overlay=next;schedule();},
   setBackdrop(video){studio.setBackdrop(video);schedule();},
-  invalidate:schedule
+  invalidate(){measuredAt=-1e9;schedule();}
  };
  return {load,flyTo,hands,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
 }

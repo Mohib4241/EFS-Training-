@@ -13,10 +13,16 @@ Branch: `look-and-controls`. Nothing here is deployed; Render deploys `main`, wh
 | Floor | The vacuum's tiled floor patch is an oval (it was a rectangle) and the wall plate behind the plug has rounded corners. A shadow-catching floor that follows the lowest part, so a sealed machine rests on it and opened parts float above it, plus a contact shadow that fades and widens as parts lift apart. |
 | Finishes | Lacquered plastic, smoked glass, rubber and brushed steel as `MeshPhysicalMaterial` (`finish()` in the rig), applied to the existing procedural parts without rebuilding any model. Each machine has its own lacquer (the labs use their module colour; the two vacuums have their own). Colours that carry meaning (the orange cable and switch, the amber fault marker) are kept. |
 | Motion | Parts move on springs with weight (heavier layers settle slower and overshoot slightly) and camera moves use the exact response of a damped spring. Reduced-motion users get static states, as before. |
-| Looks | `data-look` on `<html>` (`studio` default, `hologram`), remembered in `localStorage`. Studio: light stage gradient, frosted glass panels, accent `#0a8f9c`. Hologram: dark HUD, accent `#3de0ff`, a perspective grid floor with rings and arcs, corner-bracket panel frames, glowing text, diamond slider thumbs and UnrealBloom. The bloom composer is created lazily, only in the hologram look. |
+| Looks | `data-look` on `<html>` (`studio` default, `hologram`), remembered in `localStorage`. Studio: a white stage and page (the gradient in the first brief was replaced by white on request), frosted glass panels, accent `#0a8f9c`. Hologram: dark HUD, accent `#3de0ff`, a perspective grid floor with rings and arcs, corner-bracket panel frames, glowing text, diamond slider thumbs and UnrealBloom. The bloom composer is created lazily, only in the hologram look. |
 | Typography | Chakra Petch (wordmark, big numbers), IBM Plex Sans Condensed (body, labels), IBM Plex Mono (codes, units, keycaps): latin-subset woff2 files from the fontsource packages, hashed by the build and served from `/static/fonts/`. No Google Fonts request. |
 | Layout | **Pages open collapsed**: only the machine, "Start the machine", the Machine Guide and Page Guide, and one "Parts & controls" button are visible. That button (or `F`) opens the rest. Expanded, equipment pages are a full-bleed canvas with floating glass panels: parts panel (with the look switch at its top) on the left, detail sheet on the right, hint card at the top centre and a control dock along the bottom. At 768 px and below the panels become bottom sheets and the dock scrolls sideways. |
 | Maintenance practice | The 3D stage takes the look's lighting and colour tokens (`stage.js`), its HUD follows the look, and the page toolbar has a look switch. |
+
+## Defaults
+
+- The default look is Studio on a white background.
+- The voice guide is on in English by default (`soundPreference` in `guidance.js`; turning it off is remembered). Browsers refuse speech until the page has had a click or key press; the guide then says "Click or press a key once and the voice will start" and carries on without it.
+- Layout and timing: sizes are measured a few times a second instead of every frame, and the fault lists are built once per machine.
 
 ## Controls
 
