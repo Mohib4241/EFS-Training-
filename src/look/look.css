@@ -255,9 +255,12 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .lk-hand-status{margin:0 0 4px}.lk-hand-coach{margin:0 0 6px;color:var(--lk-accent);font-weight:500;min-height:1.5em}
 .lk-hand-actions{display:flex;align-items:center;gap:12px;margin:6px 0 10px}
 .lk-hand-start{padding:8px 14px;border:1px solid var(--lk-accent);background:var(--lk-accent-soft);color:var(--lk-accent);font-weight:600;border-radius:9px}
-.lk-hand-backdrop{display:flex;align-items:center;gap:6px;font-size:12px}
 .lk-hand-keys{margin:0 0 8px;padding:0 0 0 16px;font-size:12px;color:var(--lk-muted)}.lk-hand-keys b{color:var(--lk-text);font-weight:600}
 .lk-hand-card small{display:block;color:var(--lk-muted);font-size:11px}
+/* With the camera on, only the hands and the machine matter: the card shrinks to its status and the stop button. */
+.lk-hand-card.is-running{width:min(260px,calc(100% - 28px));padding:10px 14px}
+.lk-hand-card.is-running .lk-hand-keys,.lk-hand-card.is-running small{display:none}
+.lk-hand-card.is-running .lk-hand-actions{margin:4px 0 0}
 .lk-hand-label{position:absolute;z-index:7;transform:translate(-50%,-50%);padding:4px 12px;font:700 20px var(--font-display);color:var(--lk-accent);text-shadow:var(--lk-glow);background:var(--lk-panel);border:1px solid var(--lk-accent);border-radius:8px;pointer-events:none;white-space:nowrap}
 .lk-hand-label[hidden]{display:none}
 @media(max-width:768px){.lk-hand-card{right:8px;left:8px;width:auto;bottom:156px;max-height:50%}}

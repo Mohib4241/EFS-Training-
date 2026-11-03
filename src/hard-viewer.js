@@ -3,7 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {openingFromPixels} from './machine-state.js';
 import {createRig,finish,ghost} from './look/rig.js';
-import {createLayerSprings,waveFactor,springEase,zigzagPose,pingPong} from './look/motion.js';
+import {createLayerSprings,waveFactor,springEase,zigzagPose,pingPong,createGlide} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
 // Reused by the electrical/MEP labs and the Soft Services scrubber. Previous module GPU resources are released on load.
@@ -183,12 +183,13 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  }
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
  function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
- let handHover=null,overlay=null,zigzag=0;
+ let handHover=null,overlay=null,zigzag=0;const glide=createGlide();
  // Layout is measured a few times a second, not every frame (reading sizes during an animation forces layout).
  let bottomBar=null,measuredAt=-1e9,measured=[1,1,0];
  const measure=time=>{if(time-measuredAt>300){measuredAt=time;measured=[canvas.clientWidth,canvas.clientHeight,(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0];}return measured;};
  function render(time){
   frame=0;if(!module||!state||!active||!visible||document.hidden)return;const dt=Math.min(previous?(time-previous)/1000:.016,.05);previous=time;
+  const turn=glide.step(dt);if(turn)turnBy(turn[0],turn[1]);
   // Each layer chases its own wave of the slider with a spring of its own weight.
   const goal=state.open/100;let springing=false;springs.forEach((spring,layer)=>{if(spring.step(dt,waveFactor(layer,goal),reduced.matches))springing=true;});
   opening=(springs[0].value+springs[1].value+springs[2].value+springs[3].value)/4;
@@ -216,7 +217,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   faultMarker.visible=Boolean(state.inspectionFault);
   studio.fit(camera,...measure(time));camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();
-  const moving=Boolean(cameraTween)||turning||springing||(module.kind==='scrubber'&&(Math.abs(root.position.x)>.002||Math.abs(root.position.z)>.002))||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches);
+  const moving=Boolean(cameraTween)||turning||springing||(module.kind==='scrubber'&&(Math.abs(root.position.x)>.002||Math.abs(root.position.z)>.002))||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches)||glide.pending;
   overlay?.frame(time);studio.render(camera,time,moving||Boolean(overlay?.object.visible));if(moving||overlay?.object.visible)schedule();
  }
  function schedule(){if(!frame&&active&&visible&&!document.hidden)frame=requestAnimationFrame(render);}
@@ -234,13 +235,15 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  document.addEventListener('visibilitychange',()=>{previous=0;if(document.hidden)cancelGesture();else{clearHover();schedule();}},{signal});reduced.addEventListener('change',schedule,{signal});controls.addEventListener('start',()=>{cameraTween=null;});controls.addEventListener('change',schedule);
  const resize=new ResizeObserver(resizeScene);resize.observe(canvas.parentElement);const observer=new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;previous=0;if(visible)schedule();else clearHover();});observer.observe(canvas);
  canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();canvas.dispatchEvent(new CustomEvent('viewer-unavailable'));},{signal});
+ // A share of a hand's orbit, applied at the start of a frame (before the camera is aimed).
+ function turnBy(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;}
  const hands={
   get scene(){return scene;},camera,target:controls.target,get look(){return studio.look;},
   pick(ndc){if(Math.abs(ndc[0])>1||Math.abs(ndc[1])>1)return null;point.set(ndc[0],ndc[1]);ray.setFromCamera(point,camera);const hit=ray.intersectObjects(pickables,false).find(h=>reachable(h.object)&&h.object.material.opacity>.25);return hit?{id:hit.object.userData.part,point:hit.point.clone()}:null;},
-  orbit(dx,dy){const offset=camera.position.clone().sub(controls.target),sphere=new THREE.Spherical().setFromVector3(offset);sphere.theta-=dx*2.6;sphere.phi=THREE.MathUtils.clamp(sphere.phi+dy*1.4,.15,Math.PI*.49);offset.setFromSpherical(sphere);camera.position.copy(controls.target).add(offset);cameraTween=null;schedule();},
+  orbit(dx,dy){glide.push(dx,dy);schedule();},
   setHover(id){if(handHover!==id){handHover=id;schedule();}},
   setOverlay(next){overlay=next;schedule();},
-  setBackdrop(video){studio.setBackdrop(video);schedule();},
+  wake(){schedule();},
   invalidate(){measuredAt=-1e9;schedule();}
  };
  return {load,flyTo,hands,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
