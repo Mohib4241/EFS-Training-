@@ -1,12 +1,12 @@
-import {getLook,setLook} from './look.js';
 import {partRows,isHidden} from './layers.js';
 import {STOPS,stageName} from './motion.js';
 import {faultsFor} from './faults.js';
+import {brief,pushNote,NOTE_MS} from './info.js';
 
-// The floating controls every equipment page shares: look switch, parts panel, detail sheet, staged teardown, layer dock,
+// The floating controls every equipment page shares: parts panel, small part notes, staged teardown, layer dock,
 // fault finder and keyboard shortcuts. It knows nothing about three.js; each page hands it an adapter:
 //   machine {id,name,intro}, parts [{id,name,group,body,why,motion,evidence?}], safety, source,
-//   get() -> {part,open,fault,flags:{xray,callouts,flow,guides,glow,orbit}}, select(id|null), setOpen(percent), setFlag(name,on),
+//   get() -> {part,open,running,fault,flags:{xray,callouts,flow,guides,glow,orbit}}, select(id|null), setOpen(percent), setFlag(name,on),
 //   camera(action), flyTo(id), setFault(id), hand? {toggle(), active}
 const ICONS={
  xray:'<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/>',
@@ -25,7 +25,8 @@ const ICONS={
  detail:'<path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/>'
 };
 const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
-const LAYER_BUTTONS=[['xray','X-ray shell','See inside: the shell turns translucent'],['callouts','Callouts','Leader lines with part names'],['flow','Flow path','Show the conceptual flow path'],['guides','Guides','Dashed lines from each part to its resting place'],['glow','Glow','Highlight glow and bloom'],['orbit','Orbit','Slow auto-rotate that pauses on input'],['focus','Focus view','Hide all panels (F)']];
+const LAYER_BUTTONS=[['xray','Show inside','See inside: the shell turns see-through'],['callouts','Callouts','Leader lines with part names'],['flow','Flow path','Show the conceptual flow path'],['guides','Guides','Dashed lines from each part to its resting place'],['glow','Glow','Highlight glow and bloom'],['orbit','Orbit','Slow auto-rotate that pauses on input'],['focus','Focus view','Hide all panels (F)']];
+const DOCK_KEY='efs-dock';
 const CAMERA_BUTTONS=[['rotate-left','↶','Rotate left'],['rotate-right','↷','Rotate right']];
 
 const element=(tag,className,html='')=>{const el=document.createElement(tag);if(className)el.className=className;if(html)el.innerHTML=html;return el;};
@@ -33,22 +34,22 @@ const escape=text=>String(text??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 
 export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const abort=new AbortController(),{signal}=abort;
- let rows=[],categories=[],filter='all',machineId=adapter.machine.id,faults=[],focus=false,last='',sheet='',handActive=false;
+ let rows=[],machineId=adapter.machine.id,faults=[],focus=false,last='',sheet='',handActive=false,notedPart=adapter.get().part,dockClosed=false;
+ try{dockClosed=localStorage.getItem(DOCK_KEY)==='closed';}catch{}
  host.classList.add('look-stage');
  const root=element('div','lk-root');
  root.innerHTML=`
   <div class="lk-top"><div class="lk-hint"><span>Drag to orbit</span><span>Scroll or pinch to open</span><span>Click a part</span><span><kbd>[</kbd><kbd>]</kbd> step parts</span><span><kbd>F</kbd> focus</span></div><div class="lk-banner" role="status" hidden></div></div>
   <aside class="lk-panel lk-parts" aria-label="Parts">
-   <div class="lk-switch" role="group" aria-label="Look"><button type="button" data-look="studio">Studio</button><button type="button" data-look="hologram">Hologram</button></div>
    <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code></div>
-   <div class="lk-chips" role="group" aria-label="Filter parts by category"></div>
    <ul class="lk-list"></ul>
   </aside>
-  <div class="lk-right"><div class="lk-slot"></div><aside class="lk-panel lk-detail" aria-label="Part details" aria-live="polite"></aside></div>
+  <div class="lk-right"><div class="lk-slot"></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
   <div class="lk-bottom">
    <div class="lk-teardown"><div class="lk-readout"><output class="lk-percent"></output><span class="lk-stage"></span></div><div class="lk-track"><input class="lk-slider" type="range" min="0" max="100" step="0.1" value="0" aria-label="Staged teardown"><div class="lk-stops"></div></div></div>
-   <button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts, details and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button>
-   <div class="lk-sheet-tabs"><button type="button" data-sheet="parts">${icon('parts')}<span>Parts</span></button><button type="button" data-sheet="detail">${icon('detail')}<span>Details</span></button><button type="button" data-look-cycle>${icon('glow')}<span class="lk-look-name"></span></button></div>
+   <div class="lk-pills"><button type="button" class="lk-inside-pill" data-inside aria-pressed="false">${icon('xray')}<span>Show inside</span></button><button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button></div>
+   <div class="lk-sheet-tabs"><button type="button" data-sheet="parts">${icon('parts')}<span>Parts</span></button></div>
+   <button type="button" class="lk-dock-toggle" aria-expanded="true" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span>Hide controls</span></button>
    <div class="lk-dock" role="toolbar" aria-label="Layers and camera"></div>
   </div>
   <svg class="lk-leaders" aria-hidden="true"></svg><div class="lk-labels" aria-hidden="true"></div>`;
@@ -73,53 +74,55 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  slider.addEventListener('input',()=>adapter.setOpen(Number(slider.value)),{signal});
  stops.addEventListener('click',e=>{const b=e.target.closest('[data-stop]');if(b)adapter.setOpen(Number(b.dataset.stop));},{signal});
 
- // ---- look switch ----
- const syncLook=()=>{for(const b of all('[data-look]'))b.setAttribute('aria-pressed',String(b.dataset.look===getLook()));q('.lk-look-name').textContent=getLook()==='studio'?'Studio':'Hologram';};
- q('.lk-switch').addEventListener('click',e=>{const b=e.target.closest('[data-look]');if(b){setLook(b.dataset.look);syncLook();}},{signal});
- q('[data-look-cycle]').addEventListener('click',()=>{setLook(getLook()==='studio'?'hologram':'studio');syncLook();},{signal});
- document.addEventListener('efs-look',syncLook,{signal});syncLook();
-
- // ---- parts panel ----
- function paintParts(){
-  const built=partRows(machineId,adapter.parts);rows=built.rows;categories=built.categories;
-  q('.lk-count').textContent=String(rows.length).padStart(2,'0');
-  q('.lk-chips').innerHTML=`<button type="button" class="lk-chip" data-chip="all" aria-pressed="${filter==='all'}">All <b>${rows.length}</b></button>`+categories.map(c=>`<button type="button" class="lk-chip" data-chip="${c.id}" style="--c:${c.color}" aria-pressed="${filter===c.id}"><i></i>${escape(c.label)} <b>${c.count}</b></button>`).join('');
-  paintList();
- }
- function visibleRows(){return rows.filter(r=>filter==='all'||r.category===filter);}
+ // ---- parts panel: the list as it always was, grouped under its own headings ----
+ function paintParts(){rows=partRows(machineId,adapter.parts).rows;q('.lk-count').textContent=String(rows.length).padStart(2,'0');paintList();}
  function paintList(){
-  q('.lk-list').innerHTML=`<li><button type="button" class="lk-part lk-whole" data-part="overview"><i class="lk-dot"></i><span class="lk-name">Whole machine</span><code class="lk-tag">ALL</code></button></li>`+visibleRows().map(r=>`<li><button type="button" class="lk-part" data-part="${r.id}" style="--c:${r.color}"${r.hidden?' data-hidden="true" title="Inside the shell: selecting it opens the model"':''}><i class="lk-dot"></i><span class="lk-name">${escape(r.name)}</span><code class="lk-tag">${r.tag}</code></button></li>`).join('');
-  last='';update();
+  let html=`<li><button type="button" class="lk-part lk-whole" data-part="overview"><span class="lk-num">◎</span><span class="lk-name">Whole machine</span></button></li>`,group;
+  rows.forEach((r,i)=>{
+   const heading=adapter.parts[i]?.group;
+   if(heading&&heading!==group){group=heading;html+=`<li class="lk-group-name"><h3>${escape(heading)}</h3></li>`;}
+   html+=`<li><button type="button" class="lk-part" data-part="${r.id}"${r.hidden?' data-hidden="true" title="Inside the shell: selecting it opens the model"':''}><span class="lk-num">${String(i+1).padStart(2,'0')}</span><span class="lk-name">${escape(r.name)}</span></button></li>`;
+  });
+  q('.lk-list').innerHTML=html;last='';update();
  }
- q('.lk-chips').addEventListener('click',e=>{const b=e.target.closest('[data-chip]');if(!b)return;filter=b.dataset.chip;for(const c of all('.lk-chip'))c.setAttribute('aria-pressed',String(c.dataset.chip===filter));paintList();},{signal});
  q('.lk-list').addEventListener('click',e=>{const b=e.target.closest('[data-part]');if(b)choose(b.dataset.part);},{signal});
 
  // Selecting asks the page to select (and reveal, if the part is hidden inside), then flies the camera to it.
  function choose(id){
-  if(id==='overview'||!id){adapter.select(null);adapter.camera('reset');return;}
-  adapter.select(id);adapter.flyTo(id);if(narrow.matches&&sheet!=='detail')setSheet('detail');
+  if(id==='overview'||!id){notedPart='overview';adapter.select(null);adapter.camera('reset');showNote('overview');return;}
+  notedPart=id;adapter.select(id);adapter.flyTo(id);showNote(id);if(narrow.matches&&sheet==='parts')setSheet('parts');
  }
  function step(direction){
-  const list=visibleRows();if(!list.length)return;
+  const list=rows;if(!list.length)return;
   const current=list.findIndex(r=>r.id===adapter.get().part),next=current<0?(direction>0?0:list.length-1):(current+direction+list.length)%list.length;
   choose(list[next].id);q(`.lk-part[data-part="${list[next].id}"]`)?.scrollIntoView({block:'nearest'});
  }
 
- // ---- detail sheet ----
- function paintDetail(state){
-  const part=adapter.parts.find(p=>p.id===state.part),box=q('.lk-detail');
-  if(!part){
-   box.innerHTML=`<code class="lk-eyebrow">WHOLE MACHINE</code><h2>${escape(adapter.machine.name)}</h2><p>${escape(adapter.machine.intro||'')}</p><p class="lk-muted">Select a part in the list or on the model to see what it is, what it does and how to isolate it.</p>${safetyBlock()}`;return;
-  }
-  const row=rows.find(r=>r.id===part.id),info=adapter.info?.(part.id)||{};
-  box.innerHTML=`<div class="lk-detail-top"><code class="lk-eyebrow" style="--c:${row?.color||'currentColor'}"><i></i>${escape((part.group||'').toUpperCase())}${row?` · ${row.tag}`:''}</code><button type="button" class="lk-close" aria-label="Deselect part (Esc)" data-close>×</button></div><h2>${escape(part.name)}</h2>
-   <section><h3>What it is</h3><p>${escape(info.what??part.body)}</p></section>
-   <section><h3>What it does</h3><p>${escape(info.does??[part.motion,part.why].filter(Boolean).join(' '))}</p></section>
-   <section class="lk-safety"><h3>Safety and isolation</h3><p>${escape(info.safety??adapter.safety)}</p></section>
-   <section><h3>Source and fidelity</h3><p>${escape(info.source??part.evidence??adapter.source)}</p></section>`;
+ // ---- part notes: small floating cards on the right that remove themselves after ten seconds ----
+ const box=q('.lk-notes'),notes=new Map();let noteOrder=[];
+ const noteHtml=id=>{
+  const part=adapter.parts.find(p=>p.id===id);
+  if(!part)return `<div class="lk-note-top"><code class="lk-eyebrow"><i></i>WHOLE MACHINE</code><button type="button" class="lk-close" data-dismiss aria-label="Close this note">×</button></div><h3>${escape(adapter.machine.name)}</h3><p>${escape(brief(adapter.machine.intro||'',130))}</p><p class="lk-note-safety"><b>Safety.</b> ${escape(brief(adapter.safety,72))}</p>`;
+  const row=rows.find(r=>r.id===id),info=adapter.info?.(id)||{};
+  return `<div class="lk-note-top"><code class="lk-eyebrow" style="--c:${row?.color||'currentColor'}"><i></i>${escape((part.group||'').toUpperCase())}${row?.hidden?' · INSIDE':''}</code><button type="button" class="lk-close" data-dismiss aria-label="Close this note">×</button></div><h3>${escape(part.name)}</h3><p>${escape(brief(info.what??part.body,95))}</p><p>${escape(brief(info.does??[part.motion,part.why].filter(Boolean).join(' '),95))}</p><p class="lk-note-safety"><b>Safety.</b> ${escape(brief(info.safety??adapter.safety,72))}</p>`;
+ };
+ function runNote(n,id){n.started=performance.now();n.paused=false;n.el.classList.remove('paused');n.timer=setTimeout(()=>dropNote(id),n.left);}
+ function holdNote(n){clearTimeout(n.timer);n.left=Math.max(0,n.left-(performance.now()-n.started));n.paused=true;n.el.classList.add('paused');}
+ function dropNote(id){const n=notes.get(id);if(!n)return;clearTimeout(n.timer);n.el.remove();notes.delete(id);noteOrder=noteOrder.filter(k=>k!==id);}
+ function clearNotes(){for(const id of [...notes.keys()])dropNote(id);}
+ function showNote(id){
+  if(id!=='overview'&&!adapter.parts.some(p=>p.id===id))return;
+  dropNote(id);                                    // showing a part again starts its ten seconds afresh
+  noteOrder=pushNote(noteOrder,id);
+  for(const key of [...notes.keys()])if(!noteOrder.includes(key))dropNote(key);
+  const el=element('article','lk-note',`${noteHtml(id)}<span class="lk-note-timer" style="animation-duration:${NOTE_MS}ms"></span>`),n={el,left:NOTE_MS,started:0,paused:false,timer:0,hover:false,focus:false};
+  el.dataset.note=id;
+  const sync=()=>{const hold=n.hover||n.focus;if(hold&&!n.paused)holdNote(n);else if(!hold&&n.paused)runNote(n,id);};   // reading it pauses the clock
+  el.addEventListener('pointerenter',()=>{n.hover=true;sync();});el.addEventListener('pointerleave',()=>{n.hover=false;sync();});
+  el.addEventListener('focusin',()=>{n.focus=true;sync();});el.addEventListener('focusout',()=>{n.focus=false;sync();});
+  notes.set(id,n);box.prepend(el);runNote(n,id);
  }
- const safetyBlock=()=>`<section class="lk-safety"><h3>Safety and isolation</h3><p>${escape(adapter.safety)}</p></section>`;
- q('.lk-detail').addEventListener('click',e=>{if(e.target.closest('[data-close]'))adapter.select(null);},{signal});
+ box.addEventListener('click',e=>{if(e.target.closest('[data-dismiss]'))dropNote(e.target.closest('.lk-note').dataset.note);},{signal});
 
  // ---- fault finder ----
  const select=q('.lk-fault select');
@@ -146,13 +149,21 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   if(tool.dataset.tool==='hand'){adapter.hand.toggle();return;}
   adapter.setFlag(tool.dataset.tool,tool.getAttribute('aria-pressed')!=='true');
  },{signal});
+ const inside=q('[data-inside]');
+ inside.addEventListener('click',()=>adapter.setFlag('xray',inside.getAttribute('aria-pressed')!=='true'),{signal});
+ // the bottom controls fold away to one small button, and the choice is remembered
+ const toggle=q('.lk-dock-toggle');
+ function setDock(closed,remember=true){dockClosed=closed;host.classList.toggle('lk-dock-closed',closed);toggle.setAttribute('aria-expanded',String(!closed));toggle.setAttribute('aria-label',closed?'Show the controls':'Hide the controls');toggle.querySelector('span').textContent=closed?'Show controls':'Hide controls';if(remember)try{localStorage.setItem(DOCK_KEY,closed?'closed':'open');}catch{}}
+ toggle.addEventListener('click',()=>setDock(!dockClosed),{signal});setDock(dockClosed,false);
  function setFocus(on){if(focus===on)return;focus=on;calloutKey='';host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
 
  // ---- narrow screens: the panels become bottom sheets ----
  const narrow=matchMedia('(max-width:768px)');
  function setSheet(next){sheet=sheet===next?'':next;host.dataset.sheet=sheet;for(const b of all('[data-sheet]'))b.setAttribute('aria-pressed',String(b.dataset.sheet===sheet));}
  q('.lk-sheet-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-sheet]');if(b)setSheet(b.dataset.sheet);},{signal});
- narrow.addEventListener('change',()=>{if(!narrow.matches){sheet='';host.dataset.sheet='';}},{signal});
+ // on a phone the notes sit in the bottom stack, just above the controls, so nothing covers them; otherwise they float under the Start panel
+ const placeNotes=()=>{if(narrow.matches)q('.lk-bottom').prepend(box);else q('.lk-right').append(box);};
+ narrow.addEventListener('change',()=>{if(!narrow.matches){sheet='';host.dataset.sheet='';}placeNotes();},{signal});placeNotes();
 
  // ---- keyboard: [ ] step parts, F focus, R reset, arrows orbit and open, Esc deselect ----
  document.addEventListener('keydown',e=>{
@@ -169,7 +180,7 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   else if(key==='ArrowLeft'||key==='ArrowRight')adapter.camera(key==='ArrowLeft'?'rotate-left':'rotate-right',true);
   else if(key==='ArrowUp')adapter.setOpen(Math.min(100,state.open+10));
   else if(key==='ArrowDown')adapter.setOpen(Math.max(0,state.open-10));
-  else if(key==='Escape'){if(state.part&&state.part!=='overview')adapter.select(null);else if(focus)setFocus(false);else if(sheet)setSheet(sheet);else used=false;}
+  else if(key==='Escape'){if(state.part&&state.part!=='overview'){adapter.select(null);clearNotes();}else if(notes.size)clearNotes();else if(focus)setFocus(false);else if(sheet)setSheet(sheet);else used=false;}
   else used=false;
   if(used)e.preventDefault();
  },{signal});
@@ -196,14 +207,19 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
 
  // ---- repaint what changed ----
  function update(){
-  const state=adapter.get(),tick=JSON.stringify([state.part,Math.round(state.open*10),state.fault,state.flags,focus,handActive,filter,machineId]);
+  const state=adapter.get(),tick=JSON.stringify([state.part,Math.round(state.open*10),state.running,state.fault,state.flags,focus,handActive,machineId]);
   if(tick===last)return;last=tick;
   slider.value=state.open;slider.style.setProperty('--p',`${state.open}%`);slider.setAttribute('aria-valuetext',`${Math.round(state.open)} percent, ${stageName(state.open)}`);
   q('.lk-percent').innerHTML=`${Math.round(state.open)}<small>%</small>`;q('.lk-stage').textContent=stageName(state.open);
   for(const b of all('.lk-stop')){b.classList.toggle('reached',state.open>=Number(b.dataset.stop));if(b.textContent===stageName(state.open))b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');}
   for(const b of all('.lk-part'))b.setAttribute('aria-pressed',String(b.dataset.part===(state.part||'overview')));
   for(const b of all('[data-tool]')){const name=b.dataset.tool;if(name==='focus')b.setAttribute('aria-pressed',String(focus));else if(name==='hand')b.setAttribute('aria-pressed',String(handActive));else b.setAttribute('aria-pressed',String(Boolean(state.flags[name])));}
-  select.value=state.fault||'';paintBanner(state.fault);paintDetail({...state,part:state.part==='overview'?null:state.part});
+  // running shows the outside; "Show inside" is the learner's own choice (the pill appears in the collapsed view while it runs)
+  const see=Boolean(state.flags.xray);host.dataset.running=String(Boolean(state.running));
+  inside.setAttribute('aria-pressed',String(see));inside.querySelector('span').textContent=see?'Hide inside':'Show inside';const dockInside=q('[data-tool=xray] span');if(dockInside)dockInside.textContent=see?'Hide inside':'Show inside';
+  // a part chosen on the model (or by key, or by hand) gets its small note; the whole-machine note comes only from the list
+  if(state.part!==notedPart){notedPart=state.part;if(state.part&&state.part!=='overview')showNote(state.part);}
+  select.value=state.fault||'';paintBanner(state.fault);
   for(const b of all('[data-part]'))b.toggleAttribute('data-related',Boolean(faults.find(f=>f.id===state.fault)?.parts.includes(b.dataset.part)));
  }
 
@@ -217,8 +233,8 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   get dock(){return dock;},
   get cameraGroup(){return cameraGroup;},
   setHandActive(on){handActive=on;update();},
-  setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;filter='all';paintParts();paintFaults();last='';update();},
+  setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;clearNotes();notedPart=adapter.get().part;paintParts();paintFaults();last='';update();},
   refreshParts(){paintParts();last='';update();},
-  destroy(){abort.abort();root.remove();host.classList.remove('look-stage','lk-focus');delete host.dataset.sheet;}
+  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-focus','lk-dock-closed');delete host.dataset.sheet;delete host.dataset.running;}
  };
 }

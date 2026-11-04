@@ -120,7 +120,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
   get safety(){return ['megger','multimeter'].includes(module.kind)?SAFETY.instrument:SAFETY.plant;},
   get source(){return `Conceptual geometry (Fidelity A), referenced to ${module.brand} · ${module.reference}. ${module.sources[0]?.title||''}`;},
   info:partId=>({does:[module.parts.find(p=>p.id===partId)?.motion,module.parts.find(p=>p.id===partId)?.why].filter(Boolean).join(' ')}),
-  get(){return {part:state.part,open:state.open,fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
+  get(){return {part:state.part,open:state.open,running:Boolean(state.running),fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
   select:partId=>selectPart(partId||'overview'),
   setOpen:value=>dispatch({type:'open',value}),
   setFlag(name,on){if(name==='orbit'){guidance?.setAutoRotate(on);return;}if(name==='xray'||name==='callouts'){const key=name==='xray'?'xray':'labels';if(state[key]!==on)dispatch({type:key});return;}patch({[name]:on});},

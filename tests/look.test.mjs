@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createSpring,createLayerSprings,waveFactor,stageName,STOPS,revealOpening,createQuality,LAYER_WINDOWS,springEase,runView,zigzagPose,pingPong,ZIGZAG,createGlide} from '../src/look/motion.js';
+import {brief,pushNote,NOTE_MS,MAX_NOTES} from '../src/look/info.js';
 import {layerOf,isHidden,categorise,partRows} from '../src/look/layers.js';
 import {faultsFor} from '../src/look/faults.js';
 import {hardList} from '../src/hard-content.js';
@@ -87,13 +89,15 @@ test('camera moves ease like a spring: they start slowly, overshoot slightly and
  assert.ok(springEase(.5)>.6,'most of the move is done by the middle');
 });
 
-test('starting a machine shows its motion (see-through shell, flow path) and stopping puts the view back',()=>{
+test('starting a machine shows its flow path but keeps the outside: the shell is never made see-through, and stopping puts the flow back',()=>{
  const idle={running:false,xray:false,flow:false},run=runView({...idle,running:true});
- assert.equal(run.xray,true);assert.equal(run.flow,true);assert.deepEqual(run.runView,{xray:false,flow:false});
- assert.strictEqual(runView(run),run,'running again changes nothing');
+ assert.equal(run.xray,false,'the shell stays closed while it runs');assert.equal(run.flow,true);assert.deepEqual(run.runView,{flow:false});
+ assert.equal(runView(run),run,'idempotent: nothing changes on the next repaint');
  const stopped=runView({...run,running:false});assert.equal(stopped.xray,false);assert.equal(stopped.flow,false);assert.equal(stopped.runView,null);
- const kept=runView({...runView({running:true,xray:true,flow:false}),running:false});assert.equal(kept.xray,true,'a view the learner chose is kept');assert.equal(kept.flow,false);
- const vacuum=runView({running:true,xray:false,air:false},'air');assert.equal(vacuum.air,true);assert.equal(runView({...vacuum,running:false},'air').air,false);
+ // "Show inside" is the learner's own choice: asked for while running, it stays; never asked for, it never appears
+ const chose=runView({...run,xray:true,running:false});assert.equal(chose.xray,true,'a view the learner chose is kept');assert.equal(chose.flow,false);
+ const kept=runView({...runView({running:true,xray:true,flow:true}),running:false});assert.equal(kept.xray,true);assert.equal(kept.flow,true,'a flow path they already had on stays on');
+ const vacuum=runView({running:true,xray:false,air:false},'air');assert.equal(vacuum.air,true);assert.equal(vacuum.xray,false);assert.equal(runView({...vacuum,running:false},'air').air,false);
  assert.strictEqual(runView(idle),idle,'nothing happens while stopped');
 });
 
@@ -111,4 +115,25 @@ test('a hand\'s orbit glides: steps that arrive in bursts come out as smooth sha
  for(let i=0;i<200&&glide.pending;i++){const [dx,dy]=glide.step(1/60);assert.ok(dx>=0&&dy<=0,'keeps its direction');assert.ok(dx<=previous+1e-4,'each share is no bigger than the last (bar the final crumb)');previous=dx;sx+=dx;sy+=dy;}
  assert.equal(glide.pending,false);assert.ok(Math.abs(sx-.3)<1e-9&&Math.abs(sy+.1)<1e-9,'the whole owed amount is delivered');
  glide.push(1,1);const [a]=glide.step(.1);assert.ok(a>0&&a<1,'a long frame never overshoots');glide.reset();assert.equal(glide.pending,false);
+});
+
+test('part notes are small: a sentence or two, cut cleanly, gone after ten seconds, and at most three at once',()=>{
+ assert.equal(NOTE_MS,10000);assert.equal(MAX_NOTES,3);
+ assert.equal(brief('It pulls air through the filter. It also cools the motor. A third sentence here.',60),'It pulls air through the filter. It also cools the motor.');
+ assert.equal(brief('Short one.  Another short one.',150),'Short one. Another short one.');
+ const long=brief('A very long sentence that keeps going without any full stop for much longer than a small note could ever hold on screen at one time',60);
+ assert.ok(long.length<=60&&long.endsWith('…')&&!/\s…$/.test(long),'cut at a word, with an ellipsis');
+ assert.equal(brief(undefined),'');assert.equal(brief('  '),'');
+ assert.deepEqual(pushNote([],'a'),['a']);assert.deepEqual(pushNote(['b','a'],'c'),['c','b','a']);
+ assert.deepEqual(pushNote(['c','b','a'],'d'),['d','c','b'],'the oldest note makes room');
+ assert.deepEqual(pushNote(['c','b','a'],'a'),['a','c','b'],'showing a part again refreshes it instead of stacking a copy');
+});
+
+test('the Studio/Hologram switch is gone from every page, and the parts list has no chips or tags',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const ui=read('../src/look/ui.js'),html=read('../src/index.html'),app=read('../src/app.js'),look=read('../src/look/look.js');
+ for(const [name,text] of [['ui.js',ui],['index.html',html],['app.js',app]])assert.ok(!/Hologram/i.test(text.replace(/<html[^>]*>/,'')),`${name} offers no Hologram button`);
+ assert.ok(!/class="lk-switch|data-look-cycle|lk-chip|lk-tag|class="lk-detail/.test(ui),'no look switch, chips, tags or detail sheet in the controls');
+ assert.match(look,/initLook\(\)\{.*setLook\('studio',false\)/,'the look is always Studio');
+ assert.match(ui,/data-inside/,'a "Show inside" button exists');assert.match(ui,/lk-dock-toggle/,'the dock folds away');
 });
