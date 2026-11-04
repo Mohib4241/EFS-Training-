@@ -26,11 +26,12 @@ export function springEase(p){
  return 1-decay*(Math.cos(wd*t)+zeta*omega/wd*Math.sin(wd*t));
 }
 
-// Starting a machine shows what it does: the shell goes see-through (so the motor and fan are seen turning) and the flow path
-// appears. Stopping puts the view back as the learner had it. Idempotent, so it can run on every repaint.
+// Starting a machine shows the flow path, and the machine stays closed to the eye: the outside is the default while it runs, and
+// "Show inside" (the x-ray flag) is the learner's own choice. Stopping puts the flow path back as it was. Idempotent, so it can run
+// on every repaint.
 export function runView(state,flowKey='flow'){
- if(state.running&&!state.runView)return {...state,runView:{xray:Boolean(state.xray),flow:Boolean(state[flowKey])},xray:true,[flowKey]:true};
- if(!state.running&&state.runView)return {...state,xray:state.runView.xray,[flowKey]:state.runView.flow,runView:null};
+ if(state.running&&!state.runView)return {...state,runView:{flow:Boolean(state[flowKey])},[flowKey]:true};
+ if(!state.running&&state.runView)return {...state,[flowKey]:state.runView.flow,runView:null};
  return state;
 }
 

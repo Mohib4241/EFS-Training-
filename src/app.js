@@ -3,7 +3,7 @@ import {initialState,transition} from './machine-state.js';
 import {hardList,hardModules} from './hard-content.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from './soft-content.js';
 import {mountGuidance} from './guidance.js';
-import {initLook,setLook,getLook} from './look/look.js';
+import {initLook} from './look/look.js';
 import {isHidden} from './look/layers.js';
 import {revealOpening,runView} from './look/motion.js';
 import {layerOf} from './look/layers.js';
@@ -98,7 +98,7 @@ function vacuumTourFrame(frame,kind){
   if(frame.id==='hover'){state.part='cover';render();}
  }else{
   if(frame.id==='connect'&&!state.connected)action('plug');
-  if(frame.id==='run'){if(!state.connected)action('plug');if(!state.running)action('power');state.xray=true;render();}
+  if(frame.id==='run'){if(!state.connected)action('plug');if(!state.running)action('power');render();}
   if(frame.id==='identify'){state.part='cover';render();}
   if(frame.id==='mechanism'){state.air=true;state.xray=true;render();}
   if(frame.id==='isolate'){if(state.running)action('power');if(state.connected)action('plug');state.air=false;state.xray=false;render();}
@@ -150,7 +150,7 @@ const vacuumAdapter={
  get parts(){return parts.slice(1);},
  safety:'Switch off and unplug before opening the machine or removing this part.',
  source:'Conceptual teaching model (Fidelity A), not a service drawing. Exact fitted parts are unverified.',
- get(){return {part:state.part,open:state.open,fault:state.fault||'',flags:{xray:state.xray,callouts:state.callouts,flow:state.air,guides:Boolean(state.guides),glow:state.glow!==false,orbit:Boolean(state.autoRotate)}};},
+ get(){return {part:state.part,open:state.open,running:Boolean(state.running),fault:state.fault||'',flags:{xray:state.xray,callouts:state.callouts,flow:state.air,guides:Boolean(state.guides),glow:state.glow!==false,orbit:Boolean(state.autoRotate)}};},
  info:id=>ELECTRICAL.includes(id)?{safety:'Isolate first: switch off and unplug before touching or inspecting this part.'}:{},
  select:id=>selectPart(id||'overview'),
  setOpen:value=>action('open',value),
@@ -232,9 +232,5 @@ function updateChecks(changed){const inputs=[...document.querySelectorAll('#oper
 $('clear-checks').addEventListener('click',()=>{for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();});
 buildVacuumContent();
 document.addEventListener('efs-guide-language',()=>render());
-// The maintenance practice has no floating panels, so its look switch lives in the page toolbar.
-const syncLookSwitch=()=>{for(const b of document.querySelectorAll('.maintenance-look [data-look]'))b.setAttribute('aria-pressed',String(b.dataset.look===getLook()));};
-for(const b of document.querySelectorAll('.maintenance-look [data-look]'))b.addEventListener('click',()=>setLook(b.dataset.look));
-document.addEventListener('efs-look',syncLookSwitch);syncLookSwitch();
 render();
 const route=readRoute();showPage(route.page,route.path,'replace');

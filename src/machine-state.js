@@ -12,7 +12,7 @@ export function transition(state,action){
   next.connected=!state.connected;next.running=false;message=next.connected?'Plug connected. The motor is still off.':'Switched off and unplugged.';break;
  case 'power':
   if(!state.connected||state.open>0){message='Assemble the machine and connect the plug before switching on.';break;}
-  next.running=!state.running;message=next.running?'Motor and fan running. Use See inside to view their motion.':'Motor switched off. The plug is still connected.';break;
+  next.running=!state.running;message=next.running?'Motor and fan running. Use Show inside to view their motion.':'Motor switched off. The plug is still connected.';break;
  case 'open':
   if(!Number.isFinite(action.value)||action.value<0||action.value>100)throw new RangeError('Opening must be between 0 and 100');
   if(action.value===state.open)break;
