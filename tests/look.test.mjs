@@ -137,3 +137,15 @@ test('the Studio/Hologram switch is gone from every page, and the parts list has
  assert.match(look,/initLook\(\)\{.*setLook\('studio',false\)/,'the look is always Studio');
  assert.match(ui,/data-inside/,'a "Show inside" button exists');assert.match(ui,/lk-dock-toggle/,'the dock folds away');
 });
+
+test('the parts list, the side panel and the bottom controls each fold away on every equipment page',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const ui=read('../src/look/ui.js'),css=read('../src/look/look.css');
+ assert.match(ui,/lk-parts-toggle[^>]*aria-expanded="true"/,'the parts list has a fold button');
+ assert.match(ui,/lk-side-toggle[^>]*aria-expanded="true"/,'the side panel has a fold button');
+ assert.match(ui,/PARTS_KEY='efs-parts',SIDE_KEY='efs-side'/,'each choice is remembered');
+ assert.match(css,/\.lk-dock-closed \.lk-dock,\.look-stage\.lk-dock-closed \.lk-teardown\{display:none\}/,'"Hide controls" folds the opening slider as well as the tools');
+ assert.match(css,/\.lk-parts-closed \.lk-parts \.lk-list\{display:none\}/,'a folded parts list shows only its heading');
+ assert.match(css,/\.lk-side-closed \.lk-right>\.lk-slot,\.lk-side-closed \.lk-right>\.lk-notes\{display:none\}/,'a folded side panel hides the Start panel and notes');
+ for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js'])assert.match(read(page),/mountLookUI/,`${page} uses the shared controls, so it gets the fold buttons`);
+});

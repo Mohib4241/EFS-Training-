@@ -306,7 +306,29 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .lk-dock-toggle svg{width:14px;height:14px;transition:transform .2s}
 .lk-dock-toggle[aria-expanded=false] svg{transform:rotate(180deg)}
 .lk-dock-toggle:hover{color:var(--lk-accent);border-color:var(--lk-accent)}
-.look-stage.lk-dock-closed .lk-dock{display:none}
+.look-stage.lk-dock-closed .lk-dock,.look-stage.lk-dock-closed .lk-teardown{display:none}
+
+/* ---- the parts list (left) and the side panel (right) fold away; the space they leave goes to the machine ---- */
+.lk-fold{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;padding:0;border:1px solid var(--lk-line);border-radius:8px;background:var(--lk-field);color:var(--lk-muted);cursor:pointer;pointer-events:auto}
+.lk-fold svg{width:15px;height:15px;transition:transform .2s}
+.lk-fold:hover{color:var(--lk-accent);border-color:var(--lk-accent)}
+.lk-fold:focus-visible{outline:2px solid var(--lk-accent);outline-offset:2px}
+.lk-heading{align-items:center;gap:8px}.lk-heading h2{flex:1}
+@media(min-width:769px){
+.lk-parts-closed .lk-parts{bottom:auto;width:auto;padding:10px 12px}
+.lk-parts-closed .lk-parts .lk-heading{margin:0;cursor:pointer}
+.lk-parts-closed .lk-parts .lk-list{display:none}
+.lk-parts-closed .lk-parts-toggle svg{transform:rotate(180deg)}
+.lk-side-toggle{align-self:flex-end;display:inline-flex;gap:4px;width:auto;height:auto;padding:4px 8px 4px 10px;font:500 11px var(--font-body);border-radius:999px;background:var(--lk-panel);box-shadow:var(--lk-shadow);-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur)}
+.lk-side-toggle svg{transform:rotate(180deg)}
+.lk-side-closed .lk-side-toggle svg{transform:none}
+.lk-side-closed .lk-right>.lk-slot,.lk-side-closed .lk-right>.lk-notes{display:none}
+.lk-side-closed .lk-right{bottom:auto}
+/* with the controls folded, the side columns reach further down */
+.look-stage.lk-dock-closed:not(.lk-focus):not(.lk-parts-closed) .lk-parts,.look-stage.lk-dock-closed:not(.lk-focus):not(.lk-side-closed) .lk-right{bottom:56px}
+}
+/* phones: the parts list is already a sheet opened from its tab, and the Start panel sits on its own */
+@media(max-width:768px){.lk-parts-toggle,.lk-side-toggle{display:none}}
 
 /* ---- Hard Services maintenance checklists ---- */
 .hl-checklists{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}

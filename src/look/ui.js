@@ -26,7 +26,10 @@ const ICONS={
 };
 const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 const LAYER_BUTTONS=[['xray','Show inside','See inside: the shell turns see-through'],['callouts','Callouts','Leader lines with part names'],['flow','Flow path','Show the conceptual flow path'],['guides','Guides','Dashed lines from each part to its resting place'],['glow','Glow','Highlight glow and bloom'],['orbit','Orbit','Slow auto-rotate that pauses on input'],['focus','Focus view','Hide all panels (F)']];
-const DOCK_KEY='efs-dock';
+const DOCK_KEY='efs-dock',PARTS_KEY='efs-parts',SIDE_KEY='efs-side';
+const CHEVRON='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
+const remembered=key=>{try{return localStorage.getItem(key)==='closed';}catch{return false;}};
+const remember=(key,closed)=>{try{localStorage.setItem(key,closed?'closed':'open');}catch{}};
 const CAMERA_BUTTONS=[['rotate-left','↶','Rotate left'],['rotate-right','↷','Rotate right']];
 
 const element=(tag,className,html='')=>{const el=document.createElement(tag);if(className)el.className=className;if(html)el.innerHTML=html;return el;};
@@ -41,10 +44,10 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  root.innerHTML=`
   <div class="lk-top"><div class="lk-hint"><span>Drag to orbit</span><span>Scroll or pinch to open</span><span>Click a part</span><span><kbd>[</kbd><kbd>]</kbd> step parts</span><span><kbd>F</kbd> focus</span></div><div class="lk-banner" role="status" hidden></div></div>
   <aside class="lk-panel lk-parts" aria-label="Parts">
-   <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code></div>
+   <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code><button type="button" class="lk-fold lk-parts-toggle" aria-expanded="true" aria-label="Collapse the parts list" title="Collapse the parts list">${CHEVRON}</button></div>
    <ul class="lk-list"></ul>
   </aside>
-  <div class="lk-right"><div class="lk-slot"></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
+  <div class="lk-right"><button type="button" class="lk-fold lk-side-toggle" aria-expanded="true" aria-label="Collapse the side panel" title="Collapse the side panel"><span>Hide panel</span>${CHEVRON}</button><div class="lk-slot"></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
   <div class="lk-bottom">
    <div class="lk-teardown"><div class="lk-readout"><output class="lk-percent"></output><span class="lk-stage"></span></div><div class="lk-track"><input class="lk-slider" type="range" min="0" max="100" step="0.1" value="0" aria-label="Staged teardown"><div class="lk-stops"></div></div></div>
    <div class="lk-pills"><button type="button" class="lk-inside-pill" data-inside aria-pressed="false">${icon('xray')}<span>Show inside</span></button><button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button></div>
@@ -155,6 +158,18 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const toggle=q('.lk-dock-toggle');
  function setDock(closed,remember=true){dockClosed=closed;host.classList.toggle('lk-dock-closed',closed);toggle.setAttribute('aria-expanded',String(!closed));toggle.setAttribute('aria-label',closed?'Show the controls':'Hide the controls');toggle.querySelector('span').textContent=closed?'Show controls':'Hide controls';if(remember)try{localStorage.setItem(DOCK_KEY,closed?'closed':'open');}catch{}}
  toggle.addEventListener('click',()=>setDock(!dockClosed),{signal});setDock(dockClosed,false);
+ // the parts list (left) and the side panel (right) each fold away to a small button, and the choice is remembered
+ const partsToggle=q('.lk-parts-toggle'),sideToggle=q('.lk-side-toggle');
+ function setParts(closed,save=true){host.classList.toggle('lk-parts-closed',closed);partsToggle.setAttribute('aria-expanded',String(!closed));const label=closed?'Expand the parts list':'Collapse the parts list';partsToggle.setAttribute('aria-label',label);partsToggle.title=label;if(save)remember(PARTS_KEY,closed);}
+ function setSide(closed,save=true){host.classList.toggle('lk-side-closed',closed);sideToggle.setAttribute('aria-expanded',String(!closed));const label=closed?'Expand the side panel':'Collapse the side panel';sideToggle.setAttribute('aria-label',label);sideToggle.title=label;sideToggle.querySelector('span').textContent=closed?'Show panel':'Hide panel';if(save)remember(SIDE_KEY,closed);}
+ partsToggle.addEventListener('click',()=>setParts(!host.classList.contains('lk-parts-closed')),{signal});
+ // the folded list is one small card: clicking anywhere on its heading opens it again
+ q('.lk-parts .lk-heading').addEventListener('click',e=>{if(host.classList.contains('lk-parts-closed')&&!e.target.closest('.lk-parts-toggle'))setParts(false);},{signal});
+ sideToggle.addEventListener('click',()=>setSide(!host.classList.contains('lk-side-closed')),{signal});
+ setParts(remembered(PARTS_KEY),false);setSide(remembered(SIDE_KEY),false);
+ // when a guide (or the page) opens the Start panel inside a folded side panel, show it for now without changing the saved choice
+ const slotWatch=new MutationObserver(()=>{if(host.classList.contains('lk-side-closed')&&q('.lk-slot details[open]'))setSide(false,false);});
+ slotWatch.observe(q('.lk-slot'),{subtree:true,attributes:true,attributeFilter:['open']});signal.addEventListener('abort',()=>slotWatch.disconnect());
  function setFocus(on){if(focus===on)return;focus=on;calloutKey='';host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
 
  // ---- narrow screens: the panels become bottom sheets ----
@@ -235,6 +250,6 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   setHandActive(on){handActive=on;update();},
   setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;clearNotes();notedPart=adapter.get().part;paintParts();paintFaults();last='';update();},
   refreshParts(){paintParts();last='';update();},
-  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-focus','lk-dock-closed');delete host.dataset.sheet;delete host.dataset.running;}
+  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-focus','lk-dock-closed','lk-parts-closed','lk-side-closed');delete host.dataset.sheet;delete host.dataset.running;}
  };
 }
