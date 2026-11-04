@@ -3,6 +3,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {openingFromPixels} from './machine-state.js';
 import {createRig,finish,ghost} from './look/rig.js';
+import {partAbout} from './guide-content.js';
 import {createLayerSprings,waveFactor,springEase,zigzagPose,pingPong,createGlide} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
@@ -182,7 +183,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   positions.needsUpdate=true;guideLines.computeLineDistances();guideLines.material.color.set(studio.look==='hologram'?0x3de0ff:0x0a8f9c);guideLines.visible=true;guidesDrawn=true;
  }
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
- function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.group;tooltip.lastElementChild.textContent=part.name;const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
+ function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.name;tooltip.lastElementChild.textContent=partAbout(part);const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
  let handHover=null,overlay=null,zigzag=0;const glide=createGlide();
  // Layout is measured a few times a second, not every frame (reading sizes during an animation forces layout).
  let bottomBar=null,measuredAt=-1e9,measured=[1,1,0];
@@ -194,7 +195,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   const goal=state.open/100;let springing=false;springs.forEach((spring,layer)=>{if(spring.step(dt,waveFactor(layer,goal),reduced.matches))springing=true;});
   opening=(springs[0].value+springs[1].value+springs[2].value+springs[3].value)/4;
   for(const g of Object.values(groups)){const f=springs[g.userData.layer].value;g.position.copy(g.userData.base).addScaledVector(g.userData.offset,f);if(g.userData.spread)for(const c of g.children)c.position.x=c.userData.homeX*(1+f);}
-  const nextFraming=1+opening*.3;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
+  const nextFraming=1+opening*.45;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
   if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
   const turning=state.running&&!reduced.matches;
   // Only the scrubber travels: a zigzag floor pass while it runs, easing back to its place when it stops.
@@ -225,10 +226,9 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  function cancelGesture(){pointers.clear();down=null;multiple=false;span=null;clearHover();}
  const local=e=>{const r=canvas.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top};};
  const distance=()=>{const [a,b]=[...pointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);};
- const reveal=pixels=>{if(state){const next=openingFromPixels(state.open,pixels);if(next!==state.open)onReveal(next);}};
- canvas.addEventListener('wheel',e=>{e.preventDefault();cameraTween=null;reveal(-e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?canvas.clientHeight:1)*(e.ctrlKey?3:1));},{passive:false,signal});
+ // The machine opens only from "View inside": scrolling scrolls the page and a pinch does not open it.
  canvas.addEventListener('pointerdown',e=>{cameraTween=null;pointers.set(e.pointerId,local(e));down={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false};clearHover();if(pointers.size>1){multiple=true;down=null;span=pointers.size===2?distance():null;}},{signal});
- canvas.addEventListener('pointermove',e=>{if(down?.id===e.pointerId&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>6)down.moved=true;if(pointers.has(e.pointerId)){pointers.set(e.pointerId,local(e));if(pointers.size===2){const next=distance();if(span!==null)reveal((next-span)*2);span=next;}}if(e.pointerType!=='touch'&&!e.buttons&&!pointers.size){hoverPoint=local(e);hoverMoved=true;schedule();}},{signal});
+ canvas.addEventListener('pointermove',e=>{if(down?.id===e.pointerId&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>6)down.moved=true;if(pointers.has(e.pointerId)){pointers.set(e.pointerId,local(e));if(pointers.size===2)span=distance();}if(e.pointerType!=='touch'&&!e.buttons&&!pointers.size){hoverPoint=local(e);hoverMoved=true;schedule();}},{signal});
  canvas.addEventListener('pointerup',e=>{const click=!multiple&&down?.id===e.pointerId&&!down.moved&&e.button===0;pointers.delete(e.pointerId);if(!pointers.size){multiple=false;down=null;span=null;}if(click){camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);const id=hitAt(local(e));if(id)onSelect(id);}if(e.pointerType!=='touch'){hoverPoint=local(e);hoverMoved=true;schedule();}},{signal});
  canvas.addEventListener('pointerenter',e=>{hoverPoint=local(e);hoverMoved=true;schedule();},{signal});canvas.addEventListener('pointerleave',clearHover,{signal});canvas.addEventListener('pointercancel',cancelGesture,{signal});window.addEventListener('blur',cancelGesture,{signal});
  canvas.addEventListener('keydown',e=>{if(e.key==='Escape')clearHover();if(['ArrowUp','ArrowDown','Home','End'].includes(e.key)){e.preventDefault();cameraTween=null;onReveal(e.key==='Home'?0:e.key==='End'?100:openingFromPixels(state.open,e.key==='ArrowUp'?100:-100));}},{signal});

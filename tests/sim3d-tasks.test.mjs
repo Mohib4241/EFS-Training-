@@ -54,7 +54,7 @@ for(const [task,kind] of TASKS){
 test('bag: a short pull is not unplugging, and a wrong part says why',()=>{
  const h=harness(bag,'bag');h.pull('r','plug',[0.06,0]);assert.equal(h.state.isolated,false);assert.ok(h.messages.some(m=>/further/.test(m)));
  for(let t=0;t<1.4;t+=1/30)h.frame([]);const head=h.world.anchorScreen('head');for(let t=0;t<0.2;t+=1/30)h.frame([h.pointer('r',[head.nx,head.ny],true)]);h.frame([h.pointer('r',[head.nx,head.ny],false)]);
- assert.ok(h.messages.some(m=>/Not yet — first use the plug/.test(m)),h.messages.join(' | '));
+ assert.ok(h.messages.some(m=>/See the checklist: next is the plug/.test(m)),h.messages.join(' | '));
 });
 
 test('framing maths: the wide view is the original composition, closer framings make the work bigger, blends are continuous',async()=>{

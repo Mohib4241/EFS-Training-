@@ -306,29 +306,7 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .lk-dock-toggle svg{width:14px;height:14px;transition:transform .2s}
 .lk-dock-toggle[aria-expanded=false] svg{transform:rotate(180deg)}
 .lk-dock-toggle:hover{color:var(--lk-accent);border-color:var(--lk-accent)}
-.look-stage.lk-dock-closed .lk-dock,.look-stage.lk-dock-closed .lk-teardown{display:none}
-
-/* ---- the parts list (left) and the side panel (right) fold away; the space they leave goes to the machine ---- */
-.lk-fold{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;padding:0;border:1px solid var(--lk-line);border-radius:8px;background:var(--lk-field);color:var(--lk-muted);cursor:pointer;pointer-events:auto}
-.lk-fold svg{width:15px;height:15px;transition:transform .2s}
-.lk-fold:hover{color:var(--lk-accent);border-color:var(--lk-accent)}
-.lk-fold:focus-visible{outline:2px solid var(--lk-accent);outline-offset:2px}
-.lk-heading{align-items:center;gap:8px}.lk-heading h2{flex:1}
-@media(min-width:769px){
-.lk-parts-closed .lk-parts{bottom:auto;width:auto;padding:10px 12px}
-.lk-parts-closed .lk-parts .lk-heading{margin:0;cursor:pointer}
-.lk-parts-closed .lk-parts .lk-list{display:none}
-.lk-parts-closed .lk-parts-toggle svg{transform:rotate(180deg)}
-.lk-side-toggle{align-self:flex-end;display:inline-flex;gap:4px;width:auto;height:auto;padding:4px 8px 4px 10px;font:500 11px var(--font-body);border-radius:999px;background:var(--lk-panel);box-shadow:var(--lk-shadow);-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur)}
-.lk-side-toggle svg{transform:rotate(180deg)}
-.lk-side-closed .lk-side-toggle svg{transform:none}
-.lk-side-closed .lk-right>.lk-slot,.lk-side-closed .lk-right>.lk-notes{display:none}
-.lk-side-closed .lk-right{bottom:auto}
-/* with the controls folded, the side columns reach further down */
-.look-stage.lk-dock-closed:not(.lk-focus):not(.lk-parts-closed) .lk-parts,.look-stage.lk-dock-closed:not(.lk-focus):not(.lk-side-closed) .lk-right{bottom:56px}
-}
-/* phones: the parts list is already a sheet opened from its tab, and the Start panel sits on its own */
-@media(max-width:768px){.lk-parts-toggle,.lk-side-toggle{display:none}}
+.look-stage.lk-dock-closed .lk-dock{display:none}
 
 /* ---- Hard Services maintenance checklists ---- */
 .hl-checklists{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
@@ -349,3 +327,34 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .hl-start-check{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--lk-text)}
 .hl-start-check[hidden]{display:none}
 :root[data-look="hologram"] .hl-catalogue-symbol{background:var(--lk-accent-soft);color:var(--lk-accent);border-color:var(--lk-line)}
+
+/* ---- simple stage: only the machine and the numbered steps on the right (View inside, Start the machine, then the page's own) ---- */
+.lk-simple .lk-parts,.lk-simple .lk-hint,.lk-simple .lk-teardown,.lk-simple .lk-dock,.lk-simple .lk-dock-toggle,.lk-simple .lk-pills,.lk-simple .lk-sheet-tabs,.lk-simple .lk-leaders,.lk-simple .lk-labels{display:none!important}
+.look-stage.lk-simple .lk-right{display:flex;width:clamp(230px,24vw,290px)}
+.lk-simple .lk-slot{counter-reset:lk-step;gap:8px}
+.lk-step{display:grid;grid-template-columns:24px 1fr;align-items:center;column-gap:10px;width:100%;padding:10px 12px;text-align:left;cursor:pointer;pointer-events:auto;
+ background:var(--lk-panel);-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur);border:1px solid var(--lk-line);border-radius:12px;box-shadow:var(--lk-shadow);color:var(--lk-text);font:600 13px var(--font-body)}
+.lk-step small{grid-column:2;font:400 11px/1.35 var(--font-body);color:var(--lk-muted)}
+.lk-step::before,.lk-simple .lk-slot>.startup-panel>summary::before{counter-increment:lk-step;content:counter(lk-step);display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--lk-accent-soft);color:var(--lk-accent);font:600 11px var(--font-mono)}
+.lk-step::before{grid-row:span 2}
+.lk-step:hover{border-color:var(--lk-accent)}
+.lk-step[aria-pressed=true]{border-color:var(--lk-accent);background:color-mix(in srgb,var(--lk-accent) 10%,var(--lk-panel))}
+.lk-step[aria-pressed=true]::before{background:var(--lk-accent);color:#fff}
+.lk-step:focus-visible{outline:2px solid var(--lk-accent);outline-offset:2px}
+.lk-simple .lk-slot>.startup-panel>summary{gap:10px;font-size:13px}
+.lk-simple .lk-slot>.startup-panel>summary>svg{display:none}
+/* a part's name and what it does, beside the cursor */
+.look-stage #part-tooltip,.look-stage .hl-tooltip{max-width:260px}
+.look-stage #part-tooltip strong,.look-stage .hl-tooltip strong{display:block;font:600 13px var(--font-body);color:var(--lk-text);margin:0 0 3px}
+.look-stage #part-tooltip small,.look-stage .hl-tooltip small{display:block;font:400 11.5px/1.45 var(--font-body);color:var(--lk-muted)}
+@media(max-width:768px){
+ .lk-simple .lk-slot{top:auto;bottom:8px;left:8px;right:8px;width:auto;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+ .lk-simple .lk-slot>.startup-panel[open]{grid-column:1/-1}
+ .lk-step{padding:8px 10px;font-size:12px}.lk-step small{display:none}
+}
+/* the maintenance checklist (and Experiment) sit on the machine page; one button goes back to the machine */
+.maintenance-bar{display:flex;align-items:center;gap:16px;margin:0 0 14px}
+.maintenance-bar h2{margin:2px 0 0;font:600 20px var(--font-display);color:var(--lk-text)}
+#machine-view,.hl-machine-view{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font:600 13px var(--font-body);color:var(--lk-accent);background:var(--lk-accent-soft);border:1px solid var(--lk-accent);border-radius:999px;cursor:pointer}
+#machine-view:hover,.hl-machine-view:hover{background:var(--lk-accent);color:#fff}
+.hl-machine-view{display:flex;width:max-content;margin:0 0 12px}

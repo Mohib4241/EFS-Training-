@@ -13,7 +13,7 @@ const openClips=h=>{h.press('l','clipLeft');h.press('r','clipRight');};
 test('wrong moves do nothing and say why: out-of-order grabs, wrong drops, the wrong part',()=>{
  const h=harness(bag);
  run(h,0.3,()=>[h.pointer('r',screen(h,'head'),true)]);h.frame([]);
- assert.equal(h.ix.holding.length,0);assert.ok(h.messages.some(m=>/first use the plug/i.test(m)),'it tells the learner what to do first: '+h.messages.join(' | '));
+ assert.equal(h.ix.holding.length,0);assert.ok(h.messages.some(m=>/see the checklist: next is the plug/i.test(m)),'it points the learner to the checklist: '+h.messages.join(' | '));
  run(h,1.4,()=>[]);
  h.pull('r','plug',[0.05,0]);assert.equal(h.state.isolated,false,'a short tug is not unplugging');assert.ok(h.messages.some(m=>/further out/i.test(m)));
  run(h,1.4,()=>[]);unplug(h);assert.equal(h.state.isolated,true,'a real pull works');

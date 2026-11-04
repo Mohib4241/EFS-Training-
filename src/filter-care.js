@@ -7,12 +7,12 @@ export function reduceFilterCare(previous,action){
  if(s.complete)return out('Weekly filter-care sequence practised. The machine remains isolated.');
  const expected={isolate:'isolate',unclip:'release',open:'open',remove:'remove',inspect:'inspect',wash:'wash',rack:'drain',dry:'dry','confirm-dry':'check-dry',fit:'fit',close:'close',secure:'secure'};
  if(action.type==='tap'){
-  if(!['wash','drain'].includes(s.phase))return out('Complete the previous step: remove and inspect the filter before using water.');
+  if(!['wash','drain'].includes(s.phase))return out('See the checklist: remove and inspect the filter before using water.');
   if(s.phase==='drain'&&!s.waterOn)return out('Water is already off. Move the rinsed filter to the drying rack.');
   s.waterOn=!s.waterOn;return out(s.waterOn?'Clean water on. Hold the approved washable filter and move it under the stream.':'Water off. Move the rinsed filter to the drying rack.');
  }
  if(!Object.hasOwn(expected,action.type))throw new RangeError('Unsupported filter-care action');
- if(s.phase!==expected[action.type])return out('Complete the previous step first. Follow the highlighted filter-care action.');
+ if(s.phase!==expected[action.type])return out('See the checklist for the next step.');
  if(action.type==='isolate'){s.isolated=true;s.phase='release';return out('Power isolated. Release both retaining clips. Keep water away from the motor head.');}
  if(action.type==='unclip'||action.type==='secure'){
   if(!['left','right'].includes(action.clip))throw new RangeError('Unknown retaining clip');
@@ -29,11 +29,11 @@ export function reduceFilterCare(previous,action){
   s.washableConfirmed=true;s.phase='wash';return out('Washable media confirmed for this site-training scenario. Turn on clean water, then move only the removable filter under the stream.');
  }
  if(action.type==='wash'){
-  if(!s.washableConfirmed||!s.waterOn)return out('Complete the previous step: confirm washable media and turn on clean water before rinsing.');
+  if(!s.washableConfirmed||!s.waterOn)return out('See the checklist: confirm washable media and turn on clean water before rinsing.');
   s.filter='sink';s.rinsed=true;s.wet=true;s.phase='drain';return out('Filter rinsed in the illustration. Turn off the tap before moving it to the drying rack. The motor head stays dry.');
  }
  if(action.type==='rack'){
-  if(s.waterOn)return out('Complete the previous step: turn the tap off before moving the filter to the rack.');
+  if(s.waterOn)return out('See the checklist: turn the tap off before moving the filter to the rack.');
   s.filter='rack';s.phase='dry';return out('Filter on the air-drying rack. Drying time depends on the real filter and conditions; this animation does not predict it.');
  }
  if(action.type==='dry'){s.dryingPreview=true;s.phase='check-dry';return out('Air-drying preview shown. Before real refitting, the approved filter must be completely dry. Check that condition now in the training scenario.');}
