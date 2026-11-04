@@ -1,0 +1,240 @@
+import {partRows,isHidden} from './layers.js';
+import {STOPS,stageName} from './motion.js';
+import {faultsFor} from './faults.js';
+import {brief,pushNote,NOTE_MS} from './info.js';
+
+// The floating controls every equipment page shares: parts panel, small part notes, staged teardown, layer dock,
+// fault finder and keyboard shortcuts. It knows nothing about three.js; each page hands it an adapter:
+//   machine {id,name,intro}, parts [{id,name,group,body,why,motion,evidence?}], safety, source,
+//   get() -> {part,open,running,fault,flags:{xray,callouts,flow,guides,glow,orbit}}, select(id|null), setOpen(percent), setFlag(name,on),
+//   camera(action), flyTo(id), setFault(id), hand? {toggle(), active}
+const ICONS={
+ xray:'<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.6"/>',
+ callouts:'<path d="M4 18l6-6h9"/><circle cx="4" cy="18" r="1.4"/><rect x="13" y="6" width="8" height="5" rx="1"/>',
+ flow:'<path d="M3 8c3 0 3 3 6 3s3-3 6-3 3 3 6 3M3 15c3 0 3 3 6 3s3-3 6-3 3 3 6 3"/>',
+ guides:'<path d="M5 3v18M19 3v18M5 7h14M5 17h14" stroke-dasharray="3 3"/>',
+ glow:'<circle cx="12" cy="12" r="3.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
+ orbit:'<path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/>',
+ focus:'<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>',
+ 'zoom-out':'<circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M16 16l5 5"/>',
+ 'zoom-in':'<circle cx="11" cy="11" r="6.5"/><path d="M8 11h6M11 8v6M16 16l5 5"/>',
+ reset:'<circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>',
+ hand:'<path d="M8 12V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4a1.5 1.5 0 0 1 3 0v7M14 10V5.5a1.5 1.5 0 0 1 3 0V13M17 11a1.5 1.5 0 0 1 3 0v4a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-3-5a1.6 1.6 0 0 1 2.6-1.8L8 15"/>',
+ fault:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
+ parts:'<rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+ detail:'<path d="M5 4h14v16H5zM8 9h8M8 13h8M8 17h5"/>'
+};
+const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+const LAYER_BUTTONS=[['xray','Show inside','See inside: the shell turns see-through'],['callouts','Callouts','Leader lines with part names'],['flow','Flow path','Show the conceptual flow path'],['guides','Guides','Dashed lines from each part to its resting place'],['glow','Glow','Highlight glow and bloom'],['orbit','Orbit','Slow auto-rotate that pauses on input'],['focus','Focus view','Hide all panels (F)']];
+const DOCK_KEY='efs-dock';
+const CAMERA_BUTTONS=[['rotate-left','↶','Rotate left'],['rotate-right','↷','Rotate right']];
+
+const element=(tag,className,html='')=>{const el=document.createElement(tag);if(className)el.className=className;if(html)el.innerHTML=html;return el;};
+const escape=text=>String(text??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
+ const abort=new AbortController(),{signal}=abort;
+ let rows=[],machineId=adapter.machine.id,faults=[],focus=false,last='',sheet='',handActive=false,notedPart=adapter.get().part,dockClosed=false;
+ try{dockClosed=localStorage.getItem(DOCK_KEY)==='closed';}catch{}
+ host.classList.add('look-stage');
+ const root=element('div','lk-root');
+ root.innerHTML=`
+  <div class="lk-top"><div class="lk-hint"><span>Drag to orbit</span><span>Scroll or pinch to open</span><span>Click a part</span><span><kbd>[</kbd><kbd>]</kbd> step parts</span><span><kbd>F</kbd> focus</span></div><div class="lk-banner" role="status" hidden></div></div>
+  <aside class="lk-panel lk-parts" aria-label="Parts">
+   <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code></div>
+   <ul class="lk-list"></ul>
+  </aside>
+  <div class="lk-right"><div class="lk-slot"></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
+  <div class="lk-bottom">
+   <div class="lk-teardown"><div class="lk-readout"><output class="lk-percent"></output><span class="lk-stage"></span></div><div class="lk-track"><input class="lk-slider" type="range" min="0" max="100" step="0.1" value="0" aria-label="Staged teardown"><div class="lk-stops"></div></div></div>
+   <div class="lk-pills"><button type="button" class="lk-inside-pill" data-inside aria-pressed="false">${icon('xray')}<span>Show inside</span></button><button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button></div>
+   <div class="lk-sheet-tabs"><button type="button" data-sheet="parts">${icon('parts')}<span>Parts</span></button></div>
+   <button type="button" class="lk-dock-toggle" aria-expanded="true" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span>Hide controls</span></button>
+   <div class="lk-dock" role="toolbar" aria-label="Layers and camera"></div>
+  </div>
+  <svg class="lk-leaders" aria-hidden="true"></svg><div class="lk-labels" aria-hidden="true"></div>`;
+ host.append(root);
+ const q=selector=>root.querySelector(selector),all=selector=>[...root.querySelectorAll(selector)];
+ const dock=q('.lk-dock');
+
+ // ---- dock: layers, camera, hand control, fault finder ----
+ const layerGroup=element('div','lk-group lk-layers');
+ for(const [name,label,title] of LAYER_BUTTONS){const b=element('button','lk-tool',`${icon(name)}<span>${label}</span>`);b.type='button';b.dataset.tool=name;b.title=title;b.setAttribute('aria-pressed','false');layerGroup.append(b);}
+ const cameraGroup=element('div','lk-group camera-buttons');cameraGroup.setAttribute('aria-label','Camera controls');
+ for(const [action,glyph,label] of CAMERA_BUTTONS){const b=element('button','lk-tool lk-icon-only',`<b aria-hidden="true">${glyph}</b><span>${label}</span>`);b.type='button';b.dataset.camera=action;b.title=label;b.setAttribute('aria-label',label);if(ids[action])b.id=ids[action];cameraGroup.append(b);}
+ for(const [action,label] of [['zoom-out','Zoom out'],['zoom-in','Zoom in'],['reset','Reset view (R)']]){const b=element('button','lk-tool',`${icon(action)}<span>${label.replace(/ \(R\)/,'')}</span>`);b.type='button';b.dataset.camera=action==='reset'?'reset':action;b.title=label;b.setAttribute('aria-label',label);const key=action==='reset'?'camera-reset':action;if(ids[key])b.id=ids[key];cameraGroup.append(b);}
+ const extras=element('div','lk-group lk-extras');
+ if(adapter.hand){const b=element('button','lk-tool',`${icon('hand')}<span>Hand control</span>`);b.type='button';b.dataset.tool='hand';b.title='Control the model with your hands and webcam';b.setAttribute('aria-pressed','false');extras.append(b);}
+ const faultLabel=element('label','lk-fault',`${icon('fault')}<span>Fault finder</span><select aria-label="Fault finder"></select>`);extras.append(faultLabel);
+ dock.append(layerGroup,cameraGroup,extras);
+
+ // ---- teardown: four named stops, large percentage and stage name ----
+ const slider=q('.lk-slider'),stops=q('.lk-stops');
+ for(const stop of STOPS){const b=element('button','lk-stop',escape(stop.label));b.type='button';b.dataset.stop=stop.value;b.style.setProperty('--at',`${stop.value}%`);stops.append(b);}
+ slider.addEventListener('input',()=>adapter.setOpen(Number(slider.value)),{signal});
+ stops.addEventListener('click',e=>{const b=e.target.closest('[data-stop]');if(b)adapter.setOpen(Number(b.dataset.stop));},{signal});
+
+ // ---- parts panel: the list as it always was, grouped under its own headings ----
+ function paintParts(){rows=partRows(machineId,adapter.parts).rows;q('.lk-count').textContent=String(rows.length).padStart(2,'0');paintList();}
+ function paintList(){
+  let html=`<li><button type="button" class="lk-part lk-whole" data-part="overview"><span class="lk-num">◎</span><span class="lk-name">Whole machine</span></button></li>`,group;
+  rows.forEach((r,i)=>{
+   const heading=adapter.parts[i]?.group;
+   if(heading&&heading!==group){group=heading;html+=`<li class="lk-group-name"><h3>${escape(heading)}</h3></li>`;}
+   html+=`<li><button type="button" class="lk-part" data-part="${r.id}"${r.hidden?' data-hidden="true" title="Inside the shell: selecting it opens the model"':''}><span class="lk-num">${String(i+1).padStart(2,'0')}</span><span class="lk-name">${escape(r.name)}</span></button></li>`;
+  });
+  q('.lk-list').innerHTML=html;last='';update();
+ }
+ q('.lk-list').addEventListener('click',e=>{const b=e.target.closest('[data-part]');if(b)choose(b.dataset.part);},{signal});
+
+ // Selecting asks the page to select (and reveal, if the part is hidden inside), then flies the camera to it.
+ function choose(id){
+  if(id==='overview'||!id){notedPart='overview';adapter.select(null);adapter.camera('reset');showNote('overview');return;}
+  notedPart=id;adapter.select(id);adapter.flyTo(id);showNote(id);if(narrow.matches&&sheet==='parts')setSheet('parts');
+ }
+ function step(direction){
+  const list=rows;if(!list.length)return;
+  const current=list.findIndex(r=>r.id===adapter.get().part),next=current<0?(direction>0?0:list.length-1):(current+direction+list.length)%list.length;
+  choose(list[next].id);q(`.lk-part[data-part="${list[next].id}"]`)?.scrollIntoView({block:'nearest'});
+ }
+
+ // ---- part notes: small floating cards on the right that remove themselves after ten seconds ----
+ const box=q('.lk-notes'),notes=new Map();let noteOrder=[];
+ const noteHtml=id=>{
+  const part=adapter.parts.find(p=>p.id===id);
+  if(!part)return `<div class="lk-note-top"><code class="lk-eyebrow"><i></i>WHOLE MACHINE</code><button type="button" class="lk-close" data-dismiss aria-label="Close this note">×</button></div><h3>${escape(adapter.machine.name)}</h3><p>${escape(brief(adapter.machine.intro||'',130))}</p><p class="lk-note-safety"><b>Safety.</b> ${escape(brief(adapter.safety,72))}</p>`;
+  const row=rows.find(r=>r.id===id),info=adapter.info?.(id)||{};
+  return `<div class="lk-note-top"><code class="lk-eyebrow" style="--c:${row?.color||'currentColor'}"><i></i>${escape((part.group||'').toUpperCase())}${row?.hidden?' · INSIDE':''}</code><button type="button" class="lk-close" data-dismiss aria-label="Close this note">×</button></div><h3>${escape(part.name)}</h3><p>${escape(brief(info.what??part.body,95))}</p><p>${escape(brief(info.does??[part.motion,part.why].filter(Boolean).join(' '),95))}</p><p class="lk-note-safety"><b>Safety.</b> ${escape(brief(info.safety??adapter.safety,72))}</p>`;
+ };
+ function runNote(n,id){n.started=performance.now();n.paused=false;n.el.classList.remove('paused');n.timer=setTimeout(()=>dropNote(id),n.left);}
+ function holdNote(n){clearTimeout(n.timer);n.left=Math.max(0,n.left-(performance.now()-n.started));n.paused=true;n.el.classList.add('paused');}
+ function dropNote(id){const n=notes.get(id);if(!n)return;clearTimeout(n.timer);n.el.remove();notes.delete(id);noteOrder=noteOrder.filter(k=>k!==id);}
+ function clearNotes(){for(const id of [...notes.keys()])dropNote(id);}
+ function showNote(id){
+  if(id!=='overview'&&!adapter.parts.some(p=>p.id===id))return;
+  dropNote(id);                                    // showing a part again starts its ten seconds afresh
+  noteOrder=pushNote(noteOrder,id);
+  for(const key of [...notes.keys()])if(!noteOrder.includes(key))dropNote(key);
+  const el=element('article','lk-note',`${noteHtml(id)}<span class="lk-note-timer" style="animation-duration:${NOTE_MS}ms"></span>`),n={el,left:NOTE_MS,started:0,paused:false,timer:0,hover:false,focus:false};
+  el.dataset.note=id;
+  const sync=()=>{const hold=n.hover||n.focus;if(hold&&!n.paused)holdNote(n);else if(!hold&&n.paused)runNote(n,id);};   // reading it pauses the clock
+  el.addEventListener('pointerenter',()=>{n.hover=true;sync();});el.addEventListener('pointerleave',()=>{n.hover=false;sync();});
+  el.addEventListener('focusin',()=>{n.focus=true;sync();});el.addEventListener('focusout',()=>{n.focus=false;sync();});
+  notes.set(id,n);box.prepend(el);runNote(n,id);
+ }
+ box.addEventListener('click',e=>{if(e.target.closest('[data-dismiss]'))dropNote(e.target.closest('.lk-note').dataset.note);},{signal});
+
+ // ---- fault finder ----
+ const select=q('.lk-fault select');
+ function paintFaults(){faults=faultsFor(machineId);select.innerHTML=`<option value="">Fault finder…</option>`+faults.map(f=>`<option value="${f.id}">${escape(f.label)}</option>`).join('');select.value=adapter.get().fault||'';}
+ // Choosing a condition shows its parts: X-ray if some are hidden inside the shell, then the camera goes to the first.
+ select.addEventListener('change',()=>{
+  adapter.setFault(select.value);
+  const fault=faults.find(f=>f.id===select.value);if(!fault)return;
+  if(fault.parts.some(id=>isHidden(machineId,id))&&!adapter.get().flags.xray)adapter.setFlag('xray',true);
+  if(fault.parts.length===1)adapter.flyTo(fault.parts[0]);
+ },{signal});
+ function paintBanner(id){
+  const banner=q('.lk-banner'),fault=faults.find(f=>f.id===id);banner.hidden=!fault;
+  if(fault)banner.innerHTML=`<div><code>CONDITION</code><strong>${escape(fault.label)}</strong></div><p><b>Cause.</b> ${escape(fault.cause)}</p><p><b>Check.</b> ${escape(fault.check)}</p><button type="button" data-clear aria-label="Clear the condition">Clear</button>`;
+ }
+ q('.lk-banner').addEventListener('click',e=>{if(e.target.closest('[data-clear]'))adapter.setFault('');},{signal});
+
+ // ---- dock actions ----
+ dock.addEventListener('click',e=>{
+  const tool=e.target.closest('[data-tool]'),cam=e.target.closest('[data-camera]');
+  if(cam){adapter.camera(cam.dataset.camera,true);return;}
+  if(!tool)return;
+  if(tool.dataset.tool==='focus'){setFocus(!focus);return;}
+  if(tool.dataset.tool==='hand'){adapter.hand.toggle();return;}
+  adapter.setFlag(tool.dataset.tool,tool.getAttribute('aria-pressed')!=='true');
+ },{signal});
+ const inside=q('[data-inside]');
+ inside.addEventListener('click',()=>adapter.setFlag('xray',inside.getAttribute('aria-pressed')!=='true'),{signal});
+ // the bottom controls fold away to one small button, and the choice is remembered
+ const toggle=q('.lk-dock-toggle');
+ function setDock(closed,remember=true){dockClosed=closed;host.classList.toggle('lk-dock-closed',closed);toggle.setAttribute('aria-expanded',String(!closed));toggle.setAttribute('aria-label',closed?'Show the controls':'Hide the controls');toggle.querySelector('span').textContent=closed?'Show controls':'Hide controls';if(remember)try{localStorage.setItem(DOCK_KEY,closed?'closed':'open');}catch{}}
+ toggle.addEventListener('click',()=>setDock(!dockClosed),{signal});setDock(dockClosed,false);
+ function setFocus(on){if(focus===on)return;focus=on;calloutKey='';host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
+
+ // ---- narrow screens: the panels become bottom sheets ----
+ const narrow=matchMedia('(max-width:768px)');
+ function setSheet(next){sheet=sheet===next?'':next;host.dataset.sheet=sheet;for(const b of all('[data-sheet]'))b.setAttribute('aria-pressed',String(b.dataset.sheet===sheet));}
+ q('.lk-sheet-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-sheet]');if(b)setSheet(b.dataset.sheet);},{signal});
+ // on a phone the notes sit in the bottom stack, just above the controls, so nothing covers them; otherwise they float under the Start panel
+ const placeNotes=()=>{if(narrow.matches)q('.lk-bottom').prepend(box);else q('.lk-right').append(box);};
+ narrow.addEventListener('change',()=>{if(!narrow.matches){sheet='';host.dataset.sheet='';}placeNotes();},{signal});placeNotes();
+
+ // ---- keyboard: [ ] step parts, F focus, R reset, arrows orbit and open, Esc deselect ----
+ document.addEventListener('keydown',e=>{
+  if(e.defaultPrevented||e.ctrlKey||e.metaKey||e.altKey||!host.offsetParent)return;
+  // Shortcuts belong to the stage: they work when focus is inside it, or when nothing is focused and the stage is what is on screen,
+  // so the arrow keys can still scroll the page when you are reading below it.
+  const target=e.target,box=host.getBoundingClientRect(),onScreen=box.bottom>innerHeight*.3&&box.top<innerHeight*.7;
+  if(target.closest?.('input,textarea,select,[contenteditable],dialog,[role=dialog]'))return;
+  if(!host.contains(target)&&!(target===document.body&&onScreen))return;
+  const key=e.key,state=adapter.get();let used=true;
+  if(key==='['||key===']')step(key===']'?1:-1);
+  else if(key==='f'||key==='F')setFocus(!focus);
+  else if(key==='r'||key==='R'){adapter.select(null);adapter.camera('reset');}
+  else if(key==='ArrowLeft'||key==='ArrowRight')adapter.camera(key==='ArrowLeft'?'rotate-left':'rotate-right',true);
+  else if(key==='ArrowUp')adapter.setOpen(Math.min(100,state.open+10));
+  else if(key==='ArrowDown')adapter.setOpen(Math.max(0,state.open-10));
+  else if(key==='Escape'){if(state.part&&state.part!=='overview'){adapter.select(null);clearNotes();}else if(notes.size)clearNotes();else if(focus)setFocus(false);else if(sheet)setSheet(sheet);else used=false;}
+  else used=false;
+  if(used)e.preventDefault();
+ },{signal});
+
+ // ---- callouts: leader lines from each part to a name, spread so labels never overlap ----
+ const leaders=q('.lk-leaders'),labels=q('.lk-labels');let calloutKey='';
+ function drawCallouts(items,width,height){
+  // the collapsed (focus) view is just the machine: no name tags until the controls are opened
+  if(!items?.length||focus){if(calloutKey){leaders.replaceChildren();labels.replaceChildren();calloutKey='';}return;}
+  const centre=width/2,sides=[[],[]];
+  for(const item of items)sides[item.x<centre?0:1].push(item);
+  const key=items.map(i=>`${i.id}${Math.round(i.x/3)}${Math.round(i.y/3)}`).join('');if(key===calloutKey)return;calloutKey=key;
+  let svg='',html='';
+  sides.forEach((side,s)=>{
+   side.sort((a,b)=>a.y-b.y);let previous=-1e9;
+   for(const item of side){
+    const wide=item.name.length*6.3+20,y=Math.max(item.y,previous+24),x=s?Math.min(item.x+70,width-wide-8):Math.max(item.x-70,wide+8);previous=y;
+    svg+=`<path d="M${item.x.toFixed(1)} ${item.y.toFixed(1)}L${(x+(s?-6:6)).toFixed(1)} ${y.toFixed(1)}"/><circle cx="${item.x.toFixed(1)}" cy="${item.y.toFixed(1)}" r="2.5"/>`;
+    html+=`<span style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px" class="${s?'right':'left'}">${escape(item.name)}</span>`;
+   }
+  });
+  leaders.setAttribute('viewBox',`0 0 ${width} ${height}`);leaders.innerHTML=svg;labels.innerHTML=html;
+ }
+
+ // ---- repaint what changed ----
+ function update(){
+  const state=adapter.get(),tick=JSON.stringify([state.part,Math.round(state.open*10),state.running,state.fault,state.flags,focus,handActive,machineId]);
+  if(tick===last)return;last=tick;
+  slider.value=state.open;slider.style.setProperty('--p',`${state.open}%`);slider.setAttribute('aria-valuetext',`${Math.round(state.open)} percent, ${stageName(state.open)}`);
+  q('.lk-percent').innerHTML=`${Math.round(state.open)}<small>%</small>`;q('.lk-stage').textContent=stageName(state.open);
+  for(const b of all('.lk-stop')){b.classList.toggle('reached',state.open>=Number(b.dataset.stop));if(b.textContent===stageName(state.open))b.setAttribute('aria-current','true');else b.removeAttribute('aria-current');}
+  for(const b of all('.lk-part'))b.setAttribute('aria-pressed',String(b.dataset.part===(state.part||'overview')));
+  for(const b of all('[data-tool]')){const name=b.dataset.tool;if(name==='focus')b.setAttribute('aria-pressed',String(focus));else if(name==='hand')b.setAttribute('aria-pressed',String(handActive));else b.setAttribute('aria-pressed',String(Boolean(state.flags[name])));}
+  // running shows the outside; "Show inside" is the learner's own choice (the pill appears in the collapsed view while it runs)
+  const see=Boolean(state.flags.xray);host.dataset.running=String(Boolean(state.running));
+  inside.setAttribute('aria-pressed',String(see));inside.querySelector('span').textContent=see?'Hide inside':'Show inside';const dockInside=q('[data-tool=xray] span');if(dockInside)dockInside.textContent=see?'Hide inside':'Show inside';
+  // a part chosen on the model (or by key, or by hand) gets its small note; the whole-machine note comes only from the list
+  if(state.part!==notedPart){notedPart=state.part;if(state.part&&state.part!=='overview')showNote(state.part);}
+  select.value=state.fault||'';paintBanner(state.fault);
+  for(const b of all('[data-part]'))b.toggleAttribute('data-related',Boolean(faults.find(f=>f.id===state.fault)?.parts.includes(b.dataset.part)));
+ }
+
+ q('[data-focus-exit]').addEventListener('click',()=>setFocus(false),{signal});
+ paintParts();paintFaults();update();
+ if(startFocused)setFocus(true);
+ return {
+  update,drawCallouts,setFocus,
+  get focus(){return focus;},
+  get slot(){return q('.lk-slot');},
+  get dock(){return dock;},
+  get cameraGroup(){return cameraGroup;},
+  setHandActive(on){handActive=on;update();},
+  setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;clearNotes();notedPart=adapter.get().part;paintParts();paintFaults();last='';update();},
+  refreshParts(){paintParts();last='';update();},
+  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-focus','lk-dock-closed');delete host.dataset.sheet;delete host.dataset.running;}
+ };
+}

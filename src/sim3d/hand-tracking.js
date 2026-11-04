@@ -97,7 +97,7 @@ export async function createHandTracker({video,life,onStatus=()=>{},onHands=()=>
    slot.vote=fresh?sign:Math.max(-1,Math.min(1,slot.vote*0.82+sign*weight*0.18));
    const label=slot.vote<0?'Left':'Right',d=describeHand({norm,world,label,video:{width:video.videoWidth,height:video.videoHeight}});
    const holding=slot.pinch.update(d.pinchRatio)|slot.closed.update(d.closedRatio);
-   hands.push({id:o.slot,seq,...d,holding:Boolean(holding),norm:Float32Array.from({length:42},(_,k)=>norm[Math.floor(k/2)*3+(k%2)])});
+   hands.push({id:o.slot,seq,...d,holding:Boolean(holding),norm:Float32Array.from({length:42},(_,k)=>norm[Math.floor(k/2)*3+(k%2)]),world:Float32Array.from(world)});
    if(Number.isFinite(d.distance))distance=Number.isFinite(distance)?distance+(d.distance-distance)*0.15:d.distance;
   }
   for(const key of ['L','R'])if(!taken.has(key))slots[key].present=false;

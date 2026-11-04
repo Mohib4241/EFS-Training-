@@ -32,7 +32,7 @@ if(!workerFile)throw new Error('esbuild did not emit the hand-tracking worker');
 
 // Everything under /static/ has a content hash in its name, so it can be cached forever.
 // Code splitting keeps three.js and each lab out of the first load; they download when their page opens.
-const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text'},plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},define:{__MP_WASM_BASE__:JSON.stringify(`/static/mediapipe-${mediapipeVersion}`),__MP_MODEL__:JSON.stringify(`/static/${modelName}`),__HAND_WORKER__:JSON.stringify(url(join(root,workerFile)))},logLevel:'warning'});
+const result=await build({entryPoints:{app:join(src,'app.js'),styles:join(src,'styles.css')},outdir:out,entryNames:'[name]-[hash]',chunkNames:'chunks/[name]-[hash]',bundle:true,splitting:true,minify:true,format:'esm',target:'es2022',legalComments:'eof',metafile:true,absWorkingDir:root,loader:{'.hud':'text','.woff2':'file'},assetNames:'fonts/[name]-[hash]',plugins:[quiet],alias:{'@mediapipe/tasks-vision':join(root,'node_modules/@mediapipe/tasks-vision/vision_bundle.mjs')},define:{__MP_WASM_BASE__:JSON.stringify(`/static/mediapipe-${mediapipeVersion}`),__MP_MODEL__:JSON.stringify(`/static/${modelName}`),__HAND_WORKER__:JSON.stringify(url(join(root,workerFile)))},logLevel:'warning'});
 const outputs=Object.entries(result.metafile.outputs).map(([file,meta])=>({file:join(root,file),meta}));
 const entry=name=>outputs.find(o=>o.meta.entryPoint?.endsWith(`src/${name}`));
 const app=entry('app.js'),styles=entry('styles.css');
@@ -50,13 +50,13 @@ swap('<script type="module" src="/app.js"></script>',`${preload.map(href=>`<link
 for(const [from,to] of Object.entries(assets))html=html.split(from).join(to);
 await writeFile(join(dist,'index.html'),html);
 
-// Precompress once at build time so the server never compresses per request.
+// Precompress once at build time so the server never compresses per request. EFS_FAST=1 (local iteration only) skips the slow maximum-quality pass on the multi-megabyte vendor files.
 async function* walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())yield*walk(path);else yield path;}}
 const report=[],files=[];
 for await(const file of walk(dist))files.push(file);
 for(const file of files){
- if(!['.html','.js','.css','.svg','.wasm','.task'].includes(extname(file)))continue;
- const body=await readFile(file),br=brotliCompressSync(body,{params:{[constants.BROTLI_PARAM_QUALITY]:11,[constants.BROTLI_PARAM_SIZE_HINT]:body.length}}),gz=gzipSync(body,{level:9});
+ if(!['.html','.js','.css','.svg','.wasm','.task','.woff2'].includes(extname(file)))continue;
+ const body=await readFile(file),br=brotliCompressSync(body,{params:{[constants.BROTLI_PARAM_QUALITY]:process.env.EFS_FAST&&body.length>1e6?4:11,[constants.BROTLI_PARAM_SIZE_HINT]:body.length}}),gz=gzipSync(body,{level:9});
  await writeFile(`${file}.br`,br);await writeFile(`${file}.gz`,gz);report.push([url(file),body.length,gz.length,br.length]);
 }
 const kb=n=>(n/1024).toFixed(1).padStart(7);

@@ -1,6 +1,6 @@
 import {getHardModule} from './hard-content.js';
 
-export function initialHardState(id){const module=getHardModule(id);return {id,part:'overview',open:0,xray:false,labels:true,connected:false,running:false,inputs:Object.fromEntries(module.inputs.map(p=>[p.key,p.value])),testPhase:'idle',residualV:0};}
+export function initialHardState(id){const module=getHardModule(id);return {id,part:'overview',open:0,xray:false,labels:true,fault:'',guides:false,glow:true,flow:false,connected:false,running:false,inputs:Object.fromEntries(module.inputs.map(p=>[p.key,p.value])),testPhase:'idle',residualV:0};}
 const metric=(label,value,unit='',note='')=>({label,value,unit,note});
 export function calculateHard(state){
  const module=getHardModule(state.id),i=state.inputs;
