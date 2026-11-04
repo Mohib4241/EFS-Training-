@@ -26,10 +26,7 @@ const ICONS={
 };
 const icon=name=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
 const LAYER_BUTTONS=[['xray','Show inside','See inside: the shell turns see-through'],['callouts','Callouts','Leader lines with part names'],['flow','Flow path','Show the conceptual flow path'],['guides','Guides','Dashed lines from each part to its resting place'],['glow','Glow','Highlight glow and bloom'],['orbit','Orbit','Slow auto-rotate that pauses on input'],['focus','Focus view','Hide all panels (F)']];
-const DOCK_KEY='efs-dock',PARTS_KEY='efs-parts',SIDE_KEY='efs-side';
-const CHEVRON='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
-const remembered=key=>{try{return localStorage.getItem(key)==='closed';}catch{return false;}};
-const remember=(key,closed)=>{try{localStorage.setItem(key,closed?'closed':'open');}catch{}};
+const DOCK_KEY='efs-dock';
 const CAMERA_BUTTONS=[['rotate-left','↶','Rotate left'],['rotate-right','↷','Rotate right']];
 
 const element=(tag,className,html='')=>{const el=document.createElement(tag);if(className)el.className=className;if(html)el.innerHTML=html;return el;};
@@ -39,15 +36,17 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const abort=new AbortController(),{signal}=abort;
  let rows=[],machineId=adapter.machine.id,faults=[],focus=false,last='',sheet='',handActive=false,notedPart=adapter.get().part,dockClosed=false;
  try{dockClosed=localStorage.getItem(DOCK_KEY)==='closed';}catch{}
- host.classList.add('look-stage');
+ host.classList.add('look-stage','lk-simple');
+ // pointing at a part explains it; a tap (no hover on touch screens) shows the same as a small note
+ const canHover=matchMedia('(hover:hover)');
  const root=element('div','lk-root');
  root.innerHTML=`
   <div class="lk-top"><div class="lk-hint"><span>Drag to orbit</span><span>Scroll or pinch to open</span><span>Click a part</span><span><kbd>[</kbd><kbd>]</kbd> step parts</span><span><kbd>F</kbd> focus</span></div><div class="lk-banner" role="status" hidden></div></div>
   <aside class="lk-panel lk-parts" aria-label="Parts">
-   <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code><button type="button" class="lk-fold lk-parts-toggle" aria-expanded="true" aria-label="Collapse the parts list" title="Collapse the parts list">${CHEVRON}</button></div>
+   <div class="lk-heading"><h2>Parts</h2><code class="lk-count"></code></div>
    <ul class="lk-list"></ul>
   </aside>
-  <div class="lk-right"><button type="button" class="lk-fold lk-side-toggle" aria-expanded="true" aria-label="Collapse the side panel" title="Collapse the side panel"><span>Hide panel</span>${CHEVRON}</button><div class="lk-slot"></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
+  <div class="lk-right"><div class="lk-slot" role="group" aria-label="Machine steps"><button type="button" class="lk-step lk-inside-step" data-inside-view aria-pressed="false"><span class="lk-step-name">View inside</span><small>Open it out and point to a part</small></button></div><div class="lk-notes" role="status" aria-live="polite" aria-label="Part notes"></div></div>
   <div class="lk-bottom">
    <div class="lk-teardown"><div class="lk-readout"><output class="lk-percent"></output><span class="lk-stage"></span></div><div class="lk-track"><input class="lk-slider" type="range" min="0" max="100" step="0.1" value="0" aria-label="Staged teardown"><div class="lk-stops"></div></div></div>
    <div class="lk-pills"><button type="button" class="lk-inside-pill" data-inside aria-pressed="false">${icon('xray')}<span>Show inside</span></button><button type="button" class="lk-focus-pill" data-focus-exit aria-label="Show parts and controls (F)">${icon('parts')}<span>Parts &amp; controls</span></button></div>
@@ -94,11 +93,6 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  function choose(id){
   if(id==='overview'||!id){notedPart='overview';adapter.select(null);adapter.camera('reset');showNote('overview');return;}
   notedPart=id;adapter.select(id);adapter.flyTo(id);showNote(id);if(narrow.matches&&sheet==='parts')setSheet('parts');
- }
- function step(direction){
-  const list=rows;if(!list.length)return;
-  const current=list.findIndex(r=>r.id===adapter.get().part),next=current<0?(direction>0?0:list.length-1):(current+direction+list.length)%list.length;
-  choose(list[next].id);q(`.lk-part[data-part="${list[next].id}"]`)?.scrollIntoView({block:'nearest'});
  }
 
  // ---- part notes: small floating cards on the right that remove themselves after ten seconds ----
@@ -158,18 +152,6 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const toggle=q('.lk-dock-toggle');
  function setDock(closed,remember=true){dockClosed=closed;host.classList.toggle('lk-dock-closed',closed);toggle.setAttribute('aria-expanded',String(!closed));toggle.setAttribute('aria-label',closed?'Show the controls':'Hide the controls');toggle.querySelector('span').textContent=closed?'Show controls':'Hide controls';if(remember)try{localStorage.setItem(DOCK_KEY,closed?'closed':'open');}catch{}}
  toggle.addEventListener('click',()=>setDock(!dockClosed),{signal});setDock(dockClosed,false);
- // the parts list (left) and the side panel (right) each fold away to a small button, and the choice is remembered
- const partsToggle=q('.lk-parts-toggle'),sideToggle=q('.lk-side-toggle');
- function setParts(closed,save=true){host.classList.toggle('lk-parts-closed',closed);partsToggle.setAttribute('aria-expanded',String(!closed));const label=closed?'Expand the parts list':'Collapse the parts list';partsToggle.setAttribute('aria-label',label);partsToggle.title=label;if(save)remember(PARTS_KEY,closed);}
- function setSide(closed,save=true){host.classList.toggle('lk-side-closed',closed);sideToggle.setAttribute('aria-expanded',String(!closed));const label=closed?'Expand the side panel':'Collapse the side panel';sideToggle.setAttribute('aria-label',label);sideToggle.title=label;sideToggle.querySelector('span').textContent=closed?'Show panel':'Hide panel';if(save)remember(SIDE_KEY,closed);}
- partsToggle.addEventListener('click',()=>setParts(!host.classList.contains('lk-parts-closed')),{signal});
- // the folded list is one small card: clicking anywhere on its heading opens it again
- q('.lk-parts .lk-heading').addEventListener('click',e=>{if(host.classList.contains('lk-parts-closed')&&!e.target.closest('.lk-parts-toggle'))setParts(false);},{signal});
- sideToggle.addEventListener('click',()=>setSide(!host.classList.contains('lk-side-closed')),{signal});
- setParts(remembered(PARTS_KEY),false);setSide(remembered(SIDE_KEY),false);
- // when a guide (or the page) opens the Start panel inside a folded side panel, show it for now without changing the saved choice
- const slotWatch=new MutationObserver(()=>{if(host.classList.contains('lk-side-closed')&&q('.lk-slot details[open]'))setSide(false,false);});
- slotWatch.observe(q('.lk-slot'),{subtree:true,attributes:true,attributeFilter:['open']});signal.addEventListener('abort',()=>slotWatch.disconnect());
  function setFocus(on){if(focus===on)return;focus=on;calloutKey='';host.classList.toggle('lk-focus',on);adapter.onFocus?.(on);update();}
 
  // ---- narrow screens: the panels become bottom sheets ----
@@ -189,12 +171,8 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   if(target.closest?.('input,textarea,select,[contenteditable],dialog,[role=dialog]'))return;
   if(!host.contains(target)&&!(target===document.body&&onScreen))return;
   const key=e.key,state=adapter.get();let used=true;
-  if(key==='['||key===']')step(key===']'?1:-1);
-  else if(key==='f'||key==='F')setFocus(!focus);
-  else if(key==='r'||key==='R'){adapter.select(null);adapter.camera('reset');}
+  if(key==='r'||key==='R'){adapter.select(null);adapter.camera('reset');}
   else if(key==='ArrowLeft'||key==='ArrowRight')adapter.camera(key==='ArrowLeft'?'rotate-left':'rotate-right',true);
-  else if(key==='ArrowUp')adapter.setOpen(Math.min(100,state.open+10));
-  else if(key==='ArrowDown')adapter.setOpen(Math.max(0,state.open-10));
   else if(key==='Escape'){if(state.part&&state.part!=='overview'){adapter.select(null);clearNotes();}else if(notes.size)clearNotes();else if(focus)setFocus(false);else if(sheet)setSheet(sheet);else used=false;}
   else used=false;
   if(used)e.preventDefault();
@@ -204,7 +182,8 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  const leaders=q('.lk-leaders'),labels=q('.lk-labels');let calloutKey='';
  function drawCallouts(items,width,height){
   // the collapsed (focus) view is just the machine: no name tags until the controls are opened
-  if(!items?.length||focus){if(calloutKey){leaders.replaceChildren();labels.replaceChildren();calloutKey='';}return;}
+  // no name labels: pointing at a part shows and reads its name instead
+  if(!items?.length||focus||host.classList.contains('lk-simple')){if(calloutKey){leaders.replaceChildren();labels.replaceChildren();calloutKey='';}return;}
   const centre=width/2,sides=[[],[]];
   for(const item of items)sides[item.x<centre?0:1].push(item);
   const key=items.map(i=>`${i.id}${Math.round(i.x/3)}${Math.round(i.y/3)}`).join('');if(key===calloutKey)return;calloutKey=key;
@@ -233,23 +212,27 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   const see=Boolean(state.flags.xray);host.dataset.running=String(Boolean(state.running));
   inside.setAttribute('aria-pressed',String(see));inside.querySelector('span').textContent=see?'Hide inside':'Show inside';const dockInside=q('[data-tool=xray] span');if(dockInside)dockInside.textContent=see?'Hide inside':'Show inside';
   // a part chosen on the model (or by key, or by hand) gets its small note; the whole-machine note comes only from the list
-  if(state.part!==notedPart){notedPart=state.part;if(state.part&&state.part!=='overview')showNote(state.part);}
+  if(state.part!==notedPart){notedPart=state.part;if(state.part&&state.part!=='overview'&&!canHover.matches)showNote(state.part);}
+  // View inside opens the machine right out; View outside puts it back together
+  const opened=state.open>=50,insideButton=q('[data-inside-view]');insideButton.setAttribute('aria-pressed',String(opened));insideButton.querySelector('.lk-step-name').textContent=opened?'View outside':'View inside';insideButton.querySelector('small').textContent=opened?'Put the machine back together':'Open it out and point to a part';
   select.value=state.fault||'';paintBanner(state.fault);
   for(const b of all('[data-part]'))b.toggleAttribute('data-related',Boolean(faults.find(f=>f.id===state.fault)?.parts.includes(b.dataset.part)));
  }
 
  q('[data-focus-exit]').addEventListener('click',()=>setFocus(false),{signal});
+ q('[data-inside-view]').addEventListener('click',()=>{const open=adapter.get().open>=50;clearNotes();adapter.select(null);adapter.setOpen(open?0:100);},{signal});
  paintParts();paintFaults();update();
  if(startFocused)setFocus(true);
  return {
   update,drawCallouts,setFocus,
   get focus(){return focus;},
   get slot(){return q('.lk-slot');},
+  get insideButton(){return q('[data-inside-view]');},
   get dock(){return dock;},
   get cameraGroup(){return cameraGroup;},
   setHandActive(on){handActive=on;update();},
   setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;clearNotes();notedPart=adapter.get().part;paintParts();paintFaults();last='';update();},
   refreshParts(){paintParts();last='';update();},
-  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-focus','lk-dock-closed','lk-parts-closed','lk-side-closed');delete host.dataset.sheet;delete host.dataset.running;}
+  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-simple','lk-focus','lk-dock-closed');delete host.dataset.sheet;delete host.dataset.running;}
  };
 }

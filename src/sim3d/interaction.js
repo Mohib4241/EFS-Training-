@@ -39,7 +39,7 @@ export function createInteraction({rules,world,getState,dispatch,onHint=()=>{},o
   if(action){const out=dispatch(action);onEvent({type:'action',part:hold.part,action,blocked:out.blocked});if(out.blocked)hint(out.message);}
   else{
    onEvent({type:'dropped',part:hold.part});const zone=rules.targetZone(state);
-   hint(rules.missHint?.(state,hold.part,ctx)??(zone&&rules.targetPart(state)===hold.part?`Not quite — put ${rules.label(hold.part)} ${rules.zoneLabel(zone)}.`:'That is not needed right now. It goes back.'));
+   hint(rules.missHint?.(state,hold.part,ctx)??(zone&&rules.targetPart(state)===hold.part?`Not quite — put ${rules.label(hold.part)} ${rules.zoneLabel(zone)}.`:'Not needed now. See the checklist for the next step.'));
   }
  }
  function press(state,part){cooldown=COOLDOWN;const action=rules.pressAction(state,part);if(!action)return;const out=dispatch(action);onEvent({type:'action',part,action,blocked:out.blocked});if(out.blocked)hint(out.message);}
@@ -60,7 +60,7 @@ export function createInteraction({rules,world,getState,dispatch,onHint=()=>{},o
      else if(!was){
       const target=nearest(p.nx,p.ny,pressable,PRESS_RADIUS);
       if(target&&cooldown===0)press(state,target);
-      else{const wrong=nearest(p.nx,p.ny,[...CARRY,...PRESS].filter(part=>!canUse(state,part)),GRAB_RADIUS);if(wrong){const next=rules.targetPart(state);hint(next?`Not yet — first use ${rules.label(next)}.`:'The sequence is complete.');}}
+      else{const wrong=nearest(p.nx,p.ny,[...CARRY,...PRESS].filter(part=>!canUse(state,part)),GRAB_RADIUS);if(wrong){const next=rules.targetPart(state);hint(next?`See the checklist: next is ${rules.label(next)}.`:'The sequence is complete.');}}
      }
     }
     if(!p.pinch&&holding){

@@ -57,7 +57,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   <div class="s3-group s3-modes" role="group" aria-label="Mode"><button type="button" data-s3="mode-demo" aria-pressed="false">Watch how</button><button type="button" data-s3="mode-practice" aria-pressed="false">Practise</button></div>
   <div class="s3-group" data-s3="demo-controls"><button type="button" data-s3="prev" aria-label="Previous step">‹</button><button type="button" data-s3="play" aria-label="Play or pause the demonstration">Play</button><button type="button" data-s3="next" aria-label="Next step">›</button><input type="range" min="0" max="1000" value="0" step="1" data-s3="scrub" aria-label="Scrub the demonstration"><span class="s3-time" data-s3="time">0:00</span><label class="sr-only" for="s3-speed">Speed</label><select id="s3-speed" data-s3="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button type="button" class="s3-primary" data-s3="try">Now you try</button></div>
   <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="camera">Use camera</button></div>
-  <span class="s3-spacer"></span><button type="button" data-s3="focus" aria-pressed="false" title="Hide the side panel (F)">Hide panel</button><button type="button" data-s3="full" aria-pressed="false" title="Full screen">Full screen</button>
+  <span class="s3-spacer"></span><button type="button" data-s3="full" aria-pressed="false" title="Full screen">Full screen</button>
  </div></div>`;
  life.onCleanup(()=>container.replaceChildren());
  const $=name=>container.querySelector(`[data-s3="${name}"]`),root=container.querySelector('.s3'),stageEl=container.querySelector('.s3-stage'),canvas=container.querySelector('canvas.s3-canvas'),video=container.querySelector('video'),overlay=container.querySelector('.s3-preview canvas');
@@ -345,7 +345,6 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
    case 'camera':if(tracking)stopCamera();else{$('preflight').hidden=false;status('');$('allow').disabled=false;}break;
    case 'reset':S.interaction.cancel();commit(initialPractice(S.kind));shownState=null;toast('Practice reset.');renderTabs();renderHud();pump.invalidate();break;
    case 'assist':{const state=practice();if(state.complete)break;S.interaction.cancel();commit(stateAfterStep(S.steps,currentStep(S.steps,practice())));shownState=null;renderTabs();renderHud();pump.invalidate();break;}
-   case 'focus':{const on=!root.classList.contains('s3-focus');root.classList.toggle('s3-focus',on);button.setAttribute('aria-pressed',String(on));button.textContent=on?'Show panel':'Hide panel';break;}
    case 'full':{if(document.fullscreenElement===root)document.exitFullscreen?.();else root.requestFullscreen?.().catch(()=>toast('Full screen is not available here.',true));break;}
   }
  },{signal});
@@ -353,7 +352,6 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  container.addEventListener('change',event=>{if(event.target.dataset.s3==='speed')speed=Number(event.target.value);},{signal});
  container.addEventListener('keydown',event=>{
   const typing=event.target.closest('button,input,select');
-  if(event.key==='f'||event.key==='F'){if(!typing||event.target.dataset.s3==='focus'){$('focus').click();event.preventDefault();}return;}
   if(event.key==='Escape'&&mouse.sticky){mouse.sticky=false;mouse.released=true;pump.invalidate();return;}
   if(view!=='demo')return;
   if(event.key===' '&&!typing){$('play').click();event.preventDefault();}

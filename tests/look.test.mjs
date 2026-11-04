@@ -138,14 +138,18 @@ test('the Studio/Hologram switch is gone from every page, and the parts list has
  assert.match(ui,/data-inside/,'a "Show inside" button exists');assert.match(ui,/lk-dock-toggle/,'the dock folds away');
 });
 
-test('the parts list, the side panel and the bottom controls each fold away on every equipment page',()=>{
+test('every equipment page opens simple: the machine plus numbered steps on the right, one Guide, no labels or scroll-to-open',()=>{
  const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
- const ui=read('../src/look/ui.js'),css=read('../src/look/look.css');
- assert.match(ui,/lk-parts-toggle[^>]*aria-expanded="true"/,'the parts list has a fold button');
- assert.match(ui,/lk-side-toggle[^>]*aria-expanded="true"/,'the side panel has a fold button');
- assert.match(ui,/PARTS_KEY='efs-parts',SIDE_KEY='efs-side'/,'each choice is remembered');
- assert.match(css,/\.lk-dock-closed \.lk-dock,\.look-stage\.lk-dock-closed \.lk-teardown\{display:none\}/,'"Hide controls" folds the opening slider as well as the tools');
- assert.match(css,/\.lk-parts-closed \.lk-parts \.lk-list\{display:none\}/,'a folded parts list shows only its heading');
- assert.match(css,/\.lk-side-closed \.lk-right>\.lk-slot,\.lk-side-closed \.lk-right>\.lk-notes\{display:none\}/,'a folded side panel hides the Start panel and notes');
- for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js'])assert.match(read(page),/mountLookUI/,`${page} uses the shared controls, so it gets the fold buttons`);
+ const ui=read('../src/look/ui.js'),css=read('../src/look/look.css'),guide=read('../src/guidance.js'),html=read('../src/index.html');
+ assert.match(ui,/classList\.add\('look-stage','lk-simple'\)/,'the simple stage is the default on every page');
+ assert.match(ui,/data-inside-view/,'step 1 is View inside');
+ assert.match(css,/\.lk-simple \.lk-parts,\.lk-simple \.lk-hint,\.lk-simple \.lk-teardown,\.lk-simple \.lk-dock/,'no parts list, slider or tool bar');
+ assert.match(ui,/no name labels/,'no name labels on the model');
+ assert.match(guide,/data-guide-command="guide">Guide</,'one Guide button');assert.doesNotMatch(guide,/Machine Guide<|Page Guide</,'no separate Machine and Page guides');
+ for(const viewer of ['../src/viewer.js','../src/hard-viewer.js']){const text=read(viewer);assert.doesNotMatch(text,/addEventListener\('wheel'|listen\(canvas,'wheel'/,`${viewer}: scrolling never opens the machine`);assert.match(text,/partAbout/,`${viewer}: the tooltip says what the part does`);}
+ assert.match(read('../src/app.js'),/dataset\.step='maintenance'/,'Soft Services: step 3 is the maintenance checklist');
+ assert.match(read('../src/hard-lab.js'),/step\('experiment','Experiment'[^)]*\),step\('maintenance','Maintenance'/,'Hard Services: steps 3 and 4 are Experiment and Maintenance');
+ assert.match(read('../src/scrubber.js'),/dataset\.mode='maintenance'/,'the scrubber: step 3 is its maintenance checklist');
+ assert.match(html,/id="module-maintenance"[^>]*hidden><div class="maintenance-bar"><button id="machine-view"/,'the checklist is on the machine page, with Machine view on top');
+ assert.doesNotMatch(html,/id="checklist"|class="checklist-link"/,'no separate checklist page or menu link');
 });

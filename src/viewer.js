@@ -7,6 +7,7 @@ import {createDust,collectDust} from './cleaning-state.js';
 import {createRig,finish,cloneFinish,ghost} from './look/rig.js';
 import {createSpring,createLayerSprings,waveFactor,springEase,createGlide} from './look/motion.js';
 import {layerOf} from './look/layers.js';
+import {partAbout} from './guide-content.js';
 
 // Each machine has its own lacquer: the shared finishes are recoloured when the variant changes.
 const LACQUER={'junior-103':{dark:'#103f47',edge:'#2f6870',cream:'#e7e1c8',teal:'#148e91',white:'#f3f3ea'},'junior-429':{dark:'#1d3862',edge:'#46618f',cream:'#e1e6ec',teal:'#2b7fb8',white:'#f1f4f8'}};
@@ -138,8 +139,8 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   const info=partInfo.get(hovered);tooltip.hidden=!info||!hoverPoint;canvas.style.cursor=activePointers.size?'grabbing':info?'pointer':'grab';
   if(!info||!hoverPoint)return;
   if(tipId!==info.id){
-   tipId=info.id;document.getElementById('tooltip-group').textContent=info.group;
-   document.getElementById('tooltip-name').textContent=info.name;
+   tipId=info.id;document.getElementById('tooltip-name').textContent=info.name;
+   document.getElementById('tooltip-about').textContent=partAbout(info);
    tipWidth=tooltip.offsetWidth;tipHeight=tooltip.offsetHeight;
   }
   const rect=canvas.getBoundingClientRect();
@@ -147,13 +148,8 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   tooltip.style.top=`${Math.max(10,Math.min(hoverPoint.y+16,rect.height-tipHeight-10))}px`;
  }
  function localPoint(event){const rect=canvas.getBoundingClientRect();return {x:event.clientX-rect.left,y:event.clientY-rect.top};}
- function reveal(pixels){const next=openingFromPixels(state.open,pixels);if(next!==state.open)onOpenChange(next);}
  function touchSpan(){const [a,b]=[...activePointers.values()];return Math.hypot(a.x-b.x,a.y-b.y);}
- listen(canvas,'wheel',event=>{
-  event.preventDefault();cameraTween=null;
-  const unit=event.deltaMode===1?16:event.deltaMode===2?canvas.clientHeight:1;
-  reveal(-event.deltaY*unit*(event.ctrlKey?3:1));
- },{passive:false});
+ // The machine opens only from "View inside": scrolling scrolls the page and a pinch does not open it.
  listen(canvas,'pointerdown',event=>{cameraTween=null;
   activePointers.set(event.pointerId,localPoint(event));pointerDown={id:event.pointerId,x:event.clientX,y:event.clientY,dragged:false};clearHover();
   if(activePointers.size>1){multiGesture=true;pointerDown=null;pinchDistance=activePointers.size===2?touchSpan():null;}
@@ -162,7 +158,7 @@ export function createViewer(canvas,onSelect,onOpenChange,onPickup=()=>{},{onHov
   if(pointerDown?.id===event.pointerId&&Math.hypot(event.clientX-pointerDown.x,event.clientY-pointerDown.y)>6)pointerDown.dragged=true;
   if(activePointers.has(event.pointerId)){
    activePointers.set(event.pointerId,localPoint(event));
-   if(activePointers.size===2){const distance=touchSpan();if(pinchDistance!==null)reveal((distance-pinchDistance)*2);pinchDistance=distance;}
+   if(activePointers.size===2)pinchDistance=touchSpan();
   }
   if(event.pointerType!=='touch'&&event.buttons===0&&activePointers.size===0){hoverPoint=localPoint(event);hoverMoved=true;schedule();}
   else if(hoverPoint)clearHover();
@@ -211,7 +207,7 @@ function update(time){frame=0;if(!active||!visible||document.hidden)return;const
  secondSwitch.visible=wet;secondSwitch.rotation.x=state.running?-.2:.2;
  dryTool.visible=!wetPickup;wetTool.visible=wetPickup;floorRocker.rotation.x=state.floorMode==='soft'?-.24:.24;brushStrip.position.y=state.floorMode==='soft'?.055:0;
  if(state.autoRotate&&!pointerInside&&!activePointers.size&&!floorView&&!reduced.matches){const orbit=camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0,1,0),dt*.09);camera.position.copy(controls.target).add(orbit);}
- const framing=1+progress*.22;camera.position.sub(controls.target).multiplyScalar(framing/lastFraming).add(controls.target);lastFraming=framing;
+ const framing=1+progress*.42;camera.position.sub(controls.target).multiplyScalar(framing/lastFraming).add(controls.target);lastFraming=framing;
  const targetY=focusY??((floorView?.75:1.25)+progress*.55);camera.position.y+=targetY-controls.target.y;controls.target.y=targetY;
  if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
  const t=animated.plug;plug.position.set(THREE.MathUtils.lerp(-2,-2.15,t),THREE.MathUtils.lerp(.12,.76,t),THREE.MathUtils.lerp(.5,-.33,t));

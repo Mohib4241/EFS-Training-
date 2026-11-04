@@ -5,7 +5,7 @@ import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.j
 import {initialState,transition} from '../src/machine-state.js';
 import {initialPractice,reducePractice} from '../src/maintenance-state.js';
 import {FILTER_CARE_INTERVAL,filterCareSteps,filterInstruction,filterGrabbable,initialFilterCare} from '../src/filter-care.js';
-import {guideFrames,moveGuide,partNameSpeech} from '../src/guide-content.js';
+import {guideFrames,moveGuide,partNameSpeech,partAbout} from '../src/guide-content.js';
 import {LESSONS} from '../src/maintenance-lessons.js';
 import {initialInspection,reduceInspection} from '../src/hard-models.js';
 import {initialScrubber,reduceScrubber,scrubberResult} from '../src/scrubber-state.js';
@@ -55,13 +55,20 @@ test('weekly filter care rinses and refits the same filter, with washability and
 test('filter care has twelve steps, with Hinglish copy',()=>{
  assert.equal(filterCareSteps('hinglish').length,12);assert.match(filterInstruction({phase:'fit'},'hinglish')[0],/Wahi clean filter/);
 });
-test('visual tours explain actual controls in English and conversational Hinglish',()=>{
- const m=vacuumModules['junior-103'],en=guideFrames('page',m),hi=guideFrames('page',m,'hinglish');
- assert.deepEqual(en.map(f=>f.gesture),['drag','pinch-out','pinch-in','zoom-in','zoom-out','point']);assert.match(hi[1].caption,/Do fingers door karo/);assert.match(hi[1].spokenHi,/fingers/);assert.match(hi[1].spokenHi,/[\u0900-\u097f]/);
- for(const kind of ['page','machine'])for(const language of ['english','hinglish'])for(const f of guideFrames(kind,m,language))assert.ok(f.caption&&f.title&&f.duration>=5200&&f.target);
- const hard=guideFrames('machine',{id:'motor-3ph',kind:'motor'});assert.match(hard.find(f=>f.id==='identify').title,/component/);assert.doesNotMatch(hard.find(f=>f.id==='mechanism').caption,/suction/);const inspection=guideFrames('page',{id:'motor-3ph'},'english',true);assert.doesNotMatch(inspection.map(f=>f.caption).join(' '),/bag|filter|Hold/);assert.equal(inspection.at(-1).gesture,'point');
+test('one guide: View inside, point to a part, View outside, then start and stop the machine, in English and Hinglish',()=>{
+ const m=vacuumModules['junior-103'],en=guideFrames('guide',m),hi=guideFrames('guide',m,'hinglish');
+ assert.deepEqual(en.map(f=>f.id),['inside','point','outside','connect','run','isolate']);
+ assert.deepEqual(en.map(f=>f.target),['inside','canvas','inside','startup','startup','startup']);
+ assert.ok(!en.some(f=>/pinch|scroll/i.test(f.caption)),'opening is the View inside step, never a pinch or scroll');
+ assert.match(hi[1].caption,/Cursor ko kisi bhi part par le jao/);assert.match(hi[1].spokenHi,/[\u0900-\u097f]/);
+ for(const kind of ['guide','page','machine'])for(const language of ['english','hinglish'])for(const f of guideFrames(kind,m,language))assert.ok(f.caption&&f.title&&f.duration>=5200&&f.target);
+ const inspection=guideFrames('guide',{id:'motor-3ph'},'english',true);assert.doesNotMatch(inspection.map(f=>f.caption).join(' '),/bag|filter|Hold/);assert.equal(inspection.at(-1).gesture,'point');
  assert.deepEqual(moveGuide(0,-1,6),{index:0,complete:false});assert.deepEqual(moveGuide(5,1,6),{index:5,complete:true});assert.throws(()=>moveGuide(6,1,6),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
- const part={name:'Motor head',body:'Long explanation is not a hover name'};assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head',spokenHi:null});assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai.');
+ // pointing at a part reads its name and the first sentence about it
+ const part={name:'Motor head',body:'The head holds the motor. More detail follows here.'};
+ assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head. The head holds the motor.',spokenHi:null});
+ assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai. The head holds the motor.');
+ assert.equal(partAbout({body:''}),'');
 });
 test('Hinglish uses mixed-script speech with a Hindi voice and Roman speech when unavailable',()=>{
  const calls=[],voices=[{name:'Hindi',lang:'hi-IN',localService:true},{name:'UK',lang:'en-GB',localService:true}];

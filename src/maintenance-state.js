@@ -48,7 +48,7 @@ function applyPractice(previous,action){
    if(!s.isolated)return result(s,'Switch off and unplug the virtual machine before opening or changing the bag.');
    if(action.type==='fit'&&s.usedBag!=='disposed')return result(s,'Remove, seal and dispose of the used bag before fitting the clean bag.');
    if(action.type==='dispose'&&s.usedBag!=='sealed')return result(s,'Remove and seal the used bag before putting it in the bin.');
-   return result(s,'Complete the highlighted step before continuing.');
+   return result(s,'See the checklist for the next step.');
   }
   if(action.type==='isolate'){s.isolated=true;s.phase='release';return result(s,'Virtual power isolated. Release the two retaining clips on the machine.');}
   if(action.type==='open'){s.headOpen=true;s.phase='remove';return result(s,'Head open. The training bag is 80% full, above this scenario’s 70% trigger.');}
