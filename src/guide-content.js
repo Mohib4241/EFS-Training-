@@ -5,7 +5,7 @@ const frame=(id,target,gesture,en,hi,speech)=>({id,target,gesture,en,hi,speech})
 // One guide for every equipment page: open the machine out and point to parts, then run it safely.
 const guideSteps=[
  frame('inside','inside','tap',['View inside','Tap View inside. The machine opens out so every part can be seen, and it keeps turning.'],['Andar se dekho','View inside dabao. Machine khul jayegi, har part dikhega aur machine ghoomti rahegi.'],'View inside दबाओ। Machine खुल जाएगी, हर part दिखेगा और machine घूमती रहेगी।'),
- frame('point','canvas','point',['Point to a part','Move the cursor onto any part. Its name and what it does are shown and read out.'],['Cursor part par le jao','Cursor ko kisi bhi part par le jao. Us part ka naam aur kaam dikhega aur sunai dega.'],'Cursor को किसी भी part पर ले जाओ। उस part का नाम और काम दिखेगा और सुनाई देगा।'),
+ frame('point','canvas','point',['Point to a part','Move the cursor onto any part. Its name is read out, and what it does is shown beside the cursor.'],['Cursor part par le jao','Cursor ko kisi bhi part par le jao. Part ka naam sunai dega aur uska kaam cursor ke paas dikhega.'],'Cursor को किसी भी part पर ले जाओ। Part का नाम सुनाई देगा और उसका काम cursor के पास दिखेगा।'),
  frame('outside','inside','tap',['View outside','Tap View outside to put the machine back together.'],['Bahar se dekho','View outside dabao. Machine phir se jud jayegi.'],'View outside दबाओ। Machine फिर से जुड़ जाएगी।'),
  frame('connect','startup','tap',['Start the machine','Open Start the machine, then connect the plug or the virtual supply.'],['Machine start karo','Start the machine kholo, phir plug ya virtual supply connect karo.'],'Start the machine खोलो, फिर plug या virtual supply connect करो।'),
  frame('run','startup','tap',['Switch on','After connecting, switch on and watch the working parts.'],['Switch on karo','Connect karne ke baad switch on karo aur chalte hue parts dekho.'],'Connect करने के बाद switch on करो और चलते हुए parts देखो।'),
@@ -33,11 +33,10 @@ export function moveGuide(index,direction,total){
  if(!Number.isInteger(index)||index<0||index>=total||![-1,1].includes(direction)||!Number.isInteger(total)||total<1)throw new RangeError('Invalid guide position');
  const next=index+direction;return {index:Math.max(0,Math.min(total-1,next)),complete:next>=total};
 }
-// What the voice says when the cursor rests on a part: its name, then the first sentence about it.
+// What the voice says when the cursor rests on a part: only its name. What it does is shown beside the cursor, not read out.
 export function partNameSpeech(part,language){
  if(!GUIDE_LANGUAGES.includes(language))throw new RangeError('Unknown language');
- const about=partAbout(part);
- return language==='hinglish'?{text:`Yeh ${part.name} hai. ${about}`.trim(),spokenHi:`यह ${part.name} है। ${about}`.trim()}:{text:`${part.name}. ${about}`.trim(),spokenHi:null};
+ return language==='hinglish'?{text:`Yeh ${part.name} hai.`,spokenHi:`यह ${part.name} है।`}:{text:part.name,spokenHi:null};
 }
 // The first sentence of a part's description: shown beside the cursor and read out.
 export function partAbout(part){
