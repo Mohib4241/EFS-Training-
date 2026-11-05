@@ -49,7 +49,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
   parts:machine.parts,
   safety:'Stop the machine and isolate the virtual battery before inspecting. Real battery isolation and stored-energy checks follow the exact authorised procedure.',
   source:'Conceptual geometry and functional paths (Fidelity A), not a service drawing. Filter and float fitment are unverified. Lavor HYPER 2000B manufacturer sheet.',
-  get(){return {part:state.part,open:state.open,running:Boolean(state.running),fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
+  get(){return {part:state.part,open:state.open,running:Boolean(state.running),connected:Boolean(state.connected),fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
   select:id=>part(id||'overview'),
   setOpen:value=>dispatch({type:'open',value}),
   setFlag(name,on){if(name==='orbit'){guidance.setAutoRotate(on);return;}if(name==='xray'||name==='labels'||name==='callouts'){const key=name==='xray'?'xray':'labels';if(state[key]!==on)dispatch({type:key});return;}patch({[name]:on});},
@@ -66,7 +66,7 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
   const out=reduceInspection(inspection,action,machine);inspection=out.state;q('[data-inspection-feedback]').textContent=out.message;if(out.blocked)guidance.notify('See the checklist. '+out.message);else guidance.clearNotice();if(inspection.phase==='lesson')state={...state,part:frames[inspection.step].part};render();
  }
  function setMode(next){stopLesson();mode=next;if(mode==='maintenance'){state=reduceScrubber(state,{type:'isolate'}).state;state.open=0;}render();}
- function dispatch(action){const out=reduceScrubber(state,action);state=out.state;q('[data-feedback]').textContent=out.message;if(out.blocked)guidance.notify(out.message);else guidance.clearNotice();render();}
+ function dispatch(action){if(mode!=='maintenance'&&['connect','run'].includes(action.type)&&state.open>0){state=reduceScrubber(state,{type:'open',value:0}).state;state.xray=true;}const out=reduceScrubber(state,action);state=out.state;q('[data-feedback]').textContent=out.message;if(out.blocked)guidance.notify(out.message);else guidance.clearNotice();render();}
  container.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.observe)part(b.dataset.observe);if(b.dataset.mode){if(onNavigate)onNavigate(b.dataset.mode);else setMode(b.dataset.mode);}if(b.dataset.action){dispatch({type:b.dataset.action});if(b.dataset.action==='reset')viewer?.cameraAction('reset');}if(b.dataset.inspection)inspectionAction(b.dataset.inspection);});
  container.addEventListener('change',e=>{if(e.target.dataset.function)dispatch({type:'input',key:e.target.dataset.function,value:e.target.checked});});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){stopLesson();state=reduceScrubber(state,{type:'isolate'}).state;render();}});

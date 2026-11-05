@@ -170,3 +170,19 @@ test('cleaning machines show inside while they run, and put the shell back when 
  const stopped=runView({...run,running:false},'air',{seeInside:true});assert.equal(stopped.xray,false);assert.equal(stopped.air,false);
  assert.equal(runView({running:true,xray:false,flow:false}).xray,false,'other machines stay closed while they run');
 });
+
+test('a live machine can be seen inside or outside without stopping it, and connecting closes an opened-out machine smoothly',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const ui=read('../src/look/ui.js');
+ assert.match(ui,/live\?\(see\?\['See outside'/,'step 1 becomes See inside / See outside while it is connected or running');
+ assert.match(ui,/if\(s\.running\|\|s\.connected\)\{adapter\.setFlag\('xray',!s\.flags\.xray\);return;\}/,'and it only toggles the see-through shell');
+ assert.match(read('../src/app.js'),/\['plug','power'\]\.includes\(type\)&&state\.open>0\)\{state=transition\(state,\{type:'open',value:0\}\)\.state;state\.xray=true/,'vacuum: connecting puts it back together and keeps the inside visible');
+ for(const page of ['../src/hard-lab.js','../src/scrubber.js'])assert.match(read(page),/\['connect','run'\]\.includes\(action\.type\)&&state\.open>0/,`${page}: the same`);
+});
+
+test('the home page is a training centre: how a session works, both tracks, and the simulation tools',()=>{
+ const html=readFileSync(new URL('../src/index.html',import.meta.url),'utf8'),home=html.slice(html.indexOf('<section id="home"'),html.indexOf('</section>',html.indexOf('<section id="home"')));
+ for(const part of ['class="tr-hero"','class="tr-flow"','class="tr-tracks"','class="tr-tools"'])assert.ok(home.includes(part),part);
+ for(const id of ['home-machine','home-maintenance','home-lab','home-practice','home-cleaning'])assert.ok(home.includes(`id="${id}"`),`${id} is still there for its button`);
+ for(const id of ['motor-1ph','motor-3ph','alternator','megger','multimeter','cascade'])assert.ok(home.includes(`data-home-hard="${id}"`),`${id} is in the Hard Services track`);
+});

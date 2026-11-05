@@ -21,7 +21,7 @@ function loadLab(name,container,label,token){
  if(!container.firstElementChild||container.querySelector(':scope>.lab-error'))container.replaceChildren(note(`Loading ${label}…`));
  return loadModule(name).then(module=>token===navToken?module:null).catch(error=>{console.warn(`${label} could not be loaded:`,error.message);if(token===navToken)container.replaceChildren(note(`The ${label} could not be loaded. Check your connection, then reload the page.`,true));return null;});
 }
-const intents=[['[data-vacuum],#home-machine,#home-lab,#home-cleaning,[data-soft-entry="junior-429"]','viewer'],['[data-page="scrubber"],[data-soft-entry="hyper-2000b"]','scrubber'],['[data-hard-module],[data-page="catalogue"],[data-page="hard-checklist"]','hardLab'],['[data-step="maintenance"],#home-maintenance,#home-practice','maintenance3d']];
+const intents=[['[data-vacuum],#home-machine,#home-lab,#home-cleaning,[data-soft-entry="junior-429"]','viewer'],['[data-page="scrubber"],[data-soft-entry="hyper-2000b"]','scrubber'],['[data-hard-module],[data-home-hard],[data-page="catalogue"],[data-page="hard-checklist"]','hardLab'],['[data-step="maintenance"],#home-maintenance,#home-practice','maintenance3d']];
 // Start downloading a page's code as soon as the pointer, focus or finger heads for its link.
 function warm(event){const target=event.target.closest?.('button,a');if(!target||navigator.connection?.saveData)return;for(const [selector,name] of intents)if(target.matches(selector)){loadModule(name).catch(()=>{});return;}}
 document.addEventListener('pointerover',warm,{passive:true});document.addEventListener('focusin',warm);document.addEventListener('touchstart',warm,{passive:true});
@@ -67,6 +67,7 @@ function enterScrubber(view,token){
  });
 }
 function action(type,value){
+ let assembled=false;if(['plug','power'].includes(type)&&state.open>0){state=transition(state,{type:'open',value:0}).state;state.xray=true;assembled=true;}
  const wasRunning=state.running,result=transition(state,{type,value});state=result.state;state.autoRotate=guidance.autoRotate;if(type==='pickup')viewer?.resetDust();
  // switching on starts the floor tool sweeping over the dust; switching off (or unplugging, or opening) stops it
  if(state.running!==wasRunning)state.stroke=state.running;
@@ -81,6 +82,7 @@ function action(type,value){
   message=value==='hard'?'Hard floor (tiles): bristles down. The floor tool is picking up the dust.':'Soft floor (carpet): bristles up. The floor tool is picking up the dust.';
  }
  if(type==='power'&&state.running)message=state.pickupMode==='wet'?'Motor and fan running. The squeegee tool sweeps the floor and the water travels up the hose into the tank.':'Motor and fan running. The floor tool sweeps the floor and the dust travels up the hose into the bag.';
+ if(assembled&&type==='plug')message='Machine put back together to run. You still see inside through the shell; use See outside to close it.';
  if(message)$('operation-message').textContent=message;render();
 }
 function selectPart(id){
@@ -160,7 +162,7 @@ const vacuumAdapter={
  get parts(){return parts.slice(1);},
  safety:'Switch off and unplug before opening the machine or removing this part.',
  source:'Conceptual teaching model (Fidelity A), not a service drawing. Exact fitted parts are unverified.',
- get(){return {part:state.part,open:state.open,running:Boolean(state.running),fault:state.fault||'',flags:{xray:state.xray,callouts:state.callouts,flow:state.air,guides:Boolean(state.guides),glow:state.glow!==false,orbit:Boolean(state.autoRotate)}};},
+ get(){return {part:state.part,open:state.open,running:Boolean(state.running),connected:Boolean(state.connected),fault:state.fault||'',flags:{xray:state.xray,callouts:state.callouts,flow:state.air,guides:Boolean(state.guides),glow:state.glow!==false,orbit:Boolean(state.autoRotate)}};},
  info:id=>ELECTRICAL.includes(id)?{safety:'Isolate first: switch off and unplug before touching or inspecting this part.'}:{},
  select:id=>selectPart(id||'overview'),
  setOpen:value=>action('open',value),
@@ -238,6 +240,7 @@ for(const b of document.querySelectorAll('[data-page]'))b.addEventListener('clic
 for(const id of ['home-maintenance','home-practice'])$(id).addEventListener('click',()=>showPage('soft-checklist'));
 $('machine-view').addEventListener('click',()=>showPage('module',[machine.id]));
 for(const id of ['home-machine','home-lab'])$(id).addEventListener('click',()=>showPage('module',['junior-103']));
+for(const b of document.querySelectorAll('[data-home-hard]'))b.addEventListener('click',()=>showPage('hardlab',[b.dataset.homeHard,'explore']));
 for(const b of document.querySelectorAll('[data-soft-entry]'))b.addEventListener('click',()=>b.dataset.softEntry==='hyper-2000b'?showPage('scrubber'):showPage('module',[b.dataset.softEntry]));
 $('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent='Connect the plug, switch on and choose Move floor tool to pick up the virtual dust on tiles.';});
 window.addEventListener('popstate',()=>{const route=readRoute();showPage(route.page,route.path,'none');});

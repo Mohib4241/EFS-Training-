@@ -51,7 +51,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
  function stopLesson(){if(lessonTimer)clearInterval(lessonTimer);lessonTimer=null;if(inspection)inspection={...inspection,playing:false};}
  function stopDischarge(){if(dischargeTimer)clearInterval(dischargeTimer);dischargeTimer=null;lastDischarge=0;}
  function startDischarge(){stopDischarge();if(!live||document.hidden||state?.testPhase!=='discharging')return;lastDischarge=performance.now();dischargeTimer=setInterval(()=>{const now=performance.now(),dt=Math.min(.25,(now-lastDischarge)/1000);lastDischarge=now;const out=reduceHard(state,{type:'tick',dt});state=out.state;if(out.message)message=out.message;paint();if(state.testPhase==='idle')stopDischarge();},100);}
- function dispatch(action){if(mode==='maintenance'&&['connect','run'].includes(action.type)){message='Maintenance learning keeps the virtual equipment isolated. Use Experiment to run it.';paint();return;}if(action.type==='reset'){stopLesson();inspection=initialInspection();}const out=reduceHard(state,action);state=out.state;if(out.message)message=out.message;paint();startDischarge();}
+ function dispatch(action){if(mode!=='maintenance'&&['connect','run'].includes(action.type)&&state.open>0&&!state.residualV){state=reduceHard(state,{type:'open',value:0}).state;if(!state.xray)state=reduceHard(state,{type:'xray'}).state;}if(mode==='maintenance'&&['connect','run'].includes(action.type)){message='Maintenance learning keeps the virtual equipment isolated. Use Experiment to run it.';paint();return;}if(action.type==='reset'){stopLesson();inspection=initialInspection();}const out=reduceHard(state,action);state=out.state;if(out.message)message=out.message;paint();startDischarge();}
  function selectPart(part){
   const keyboardObservation=document.activeElement?.dataset.observe;
   state=reduceHard(state,{type:'select',id:part}).state;
@@ -114,7 +114,7 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
   get safety(){return ['megger','multimeter'].includes(module.kind)?SAFETY.instrument:SAFETY.plant;},
   get source(){return `Conceptual geometry (Fidelity A), referenced to ${module.brand} · ${module.reference}. ${module.sources[0]?.title||''}`;},
   info:partId=>({does:[module.parts.find(p=>p.id===partId)?.motion,module.parts.find(p=>p.id===partId)?.why].filter(Boolean).join(' ')}),
-  get(){return {part:state.part,open:state.open,running:Boolean(state.running),fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
+  get(){return {part:state.part,open:state.open,running:Boolean(state.running),connected:Boolean(state.connected),fault:state.fault||'',flags:{xray:state.xray,callouts:state.labels,flow:Boolean(state.flow),guides:Boolean(state.guides),glow:state.glow!==false,orbit:autoRotate}};},
   select:partId=>selectPart(partId||'overview'),
   setOpen:value=>dispatch({type:'open',value}),
   setFlag(name,on){if(name==='orbit'){guidance?.setAutoRotate(on);return;}if(name==='xray'||name==='callouts'){const key=name==='xray'?'xray':'labels';if(state[key]!==on)dispatch({type:key});return;}patch({[name]:on});},

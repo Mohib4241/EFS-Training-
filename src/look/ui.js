@@ -201,7 +201,7 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
 
  // ---- repaint what changed ----
  function update(){
-  const state=adapter.get(),tick=JSON.stringify([state.part,Math.round(state.open*10),state.running,state.fault,state.flags,focus,handActive,machineId]);
+  const state=adapter.get(),tick=JSON.stringify([state.part,Math.round(state.open*10),state.running,state.connected,state.fault,state.flags,focus,handActive,machineId]);
   if(tick===last)return;last=tick;
   slider.value=state.open;slider.style.setProperty('--p',`${state.open}%`);slider.setAttribute('aria-valuetext',`${Math.round(state.open)} percent, ${stageName(state.open)}`);
   q('.lk-percent').innerHTML=`${Math.round(state.open)}<small>%</small>`;q('.lk-stage').textContent=stageName(state.open);
@@ -214,13 +214,17 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   // a part chosen on the model (or by key, or by hand) gets its small note; the whole-machine note comes only from the list
   if(state.part!==notedPart){notedPart=state.part;if(state.part&&state.part!=='overview'&&!canHover.matches)showNote(state.part);}
   // View inside opens the machine right out; View outside puts it back together
-  const opened=state.open>=50,insideButton=q('[data-inside-view]');insideButton.setAttribute('aria-pressed',String(opened));insideButton.querySelector('.lk-step-name').textContent=opened?'View outside':'View inside';insideButton.querySelector('small').textContent=opened?'Put the machine back together':'Open it out and point to a part';
+  // While it is connected or running, step 1 looks inside through the shell (the machine keeps running);
+  // otherwise it opens the machine right out, or puts it back together.
+  const live=Boolean(state.running||state.connected),opened=state.open>=50,insideButton=q('[data-inside-view]');
+  const [name,about,pressed]=live?(see?['See outside','Close the shell; it keeps running',true]:['See inside','See the working parts through the shell',false]):opened?['View outside','Put the machine back together',true]:['View inside','Open it out and point to a part',false];
+  insideButton.setAttribute('aria-pressed',String(pressed));insideButton.querySelector('.lk-step-name').textContent=name;insideButton.querySelector('small').textContent=about;
   select.value=state.fault||'';paintBanner(state.fault);
   for(const b of all('[data-part]'))b.toggleAttribute('data-related',Boolean(faults.find(f=>f.id===state.fault)?.parts.includes(b.dataset.part)));
  }
 
  q('[data-focus-exit]').addEventListener('click',()=>setFocus(false),{signal});
- q('[data-inside-view]').addEventListener('click',()=>{const open=adapter.get().open>=50;clearNotes();adapter.select(null);adapter.setOpen(open?0:100);},{signal});
+ q('[data-inside-view]').addEventListener('click',()=>{const s=adapter.get();clearNotes();if(s.running||s.connected){adapter.setFlag('xray',!s.flags.xray);return;}adapter.select(null);adapter.setOpen(s.open>=50?0:100);},{signal});
  paintParts();paintFaults();update();
  if(startFocused)setFocus(true);
  return {
