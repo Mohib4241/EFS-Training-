@@ -153,3 +153,20 @@ test('every equipment page opens simple: the machine plus numbered steps on the 
  assert.match(html,/id="module-maintenance"[^>]*hidden><div class="maintenance-bar"><button id="machine-view"/,'the checklist is on the machine page, with Machine view on top');
  assert.doesNotMatch(html,/id="checklist"|class="checklist-link"/,'no separate checklist page or menu link');
 });
+
+test('the scrubber drives a closed loop of overlapping lanes, always facing where it goes',async()=>{
+ const {SCRUB_PATH,scrubPose,turnTo,LANES}=await import('../src/look/scrub-floor.js');
+ const start=scrubPose(0),end=scrubPose(SCRUB_PATH.total-1e-6);
+ assert.ok(Math.hypot(start.x-end.x,start.z-end.z)<.03,'the loop closes, so it can run lap after lap');
+ let previous=scrubPose(0);
+ for(let s=.05;s<SCRUB_PATH.total;s+=.05){const p=scrubPose(s);assert.ok(Math.hypot(p.x-previous.x,p.z-previous.z)<.06,'no jumps along the way');
+  const heading=Math.atan2(p.x-previous.x,p.z-previous.z);assert.ok(Math.abs(turnTo(heading,p.yaw)-heading)<.35,'brush first: it faces its direction of travel');previous=p;}
+ for(let i=1;i<LANES.length;i++)assert.ok(LANES[i]-LANES[i-1]<1.08,'lanes are closer than the brush is wide, so passes overlap');
+ assert.ok(Math.abs(turnTo(3,-3)-3)<.3,'turns the short way round');
+});
+
+test('cleaning machines show inside while they run, and put the shell back when they stop',()=>{
+ const run=runView({running:true,xray:false,air:false},'air',{seeInside:true});assert.equal(run.xray,true);assert.equal(run.air,true);
+ const stopped=runView({...run,running:false},'air',{seeInside:true});assert.equal(stopped.xray,false);assert.equal(stopped.air,false);
+ assert.equal(runView({running:true,xray:false,flow:false}).xray,false,'other machines stay closed while they run');
+});

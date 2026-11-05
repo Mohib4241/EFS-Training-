@@ -4,6 +4,7 @@ import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js'
 import {openingFromPixels} from './machine-state.js';
 import {createRig,finish,ghost} from './look/rig.js';
 import {partAbout} from './guide-content.js';
+import {createScrubFloor,scrubPose,turnTo,SCRUB_PATH} from './look/scrub-floor.js';
 import {createLayerSprings,waveFactor,springEase,zigzagPose,pingPong,createGlide} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 
@@ -111,12 +112,16 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   const filter=group('filter',[-.25,1.56,-.36],[-.7,1,-.1]);mesh(filter,new THREE.CylinderGeometry(.19,.19,.28,32,1,true),white,[0,0,0]);for(const y of [-.14,.14])ring(filter,.2,.025,dark,[0,y,0],'y');for(let n=0;n<8;n++){const a=n*Math.PI/4;box(filter,[.022,.3,.025],dark,[Math.sin(a)*.2,0,Math.cos(a)*.2],.003);}
   const drain=group('drain',[0,0,0],[-.6,.15,-.6]);pipe(drain,[[-.55,1.51,-.6],[-.69,1.1,-.98],[-.68,.63,-1.05]],dark,.042);cyl(drain,.06,.07,'#e59148',[-.68,.6,-1.05],'y');
   const wheels=group('wheels',[0,.25,-.45],[0,0,0]);for(const x of [-.7,.7]){cyl(wheels,.25,.12,dark,[x,0,0],'x');cyl(wheels,.12,.13,steel,[x,0,0],'x');}for(const x of [-.45,.45])cyl(wheels,.1,.08,dark,[x,-.12,.93],'x');
-  addFlow([[-.49,.65,.22],[-.33,.4,.55],[0,.22,.8]],'#4bbed5','solution');addFlow([[0,.21,-1.2],[.55,.45,-1.15],[.6,1.21,-.9],[.3,1.61,-.3]],'#d7a76c','suction');
+  addFlow([[-.3,.62,.3],[-.49,.65,.22],[-.33,.4,.55],[0,.22,.8],[0,.03,.86]],'#2fa8d8','solution',{count:14,onTop:true});addFlow([[0,.02,-1.27],[0,.21,-1.2],[.55,.45,-1.15],[.6,1.21,-.9],[.38,1.78,-.45],[.15,1.6,-.1]],'#8f6f45','suction',{count:16,onTop:true});
+  // the floor it cleans, and the water in each tank: clean solution goes down as it is used, dirty water comes up in the recovery tank
+  scrubFloor=createScrubFloor(THREE);scene.add(scrubFloor.group);
+  const level=(color,opacity)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshStandardMaterial({color,roughness:.08,metalness:.05,transparent:true,opacity,depthWrite:false}));m.renderOrder=2;root.add(m);return m;};
+  tanks={solution:level('#3aa9d6',.62),recovery:level('#3f3322',.5)};
  }
- function addFlow(points,color,unit){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(80)),new THREE.LineDashedMaterial({color,dashSize:.07,gapSize:.05,transparent:true,opacity:.85,depthTest:false}));line.computeLineDistances();line.visible=false;line.renderOrder=3;root.add(line);paths.push(line);for(let n=0;n<8;n++){const o=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),new THREE.MeshBasicMaterial({color}));root.add(o);flows.push({o,curve,unit,phase:n/8});}}
+ function addFlow(points,color,unit,{count=8,onTop=false}={}){const curve=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(...p)));const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(80)),new THREE.LineDashedMaterial({color,dashSize:.07,gapSize:.05,transparent:true,opacity:.85,depthTest:false}));line.computeLineDistances();line.visible=false;line.renderOrder=3;root.add(line);paths.push(line);for(let n=0;n<count;n++){const o=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),new THREE.MeshBasicMaterial({color,depthTest:!onTop}));if(onTop)o.renderOrder=6;root.add(o);flows.push({o,curve,unit,phase:n/count});}}
  function disposeObject(object){const resources=new Set();object.traverse(o=>{if(o.geometry)resources.add(o.geometry);for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[]){if(m.map)resources.add(m.map);resources.add(m);}});for(const r of resources)r.dispose();}
  function load(next){
-  clearHover();disposeObject(root);root.clear();if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();guideLines=null;}groups={};pickables=[];spinners=[];flows=[];paths=[];shells=[];shellApplied=null;leds=[];field=null;zigzag=0;root.position.set(0,0,0);root.rotation.set(0,0,0);studio.moveContact(0,0);anchors.clear();for(const key of Object.keys(meshesOf))delete meshesOf[key];lastPaint='';for(const spring of springs)spring.reset(0);calloutsShown=false;guidesDrawn=false;leadCurves=[];display=null;displayContext=null;displayTexture=null;displayText='';leadKey='';opening=0;framing=1;module=next;
+  clearHover();disposeObject(root);root.clear();if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();guideLines=null;}groups={};pickables=[];spinners=[];flows=[];paths=[];shells=[];shellApplied=null;leds=[];field=null;zigzag=0;roam=0;travel=0;wasTravelling=false;tanks=null;if(scrubFloor){scrubFloor.dispose();scrubFloor=null;}root.position.set(0,0,0);root.rotation.set(0,0,0);studio.moveContact(0,0);anchors.clear();for(const key of Object.keys(meshesOf))delete meshesOf[key];lastPaint='';for(const spring of springs)spring.reset(0);calloutsShown=false;guidesDrawn=false;leadCurves=[];display=null;displayContext=null;displayTexture=null;displayText='';leadKey='';opening=0;framing=1;module=next;
   if(['single','three'].includes(module.kind))motor(module.kind==='single');else if(module.kind==='alternator')alternator();else if(module.kind==='cascade')cascade();else if(module.kind==='scrubber')scrubber();else instrument();
   // the amber concern marker sits on whichever part the chosen checklist ends on (see placeMarker)
   faultMarker=new THREE.Mesh(new THREE.OctahedronGeometry(.095),new THREE.MeshBasicMaterial({color:'#db873b'}));faultMarker.visible=false;markedPart=null;
@@ -184,7 +189,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
  }
  function clearHover(){hoverPoint=null;if(hover)onHover(null);hover=null;tooltip.hidden=true;canvas.style.cursor='grab';if(state)highlight();schedule();}
  function updateHover(){const id=hoverPoint&&pointers.size===0?hitAt(hoverPoint):(hoverPoint?null:handHover);if(id!==hover){hover=id;onHover(id,hoverMoved);highlight();}hoverMoved=false;const part=module.parts.find(p=>p.id===id);tooltip.hidden=!part||!hoverPoint;canvas.style.cursor=pointers.size?'grabbing':part?'pointer':'grab';if(!part||!hoverPoint)return;tooltip.firstElementChild.textContent=part.name;tooltip.lastElementChild.textContent=partAbout(part);const r=canvas.getBoundingClientRect();tooltip.style.left=`${Math.max(8,Math.min(hoverPoint.x+13,r.width-tooltip.offsetWidth-8))}px`;tooltip.style.top=`${Math.max(8,Math.min(hoverPoint.y+14,r.height-tooltip.offsetHeight-8))}px`;}
- let handHover=null,overlay=null,zigzag=0;const glide=createGlide();
+ let handHover=null,overlay=null,zigzag=0,roam=0,scrubFloor=null,tanks=null,travel=0,wasTravelling=false;const glide=createGlide();
  // Layout is measured a few times a second, not every frame (reading sizes during an animation forces layout).
  let bottomBar=null,measuredAt=-1e9,measured=[1,1,0];
  const measure=time=>{if(time-measuredAt>300){measuredAt=time;measured=[canvas.clientWidth,canvas.clientHeight,(bottomBar??=canvas.parentElement.querySelector('.lk-bottom'))?.offsetHeight||0];}return measured;};
@@ -195,14 +200,27 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   const goal=state.open/100;let springing=false;springs.forEach((spring,layer)=>{if(spring.step(dt,waveFactor(layer,goal),reduced.matches))springing=true;});
   opening=(springs[0].value+springs[1].value+springs[2].value+springs[3].value)/4;
   for(const g of Object.values(groups)){const f=springs[g.userData.layer].value;g.position.copy(g.userData.base).addScaledVector(g.userData.offset,f);if(g.userData.spread)for(const c of g.children)c.position.x=c.userData.homeX*(1+f);}
-  const nextFraming=1+opening*.45;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
+  if(module.kind==='scrubber'){const goalZoom=state.running&&opening<.05?1:0;roam+=(goalZoom-roam)*(1-Math.exp(-dt*1.5));if(Math.abs(goalZoom-roam)>.002)springing=true;}
+  const nextFraming=1+opening*.45+roam*.3;camera.position.sub(controls.target).multiplyScalar(nextFraming/framing).add(controls.target);framing=nextFraming;
   if(cameraTween){const t=cameraTween;t.progress=Math.min(1,t.progress+dt/.9);const mix=springEase(t.progress);camera.position.lerpVectors(t.from,t.to,mix);controls.target.lerpVectors(t.fromTarget,t.toTarget,mix);if(t.progress===1)cameraTween=null;}
   const turning=state.running&&!reduced.matches;
-  // Only the scrubber travels: a zigzag floor pass while it runs, easing back to its place when it stops.
+  // Only the scrubber travels: forward, brush first, in overlapping lanes across a dirty floor, cleaning it as it goes.
+  // Each run starts on a fresh dirty floor; when it stops it drives back to its parking place.
   if(module.kind==='scrubber'){
-   const travelling=turning&&opening<.05;if(travelling)zigzag+=dt*.2;
-   const goal=travelling?zigzagPose(pingPong(zigzag)):{x:0,z:0,yaw:0},ease=1-Math.exp(-dt*3);
-   root.position.x+=(goal.x-root.position.x)*ease;root.position.z+=(goal.z-root.position.z)*ease;root.rotation.y+=(goal.yaw-root.rotation.y)*ease;studio.moveContact(root.position.x,root.position.z);
+   const travelling=turning&&opening<.05,uses=new Set(model.requested||[]);
+   if(travelling&&!wasTravelling){travel=0;scrubFloor?.reset();}wasTravelling=travelling;
+   if(travelling){const lap=Math.floor(travel/SCRUB_PATH.total);travel+=dt*.32;if(Math.floor(travel/SCRUB_PATH.total)>lap)scrubFloor?.relay();}
+   const goal=travelling?scrubPose(travel):{x:0,z:0,yaw:0},ease=1-Math.exp(-dt*(travelling?6:2.5));
+   root.position.x+=(goal.x-root.position.x)*ease;root.position.z+=(goal.z-root.position.z)*ease;root.rotation.y+=(turnTo(root.rotation.y,goal.yaw)-root.rotation.y)*ease;studio.moveContact(root.position.x,root.position.z);
+   if(scrubFloor){
+    scrubFloor.group.visible=opening<.05;if(scrubFloor.step(dt))springing=true;
+    if(travelling){const yaw=root.rotation.y,sin=Math.sin(yaw),cos=Math.cos(yaw);
+     scrubFloor.clean({x:root.position.x+sin*.7,z:root.position.z+cos*.7,r:.54},{x:root.position.x-sin*1.25,z:root.position.z-cos*1.25,yaw,half:.94},{scrub:uses.has('brush'),wetting:uses.has('solution'),drying:uses.has('suction')});}
+   }
+   if(tanks){const used=Math.min(1,travel/SCRUB_PATH.total),show=opening<.05;
+    const fresh=.78*(1-.65*used),dirty=.05+.2*used*(uses.has('suction')?1:0);
+    tanks.solution.visible=show;tanks.solution.scale.set(1.08,fresh,1.38);tanks.solution.position.set(0,1-.44+fresh/2,.06);
+    tanks.recovery.visible=show&&dirty>.06;tanks.recovery.scale.set(1.05,dirty,1.25);tanks.recovery.position.set(0,1.67-.18+dirty/2,-.05);}
   }
   if(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches){const offset=camera.position.clone().sub(controls.target);offset.applyAxisAngle(new THREE.Vector3(0,1,0),dt*.025);camera.position.copy(controls.target).add(offset);}
   for(const {o,axis,unit} of spinners){const enabled=unit===null?turning:turning&&model.requested?.includes(unit);if(enabled)o.rotation[axis]+=dt*(module.kind==='cascade'?3.2:(model.speed||1200)/60*Math.PI*2*.025)*(model.direction||1);}
@@ -246,5 +264,5 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   wake(){schedule();},
   invalidate(){measuredAt=-1e9;schedule();}
  };
- return {load,flyTo,hands,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
+ return {load,flyTo,hands,setState(next,result){state=next;model=result;const key=`${state.connected}:${state.inputs.function}:${state.inputs.jack}`;if(groups.leads&&key!==leadKey){leadKey=key;rebuildLeads();}highlight();schedule();},cameraAction,clearHover,setActive(value){active=value;previous=0;cancelGesture();if(!active&&frame){cancelAnimationFrame(frame);frame=0;}if(active){resizeScene();schedule();}},destroy(){active=false;if(frame)cancelAnimationFrame(frame);abort.abort();scrubFloor?.dispose();scrubFloor=null;resize.disconnect();observer.disconnect();controls.dispose();onCallouts([],0,0);disposeObject(root);if(guideLines){scene.remove(guideLines);guideLines.geometry.dispose();guideLines.material.dispose();}studio.dispose();}};
 }

@@ -66,7 +66,23 @@ function enterScrubber(view,token){
   guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:true});
  });
 }
-function action(type,value){const result=transition(state,{type,value});state=result.state;state.autoRotate=guidance.autoRotate;if(type==='pickup')viewer?.resetDust();if(result.message)$('operation-message').textContent=result.message;render();}
+function action(type,value){
+ const wasRunning=state.running,result=transition(state,{type,value});state=result.state;state.autoRotate=guidance.autoRotate;if(type==='pickup')viewer?.resetDust();
+ // switching on starts the floor tool sweeping over the dust; switching off (or unplugging, or opening) stops it
+ if(state.running!==wasRunning)state.stroke=state.running;
+ let message=result.message;
+ // the orange floor selector: a fresh floor (tiles or carpet) and the machine starts picking up straight away
+ if(type==='floor'){
+  viewer?.resetDust();
+  if(state.open>0)state=transition(state,{type:'open',value:0}).state;
+  if(!state.connected)state=transition(state,{type:'plug'}).state;
+  if(!state.running)state=transition(state,{type:'power'}).state;
+  state.condition='clear';state.fault='';state.stroke=true;
+  message=value==='hard'?'Hard floor (tiles): bristles down. The floor tool is picking up the dust.':'Soft floor (carpet): bristles up. The floor tool is picking up the dust.';
+ }
+ if(type==='power'&&state.running)message=state.pickupMode==='wet'?'Motor and fan running. The squeegee tool sweeps the floor and the water travels up the hose into the tank.':'Motor and fan running. The floor tool sweeps the floor and the dust travels up the hose into the bag.';
+ if(message)$('operation-message').textContent=message;render();
+}
 function selectPart(id){
  if(!parts.some(p=>p.id===id))return;if(machine.id==='junior-429'&&(['filter','collector'].includes(id)&&state.pickupMode==='wet'||id==='float'&&state.pickupMode==='dry')){state=transition(state,{type:'pickup',value:id==='float'?'wet':'dry'}).state;viewer?.resetDust();}state.part=id;
  if(isHidden(machine.id,id)){
@@ -75,7 +91,7 @@ function selectPart(id){
  render();
 }
 function render(){
- state=runView(state,'air');
+ state=runView(state,'air',{seeInside:true});
  if(partsKey!==machine.id+state.pickupMode){buildVacuumContent();guidance.updateMachine({...machine,parts});ui?.refreshParts();}
  state.glowParts=faultsFor(machine.id).find(f=>f.id===state.fault)?.parts||[];
  for(const [id,key] of [['stroke-toggle','stroke'],['power-toggle','running']])$(id).setAttribute('aria-pressed',String(state[key]));

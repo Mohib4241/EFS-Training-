@@ -29,9 +29,11 @@ export function springEase(p){
 // Starting a machine shows the flow path, and the machine stays closed to the eye: the outside is the default while it runs, and
 // "Show inside" (the x-ray flag) is the learner's own choice. Stopping puts the flow path back as it was. Idempotent, so it can run
 // on every repaint.
-export function runView(state,flowKey='flow'){
- if(state.running&&!state.runView)return {...state,runView:{flow:Boolean(state[flowKey])},[flowKey]:true};
- if(!state.running&&state.runView)return {...state,[flowKey]:state.runView.flow,runView:null};
+// Cleaning machines (the vacuums and the scrubber) pass seeInside: while they run the shell turns see-through, so the dust
+// reaching the bag and the water reaching the tanks can be seen; stopping puts the shell back as it was.
+export function runView(state,flowKey='flow',{seeInside=false}={}){
+ if(state.running&&!state.runView)return {...state,runView:{flow:Boolean(state[flowKey]),...(seeInside?{xray:Boolean(state.xray)}:{})},[flowKey]:true,...(seeInside?{xray:true}:{})};
+ if(!state.running&&state.runView)return {...state,[flowKey]:state.runView.flow,...('xray' in state.runView?{xray:state.runView.xray}:{}),runView:null};
  return state;
 }
 
