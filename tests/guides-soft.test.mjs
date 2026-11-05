@@ -64,10 +64,11 @@ test('one guide: View inside, point to a part, View outside, then start and stop
  for(const kind of ['guide','page','machine'])for(const language of ['english','hinglish'])for(const f of guideFrames(kind,m,language))assert.ok(f.caption&&f.title&&f.duration>=5200&&f.target);
  const inspection=guideFrames('guide',{id:'motor-3ph'},'english',true);assert.doesNotMatch(inspection.map(f=>f.caption).join(' '),/bag|filter|Hold/);assert.equal(inspection.at(-1).gesture,'point');
  assert.deepEqual(moveGuide(0,-1,6),{index:0,complete:false});assert.deepEqual(moveGuide(5,1,6),{index:5,complete:true});assert.throws(()=>moveGuide(6,1,6),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
- // pointing at a part reads its name and the first sentence about it
+ // pointing at a part reads only its name; what it does is shown, not read out
  const part={name:'Motor head',body:'The head holds the motor. More detail follows here.'};
- assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head. The head holds the motor.',spokenHi:null});
- assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai. The head holds the motor.');
+ assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head',spokenHi:null});
+ assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai.');
+ assert.equal(partAbout(part),'The head holds the motor.','the description shown beside the cursor');
  assert.equal(partAbout({body:''}),'');
 });
 test('Hinglish uses mixed-script speech with a Hindi voice and Roman speech when unavailable',()=>{
