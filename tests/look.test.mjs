@@ -186,3 +186,11 @@ test('the home page is a training centre: how a session works, both tracks, and 
  for(const id of ['home-machine','home-maintenance','home-lab','home-practice','home-cleaning'])assert.ok(home.includes(`id="${id}"`),`${id} is still there for its button`);
  for(const id of ['motor-1ph','motor-3ph','alternator','megger','multimeter','cascade'])assert.ok(home.includes(`data-home-hard="${id}"`),`${id} is in the Hard Services track`);
 });
+
+test('every machine has the same Start panel as the CleanTech vacuum, and tapping a part says only its name',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const html=read('../src/index.html');assert.match(html,/class="operation-head"><span class="eyebrow">TRY THE WORKING SEQUENCE<\/span><span class="status-pill"/);
+ for(const page of ['../src/hard-lab.js','../src/scrubber.js']){const text=read(page);assert.match(text,/class="operation-head"><span class="eyebrow">TRY THE WORKING SEQUENCE<\/span><output class="status-pill"/,page);assert.match(text,/operation-buttons"><button[^>]*>1 <span>/,`${page}: numbered steps`);}
+ const guide=read('../src/guidance.js');assert.match(guide,/function sayPart\(id\)/);assert.match(guide,/lastSaid\.name===part\.name&&now-lastSaid\.at<2500/,'a name is not repeated straight after it was spoken');
+ for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js'])assert.match(read(page),/sayPart\(/,`${page}: tapping a part speaks its name`);
+});
