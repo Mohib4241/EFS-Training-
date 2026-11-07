@@ -165,7 +165,8 @@ test('the scrubber drives a closed loop of overlapping lanes, always facing wher
  assert.ok(Math.abs(turnTo(3,-3)-3)<.3,'turns the short way round');
 });
 
-test('cleaning machines show inside while they run, and put the shell back when they stop',()=>{
+test('every machine shows inside while it runs, and puts the shell back when it stops',()=>{
+ for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js'])assert.match(readFileSync(new URL(page,import.meta.url),'utf8'),/runView\(state,'(air|flow)',\{seeInside:true\}\)/,`${page} runs see-through`);
  const run=runView({running:true,xray:false,air:false},'air',{seeInside:true});assert.equal(run.xray,true);assert.equal(run.air,true);
  const stopped=runView({...run,running:false},'air',{seeInside:true});assert.equal(stopped.xray,false);assert.equal(stopped.air,false);
  assert.equal(runView({running:true,xray:false,flow:false}).xray,false,'other machines stay closed while they run');
