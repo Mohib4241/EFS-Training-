@@ -86,7 +86,7 @@ function action(type,value){
  if(message)$('operation-message').textContent=message;render();
 }
 function selectPart(id){
- if(!parts.some(p=>p.id===id))return;if(machine.id==='junior-429'&&(['filter','collector'].includes(id)&&state.pickupMode==='wet'||id==='float'&&state.pickupMode==='dry')){state=transition(state,{type:'pickup',value:id==='float'?'wet':'dry'}).state;viewer?.resetDust();}state.part=id;
+ if(!parts.some(p=>p.id===id))return;guidance.sayPart(id);if(machine.id==='junior-429'&&(['filter','collector'].includes(id)&&state.pickupMode==='wet'||id==='float'&&state.pickupMode==='dry')){state=transition(state,{type:'pickup',value:id==='float'?'wet':'dry'}).state;viewer?.resetDust();}state.part=id;
  if(isHidden(machine.id,id)){
   if(state.running)state.xray=true;else if(state.open<revealOpening(layerOf(machine.id,id))){const result=transition(state,{type:'open',value:revealOpening(layerOf(machine.id,id))});state=result.state;$('operation-message').textContent=result.message;}
  }
