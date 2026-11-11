@@ -61,7 +61,10 @@ function blobTexture(){
 }
 
 export function createRig({canvas,bounds={l:-7,r:7,t:7,b:-5},onChange=()=>{}}){
- const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'default'});
+ const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+ // Shader error checks read each program's log back the moment it is first used, which stalls the frame while the GPU
+ // finishes compiling. Without them the browser can compile in the background, so a new effect does not cause a stutter.
+ renderer.debug.checkShaderErrors=false;
  let pixelRatio=Math.min(window.devicePixelRatio||1,1.75);
  renderer.setPixelRatio(pixelRatio);renderer.outputColorSpace=THREE.SRGBColorSpace;
  // In three 0.186 PCFShadowMap is the soft, filtered PCF; the separate "soft" mode was removed.

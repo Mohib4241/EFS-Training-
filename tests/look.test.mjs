@@ -195,3 +195,13 @@ test('every machine has the same Start panel as the CleanTech vacuum, and tappin
  const guide=read('../src/guidance.js');assert.match(guide,/function sayPart\(id\)/);assert.match(guide,/lastSaid\.name===part\.name&&now-lastSaid\.at<2500/,'a name is not repeated straight after it was spoken');
  for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js'])assert.match(read(page),/sayPart\(/,`${page}: tapping a part speaks its name`);
 });
+
+test('a spinner covers the stage until the machine is ready, the guide waits for it, and "Whole machine" is never spoken',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const ui=read('../src/look/ui.js'),css=read('../src/look/look.css'),guide=read('../src/guidance.js');
+ assert.match(ui,/class="lk-loading" role="status" hidden>/);assert.match(ui,/showLoading\(until\)/);assert.match(ui,/whenLoaded\(\)\{return loaded;\}/);
+ assert.match(css,/@keyframes lk-spin/);
+ for(const page of ['../src/app.js','../src/hard-lab.js','../src/scrubber.js']){const text=read(page);assert.match(text,/showLoading\(\)/,`${page} shows the loader`);assert.match(text,/whenLoaded\(\)/,`${page}: the guide waits for it`);}
+ assert.match(guide,/function sayPart\(id\)\{if\(!machine\|\|tour\|\|id==='overview'\)return;/);
+ assert.match(read('../src/look/rig.js'),/checkShaderErrors=false/,'no frame stalls for shader log read-back');
+});

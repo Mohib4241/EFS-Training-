@@ -38,7 +38,7 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
  try{dockClosed=localStorage.getItem(DOCK_KEY)==='closed';}catch{}
  host.classList.add('look-stage','lk-simple');
  // pointing at a part explains it; a tap (no hover on touch screens) shows the same as a small note
- const canHover=matchMedia('(hover:hover)');
+ const canHover=matchMedia('(hover:hover)');let loaded=Promise.resolve();
  const root=element('div','lk-root');
  root.innerHTML=`
   <div class="lk-top"><div class="lk-hint"><span>Drag to orbit</span><span>Scroll or pinch to open</span><span>Click a part</span><span><kbd>[</kbd><kbd>]</kbd> step parts</span><span><kbd>F</kbd> focus</span></div><div class="lk-banner" role="status" hidden></div></div>
@@ -54,6 +54,7 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
    <button type="button" class="lk-dock-toggle" aria-expanded="true" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span>Hide controls</span></button>
    <div class="lk-dock" role="toolbar" aria-label="Layers and camera"></div>
   </div>
+  <div class="lk-loading" role="status" hidden><i aria-hidden="true"></i><span>Loading the machine…</span></div>
   <svg class="lk-leaders" aria-hidden="true"></svg><div class="lk-labels" aria-hidden="true"></div>`;
  host.append(root);
  const q=selector=>root.querySelector(selector),all=selector=>[...root.querySelectorAll(selector)];
@@ -231,12 +232,20 @@ export function mountLookUI(host,adapter,{ids={},focus:startFocused=false}={}){
   update,drawCallouts,setFocus,
   get focus(){return focus;},
   get slot(){return q('.lk-slot');},
+  // Cover the stage with a spinner until the model has had time to draw (the first frames compile shaders and can stutter),
+  // or until the promise given settles; it never stays shorter than a blink or longer than a few seconds.
+  showLoading(until){const el=q('.lk-loading'),run=(el.dataset.run=String(Number(el.dataset.run||0)+1));el.hidden=false;el.classList.remove('leaving');host.classList.add('lk-busy');
+   const done=()=>{if(el.dataset.run!==run)return;el.classList.add('leaving');host.classList.remove('lk-busy');setTimeout(()=>{if(el.dataset.run===run)el.hidden=true;},260);};
+   const frames=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>requestAnimationFrame(r)))),wait=ms=>new Promise(r=>setTimeout(r,ms));
+   loaded=Promise.race([Promise.all([Promise.resolve(until).catch(()=>{}),wait(450)]).then(frames),wait(6000)]).then(done);return loaded;},
+  // resolves when the stage is no longer covered by the loader (the guide waits for this)
+  whenLoaded(){return loaded;},
   get insideButton(){return q('[data-inside-view]');},
   get dock(){return dock;},
   get cameraGroup(){return cameraGroup;},
   setHandActive(on){handActive=on;update();},
   setMachine(next){if(next&&next!==adapter)Object.assign(adapter,next);machineId=adapter.machine.id;clearNotes();notedPart=adapter.get().part;paintParts();paintFaults();last='';update();},
   refreshParts(){paintParts();last='';update();},
-  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-simple','lk-focus','lk-dock-closed');delete host.dataset.sheet;delete host.dataset.running;}
+  destroy(){clearNotes();abort.abort();root.remove();host.classList.remove('look-stage','lk-simple','lk-focus','lk-dock-closed','lk-busy');delete host.dataset.sheet;delete host.dataset.running;}
  };
 }
