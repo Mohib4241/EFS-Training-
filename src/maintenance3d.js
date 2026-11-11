@@ -64,7 +64,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
 
  // ---- renderer (one for the whole page visit; each task brings its own scene) ----
  let renderer;
- try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:false,powerPreference:'high-performance'});}
+ try{renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,stencil:false,powerPreference:'high-performance'});renderer.debug.checkShaderErrors=false;}
  catch(error){life.dispose();throw error;}
  life.onCleanup(()=>{renderer.dispose();renderer.forceContextLoss();});
  const dprCap=Math.min(window.devicePixelRatio||1,1.75),governor=createGovernor();let dpr=Math.min(dprCap,governor.pixelRatio);

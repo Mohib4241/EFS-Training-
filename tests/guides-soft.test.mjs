@@ -146,3 +146,17 @@ test('a browser that refuses speech before any click or key press is told so, an
  assert.equal(narrator.blocked,true);assert.equal(done,1,'the visual guide is not held up');assert.match(statuses.at(-1),/Click or press a key/);assert.equal(narrator.enabled,true,'sound stays on');
  narrator.speak('Again.','guide');spoken.onstart();assert.equal(narrator.blocked,false,'speech working again clears the notice');
 });
+
+test('a part name is never cut off by moving away, and a name not yet started is dropped cleanly',()=>{
+ const pending=new Map();let next=0,cancels=0;const calls=[];
+ const n=createNarrator({synth:{cancel(){cancels++;},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}},delay:fn=>{pending.set(++next,fn);return next;},clearDelay:id=>pending.delete(id)});
+ n.setEnabled(true);cancels=0;
+ // pointing at a part waits a moment, then speaks
+ n.hover('Collection tank','Collection tank');assert.equal(calls.length,0);
+ // leaving before it started: nothing is said, and it reports that the name was dropped
+ assert.equal(n.hoverEnd(),true);assert.equal(pending.size,0);assert.equal(calls.length,0);
+ // pointing again speaks; leaving while it is being spoken lets it finish (no cancel)
+ n.hover('Collection tank','Collection tank');[...pending.values()][0]();assert.equal(calls.length,1);calls[0].onstart?.();
+ const before=cancels;assert.equal(n.hoverEnd(),false);assert.equal(cancels,before,'the name in progress is not cancelled');
+ assert.equal(n.lastKey,null,'so the same part can be named again later');
+});

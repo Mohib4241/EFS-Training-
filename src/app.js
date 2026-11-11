@@ -32,7 +32,7 @@ function ensureViewer(){
  $('viewer-loading').hidden=false;$('viewer-fallback').hidden=true;
  return viewerReady=loadModule('viewer').then(({createViewer})=>{
   viewer=createViewer($('machine'),selectPart,value=>action('open',value),progress=>{$('pickup-progress').textContent=`${progress.picked} / ${progress.total} markers picked up`;$('pickup-progress').classList.toggle('complete',progress.picked===progress.total);if(progress.picked===progress.total)$('operation-message').textContent='All virtual debris markers collected. Reset dust to practise again.';},{onHover:guidance.hover,onFloor:()=>action('floor',state.floorMode==='hard'?'soft':'hard'),onCallouts:(items,width,height)=>ui?.drawCallouts(items,width,height)});
-  $('viewer-loading').hidden=true;viewer.setActive(page==='module');render();if(ui)vacuumAdapter.hand.attach();return viewer;
+  viewer.setActive(page==='module');render();if(ui)vacuumAdapter.hand.attach();return viewer;
  }).catch(error=>{viewerReady=undefined;$('viewer-loading').hidden=true;$('viewer-fallback').hidden=false;console.warn('3D view unavailable:',error.message);return null;});
 }
 // ---- Maintenance checklist: every task is a 3D simulation (a lazy chunk). Without WebGL2 the written steps are shown instead. ----
@@ -63,7 +63,7 @@ function enterHardLab(id,view,token,list){
 function enterScrubber(view,token){
  loadLab('scrubber',$('scrubber-lab'),'equipment lab',token).then(module=>{
   if(!module)return;if(!scrubber)scrubber=module.mountScrubber($('scrubber-lab'),{guidance,onMachine:goMachine,onNavigate:next=>showPage('scrubber',[next])});scrubber.show(view);if(view==='maintenance')$('scrubber-lab').querySelector('[data-maintenance]')?.scrollIntoView({block:'nearest'});
-  guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:true});
+  guidance.setMachine(scrubberModule,{maintenance:view==='maintenance',autoGuide:view!=='maintenance',ready:scrubber.whenLoaded(),toolbarHost:$('scrubber-lab').querySelector('.equipment-heading'),targets:scrubber.targets,onGuideOpen:scrubber.pauseLesson,onTourStart:view==='maintenance'?undefined:scrubber.tourStart,onTourFrame:view==='maintenance'?undefined:scrubber.tourFrame,onTourEnd:view==='maintenance'?undefined:scrubber.tourEnd,onAutoRotate:scrubber.setAutoRotate,onPanels:scrubber.setFocused,dock:true,focused:true});
  });
 }
 function action(type,value){
@@ -120,7 +120,7 @@ function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!pres
 // Tour targets on the 3D checklist, looked up when the tour reaches them (the 3D view mounts after the page opens).
 const inPractice=selector=>$('maintenance-practice').querySelector(selector)||$('maintenance-practice');
 const maintenanceTargets={get canvas(){return inPractice('.s3-stage');},get tasks(){return inPractice('.s3-tabs');},get lesson(){return inPractice('.s3-modes');},get practice(){return inPractice('.s3-stage');}};
-function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:ensureViewer(),toolbarHost:$('vacuum-guides-host'),dock:!maintenanceView,focused:true,targets:maintenanceView?maintenanceTargets:{canvas:$('machine'),get camera(){return ui?.cameraGroup||$('viewport');},get inside(){return ui?.insideButton||$('machine');},startup:$('startup-panel'),get maintenance(){return ui?.slot.querySelector('[data-step=maintenance]')||$('viewport');}},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;render();},onPanels:value=>ui?.setFocus(value)});}
+function configureVacuum(maintenanceView=false){guidance.setMachine({...machine,parts},{maintenance:maintenanceView,autoGuide:!maintenanceView,ready:maintenanceView?undefined:Promise.all([ensureViewer(),ensureUi()]).then(([,controls])=>controls?.whenLoaded()),toolbarHost:$('vacuum-guides-host'),dock:!maintenanceView,focused:true,targets:maintenanceView?maintenanceTargets:{canvas:$('machine'),get camera(){return ui?.cameraGroup||$('viewport');},get inside(){return ui?.insideButton||$('machine');},startup:$('startup-panel'),get maintenance(){return ui?.slot.querySelector('[data-step=maintenance]')||$('viewport');}},onGuideOpen:()=>{if(maintenanceView)maintenance?.pause();},onTourStart:maintenanceView?undefined:vacuumTourStart,onTourFrame:maintenanceView?undefined:vacuumTourFrame,onTourEnd:maintenanceView?undefined:vacuumTourEnd,onAutoRotate:value=>{state.autoRotate=value;render();},onPanels:value=>ui?.setFocus(value)});}
 function loadVacuum(id){if(!Object.hasOwn(vacuumModules,id))id='junior-103';if(machine.id!==id){machine=vacuumModules[id];parts=machine.parts;state=initialState(id);for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();viewer?.clearHover();viewer?.resetDust();viewer?.cameraAction('reset');}buildVacuumContent();render();}
 
 function buildVacuumContent(){
@@ -202,7 +202,7 @@ function showPage(next,path=[],historyMode='push'){
  if(next!=='hardlab')hardLab?.release();if(next!=='scrubber')scrubber?.release();if(next!=='soft-checklist')maintenance?.pause();
  viewer?.clearHover();if(next!=='module'){state.connected=false;state.running=false;state.stroke=false;}viewer?.setActive(next==='module');
  if(next!=='module'&&viewer){viewer.destroy();viewer=null;viewerReady=undefined;}
- if(next==='module'){ensureViewer();ensureUi();}
+ if(next==='module'){const model=ensureViewer();Promise.all([model,ensureUi()]).then(([ready,controls])=>{if(token!==navToken||!ready)return;controls?.showLoading();requestAnimationFrame(()=>{$('viewer-loading').hidden=true;});});}
  guidance.setMachine(null);
  for(const [id,page] of [['home','home'],['hard-lab','hardlab'],['scrubber-lab','scrubber']])$(id).hidden=next!==page;
  // the maintenance checklist is part of the machine page: it takes the place of the machine view
