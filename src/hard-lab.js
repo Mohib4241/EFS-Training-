@@ -35,13 +35,14 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
  const startup=document.createElement('details');startup.className='startup-panel';startup.innerHTML='<summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><span>Start the machine</span></summary>';q('.hl-viewport').append(startup);startup.append(q('.hl-power'));
  function tourStart(){tourSnapshot={part:state.part,open:state.open,xray:state.xray};stopLesson();state=reduceHard(state,{type:'isolate'}).state;if(!state.residualV)state=reduceHard(state,{type:'open',value:0}).state;state.part='overview';state.xray=false;viewer?.clearHover();viewer?.cameraAction('reset');paint();startDischarge();}
  function tourFrame(frame){
-  startup.open=['connect','run','isolate'].includes(frame.id);
+  startup.open=['connect','run','see','isolate'].includes(frame.id);
   if(frame.id==='inside')dispatch({type:'open',value:100});
   if(frame.id==='point'){state.part=module.parts[0].id;paint();}
   if(frame.id==='outside'){state.part='overview';dispatch({type:'open',value:0});}
   if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
   if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
-  if(frame.id==='isolate')dispatch({type:'isolate'});
+  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
+  if(frame.id==='isolate'||frame.id==='next')dispatch({type:'isolate'});
  }
  function tourEnd(preserve){if(!preserve)guidance?.setFocused(true);if(!preserve&&tourSnapshot){state={...state,...tourSnapshot};state=reduceHard(state,{type:'isolate'}).state;startup.open=false;viewer?.cameraAction('reset');paint();startDischarge();}tourSnapshot=null;}
  const put=(key,text)=>q(`[data-hl="${key}"]`).textContent=text;

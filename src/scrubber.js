@@ -20,13 +20,14 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  const startup=document.createElement('details');startup.className='startup-panel';startup.innerHTML='<summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><span>Start the machine</span></summary>';q('.hl-viewport').append(startup);startup.append(q('.hl-power'));
  function tourStart(){tourSnapshot={...state,inputs:{...state.inputs}};stopLesson();state={...initialScrubber(),inputs:{...state.inputs}};viewer?.clearHover();viewer?.cameraAction('reset');render();}
  function tourFrame(frame){
-  startup.open=['connect','run','isolate'].includes(frame.id);
+  startup.open=['connect','run','see','isolate'].includes(frame.id);
   if(frame.id==='inside')dispatch({type:'open',value:100});
   if(frame.id==='point'){state.part='controls';render();}
   if(frame.id==='outside'){state.part='overview';dispatch({type:'open',value:0});}
   if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
   if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
-  if(frame.id==='isolate')dispatch({type:'isolate'});
+  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
+  if(frame.id==='isolate'||frame.id==='next')dispatch({type:'isolate'});
  }
  function tourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false};startup.open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
  function stopLesson(){clearInterval(timer);timer=null;inspection={...inspection,playing:false};}
