@@ -107,14 +107,14 @@ function render(){
  ui?.update();viewer?.setState(state);
 }
 function vacuumTourStart(){tourSnapshot={...state};state={...state,part:'overview',open:0,connected:false,running:false,stroke:false,xray:false,air:false};viewer?.clearHover();viewer?.cameraAction('reset');render();}
-function vacuumTourFrame(frame){
- $('startup-panel').open=['connect','run','see','isolate'].includes(frame.id);
+function vacuumTourFrame(frame,kind,act=true){
+ $('startup-panel').open=['connect','run','see','isolate'].includes(frame.id);if(!act)return;
  if(frame.id==='inside')action('open',100);
  if(frame.id==='point'){state.part='cover';render();}
  if(frame.id==='outside'){state.part='overview';action('open',0);}
  if(frame.id==='connect'&&!state.connected)action('plug');
  if(frame.id==='run'){if(!state.connected)action('plug');if(!state.running)action('power');render();}
- if(frame.id==='see'){if(!state.connected)action('plug');if(!state.running)action('power');render();}
+ if(frame.id==='see'){if(!state.connected)action('plug');if(!state.running)action('power');state.xray=false;render();}
  if(frame.id==='isolate'||frame.id==='next'){if(state.running)action('power');if(state.connected)action('plug');render();}
 }
 function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
