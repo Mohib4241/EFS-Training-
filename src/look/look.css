@@ -445,3 +445,4 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .lab-loading{min-height:var(--lk-stage-h);border:1px solid var(--lk-line);border-radius:14px;background:var(--lk-stage)}
 @keyframes lk-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.lk-loading i,.look-stage #viewer-loading::before,.lab-loading::before{animation-duration:2.4s}}
+.lk-simple .lk-slot>.startup-panel>summary::before,.lk-simple .lk-slot>.startup-panel[open]>summary::before{transform:none;line-height:1}

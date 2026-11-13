@@ -27,7 +27,7 @@ let chosenInput=null;   // 'hands' | 'mouse' once the learner chose; asked once 
 // The 3D maintenance checklist: every task for the chosen machine, each first shown by two hands and then practised with the
 // learner's own hands (webcam) or the mouse / touch. Throws when WebGL2 is unavailable; calls onUnavailable(reason) if the
 // graphics context is lost later.
-export function mountMaintenance3D(container,{machine='junior-103',getLanguage=()=> 'english',onUnavailable=()=>{},onProgress=()=>{}}={}){
+export function mountMaintenance3D(container,{machine='junior-103',getLanguage=()=> 'english',onUnavailable=()=>{},onProgress=()=>{},onSay=()=>{}}={}){
  const life=createLifecycle(),{signal}=life;
  const style=document.createElement('style');style.textContent=hudCss;document.head.append(style);life.onCleanup(()=>style.remove());
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,17 +35,15 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  const entry=(kind,m=machineId)=>{const key=m+'/'+kind;if(!store.has(key))store.set(key,{state:initialPractice(kind),watched:false});return store.get(key);};
  container.innerHTML=`<div class="s3" role="region" aria-label="3D maintenance practice">
  <nav class="s3-tabs" aria-label="Maintenance tasks" data-s3="tabs"></nav>
- <div class="s3-stage"><canvas class="s3-canvas" tabindex="0" aria-label="3D room with the selected machine. Use your hands in front of the camera, or the mouse or touch, to do the highlighted step."></canvas>
+ <div class="s3-stage"><canvas class="s3-canvas" tabindex="0" aria-label="3D room with the selected machine. Use the mouse or touch to do the highlighted step."></canvas>
   <div class="s3-panel s3-toast" role="status" data-s3="toast" hidden></div>
   <div class="s3-choices" data-s3="choices" hidden></div>
   <div class="s3-panel s3-done" data-s3="done" hidden><strong data-s3="done-title"></strong><span data-s3="done-body"></span></div>
   <div class="s3-turn" data-s3="turn" hidden><button type="button" class="s3-primary" data-s3="turn-go" data-hand>Your turn — practise it →</button></div>
   <div class="s3-dwell" data-s3="dwell" hidden></div><div class="s3-dwell s3-dwell-ui" data-s3="ui-dwell" hidden></div>
-  <div class="s3-preflight" data-s3="preflight" hidden><section class="s3-panel s3-card" role="dialog" aria-labelledby="s3-pre-title"><span class="s3-eyebrow" data-s3="pre-eyebrow">3D maintenance</span><h3 id="s3-pre-title">Practise with your own hands</h3>
-   <p>Each task is shown first by two hands. Then it is your turn, with your hands in front of the camera or with the mouse or touch.</p>
-   <ul><li>Stand about <b>${TARGET_DISTANCE} m</b> from the camera, a little further than arm's length, with both hands in view and good light.</li><li><b>Pinch</b> (thumb and index finger) or close your hand to pick things up; rest a <b>fingertip</b> on a button, latch or answer card to press it.</li><li>With the mouse: <b>click</b> a part to pick it up and click again to put it down, or drag it.</li></ul>
-   <p class="s3-privacy"><span aria-hidden="true">🔒</span><span>Your camera video stays on this device. It is not recorded or uploaded.</span></p>
-   <div class="s3-actions"><button type="button" class="s3-primary" data-s3="allow">Allow camera and use my hands</button><button type="button" data-s3="use-mouse">Use mouse or touch</button></div><p class="s3-status" data-s3="status" role="status"></p></section></div>
+  <div class="s3-preflight" data-s3="preflight" hidden><section class="s3-panel s3-card" role="dialog" aria-labelledby="s3-pre-title"><span class="s3-eyebrow" data-s3="pre-eyebrow">3D maintenance</span><h3 id="s3-pre-title">Maintenance practice</h3>
+   <p>Watch each step first. Then it is your turn: click a part to pick it up and click again to put it down, or drag it. The voice reads each step.</p>
+   <div class="s3-actions"><button type="button" class="s3-primary" data-s3="use-mouse">Start</button><button type="button" data-s3="allow" hidden>Use camera</button></div><p class="s3-status" data-s3="status" role="status"></p></section></div>
  </div>
  <aside class="s3-side">
   <aside class="s3-panel s3-camera" data-s3="camera-panel" hidden aria-label="Camera view"><div class="s3-preview"><video muted playsinline></video><canvas width="160" height="120"></canvas></div><div class="s3-meter"><i data-s3="marker"></i></div><p class="s3-meter-text" data-s3="meter-text">Show your hands to the camera.</p></aside>
@@ -56,7 +54,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  <div class="s3-panel s3-controls" data-s3="controls">
   <div class="s3-group s3-modes" role="group" aria-label="Mode"><button type="button" data-s3="mode-demo" aria-pressed="false">Watch how</button><button type="button" data-s3="mode-practice" aria-pressed="false">Practise</button></div>
   <div class="s3-group" data-s3="demo-controls"><button type="button" data-s3="prev" aria-label="Previous step">‹</button><button type="button" data-s3="play" aria-label="Play or pause the demonstration">Play</button><button type="button" data-s3="next" aria-label="Next step">›</button><input type="range" min="0" max="1000" value="0" step="1" data-s3="scrub" aria-label="Scrub the demonstration"><span class="s3-time" data-s3="time">0:00</span><label class="sr-only" for="s3-speed">Speed</label><select id="s3-speed" data-s3="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button type="button" class="s3-primary" data-s3="try">Now you try</button></div>
-  <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="camera">Use camera</button></div>
+  <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="camera" hidden>Use camera</button></div>
   <span class="s3-spacer"></span><button type="button" data-s3="full" aria-pressed="false" title="Full screen">Full screen</button>
  </div></div>`;
  life.onCleanup(()=>container.replaceChildren());
@@ -75,7 +73,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  for(const rig of Object.values(rigs)){rig.object.visible=false;life.own(rig.mesh.geometry);life.own(rig.mesh.skeleton);rig.mesh.renderOrder=1000;rig.mesh.onBeforeRender=gl=>{if(!handsDrawn){handsDrawn=true;gl.clearDepth();}};}
 
  // ---- the open task ----
- let S=null,view='ready',playing=false,speed=1,demoTime=0,shownState=null,frameAdjust=false,heldByDemo=null,hudKey='',choiceKey='',toastTimer=0,width=0,height=0;
+ let S=null,view='ready',playing=false,speed=1,demoTime=0,shownState=null,frameAdjust=false,heldByDemo=null,hudKey='',said='',choiceKey='',toastTimer=0,width=0,height=0;
  const tmp=new THREE.Vector3(),ray=new THREE.Vector3(),corner=new THREE.Vector3(),q=new THREE.Quaternion();
  const focusOf=key=>key==='wide'||!S?WIDE:S.task.FOCUS[key]||WIDE;
  const world={
@@ -144,6 +142,10 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   const frame=inDemo?LESSONS[S.kind][frameIndex]:null,hi=language==='hinglish';
   $('count').textContent=done?'Complete':view==='ready'?'3D maintenance':`${inDemo?'Watch · ':''}Step ${Math.min(stepIndex+1,steps.length)} of ${steps.length}${S.task.cadence?' · '+S.task.cadence(language):''}`;
   const [title,body]=inDemo?[hi?(frame.titleHi||frame.title):frame.title,hi?(frame.captionHi||frame.caption):frame.caption]:S.task.instructions(state,language);
+  // The voice reads the checklist: each step by name while the demonstration plays, and what to do now during practice.
+  const sayKey=[S.kind,view,stepIndex,done].join('|');
+  if(sayKey!==said&&view!=='ready'){said=sayKey;const n=Math.min(stepIndex+1,steps.length),label=steps[Math.max(0,Math.min(stepIndex,steps.length-1))]?.label||'';
+   onSay(done?`${title}. ${body}`:inDemo?`Step ${n}. ${label}.`:`${hi?'Ab aap karo':'Now you do it'}. Step ${n}. ${label}. ${body}`,sayKey);}
   $('title').textContent=done?(hi?'Ho gaya':'All done'):title;$('body').textContent=done?(hi?'Dobara try karne ke liye Reset karo, ya demonstration phir dekho.':'Reset to try again, or watch how once more.'):body;
   const part=!inDemo&&!done&&view==='practice'?S.task.rules.targetPart(state):null,zone=part?S.task.rules.targetZone(state):null;
   $('use').hidden=!part;if(part)$('use').textContent=`Use ${S.task.rules.label(part)}${zone?' → '+S.task.rules.zoneLabel(zone):''}`;
@@ -366,7 +368,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  openTask(tasksFor(machineId)[0].kind);
  $('pre-eyebrow').textContent=`3D · ${MACHINE_LABELS[machineId]} · maintenance`;
  if(chosenInput==='mouse'){input='mouse';startTask();}
- else{$('preflight').hidden=false;$('allow').focus({preventScroll:true});}
+ else{$('preflight').hidden=false;$('use-mouse').focus({preventScroll:true});}
  pump.invalidate();
  return {
   setMachine(id){if(!MACHINE_LABELS[id]||id===machineId)return;const kind=S?.kind;machineId=id;const list=tasksFor(id).map(t=>t.kind);openTask(list.includes(kind)?kind:kind==='filter'||kind==='wet-filter'?list[0]:list[0]);$('pre-eyebrow').textContent=`3D · ${MACHINE_LABELS[machineId]} · maintenance`;},

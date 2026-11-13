@@ -55,15 +55,18 @@ test('weekly filter care rinses and refits the same filter, with washability and
 test('filter care has twelve steps, with Hinglish copy',()=>{
  assert.equal(filterCareSteps('hinglish').length,12);assert.match(filterInstruction({phase:'fit'},'hinglish')[0],/Wahi clean filter/);
 });
-test('one guide: View inside, point to a part, View outside, then start and stop the machine, in English and Hinglish',()=>{
+test('one guide follows the numbered steps on the right, in English and Hinglish',()=>{
  const m=vacuumModules['junior-103'],en=guideFrames('guide',m),hi=guideFrames('guide',m,'hinglish');
- assert.deepEqual(en.map(f=>f.id),['inside','point','outside','connect','run','isolate']);
- assert.deepEqual(en.map(f=>f.target),['inside','canvas','inside','startup','startup','startup']);
+ assert.deepEqual(en.map(f=>f.id),['inside','point','outside','connect','run','see','isolate','next']);
+ assert.deepEqual(en.map(f=>f.target),['inside','canvas','inside','startup','startup','inside','startup','maintenance']);
+ assert.match(en[3].caption,/button 1: Connect plug/);assert.match(guideFrames('guide',{id:'megger',kind:'megger'})[3].caption,/Connect virtual leads/);
+ assert.match(guideFrames('guide',{id:'motor-3ph',kind:'three'}).at(-1).title,/Experiment, Maintenance/);assert.match(en.at(-1).title,/Step 3 · Maintenance checklist/);
+ assert.ok(!en.some(f=>/\{connect/.test(f.caption)),'no unfilled wording');
  assert.ok(!en.some(f=>/pinch|scroll/i.test(f.caption)),'opening is the View inside step, never a pinch or scroll');
  assert.match(hi[1].caption,/Cursor ko kisi bhi part par le jao/);assert.match(hi[1].spokenHi,/[\u0900-\u097f]/);
  for(const kind of ['guide','page','machine'])for(const language of ['english','hinglish'])for(const f of guideFrames(kind,m,language))assert.ok(f.caption&&f.title&&f.duration>=5200&&f.target);
  const inspection=guideFrames('guide',{id:'motor-3ph'},'english',true);assert.doesNotMatch(inspection.map(f=>f.caption).join(' '),/bag|filter|Hold/);assert.equal(inspection.at(-1).gesture,'point');
- assert.deepEqual(moveGuide(0,-1,6),{index:0,complete:false});assert.deepEqual(moveGuide(5,1,6),{index:5,complete:true});assert.throws(()=>moveGuide(6,1,6),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
+ assert.deepEqual(moveGuide(0,-1,8),{index:0,complete:false});assert.deepEqual(moveGuide(7,1,8),{index:7,complete:true});assert.throws(()=>moveGuide(8,1,8),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
  // pointing at a part reads only its name; what it does is shown, not read out
  const part={name:'Motor head',body:'The head holds the motor. More detail follows here.'};
  assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head',spokenHi:null});

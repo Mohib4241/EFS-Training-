@@ -52,7 +52,7 @@ function enterMaintenance(token){
   if(!module||maintenance)return;
   try{
    container.replaceChildren();viewNotice();
-   maintenance=module.mountMaintenance3D(container,{machine:machine.id,getLanguage:()=>guidance.language,onProgress:guidance.clearNotice,onUnavailable:()=>{maintenance?.destroy();maintenance=null;writtenSteps(container,navToken,'The 3D view lost its graphics context, so the written steps are shown instead. Reload the page to try 3D again.');}});
+   maintenance=module.mountMaintenance3D(container,{machine:machine.id,getLanguage:()=>guidance.language,onProgress:guidance.clearNotice,onSay:(text,key)=>guidance.narrator.speak(text,key),onUnavailable:()=>{maintenance?.destroy();maintenance=null;writtenSteps(container,navToken,'The 3D view lost its graphics context, so the written steps are shown instead. Reload the page to try 3D again.');}});
   }catch(error){console.warn('3D maintenance unavailable:',error.message);maintenance=null;writtenSteps(container,token,'3D could not start on this device, so the written steps are shown instead.');}
  });
 }
@@ -108,13 +108,14 @@ function render(){
 }
 function vacuumTourStart(){tourSnapshot={...state};state={...state,part:'overview',open:0,connected:false,running:false,stroke:false,xray:false,air:false};viewer?.clearHover();viewer?.cameraAction('reset');render();}
 function vacuumTourFrame(frame){
- $('startup-panel').open=['connect','run','isolate'].includes(frame.id);
+ $('startup-panel').open=['connect','run','see','isolate'].includes(frame.id);
  if(frame.id==='inside')action('open',100);
  if(frame.id==='point'){state.part='cover';render();}
  if(frame.id==='outside'){state.part='overview';action('open',0);}
  if(frame.id==='connect'&&!state.connected)action('plug');
  if(frame.id==='run'){if(!state.connected)action('plug');if(!state.running)action('power');render();}
- if(frame.id==='isolate'){if(state.running)action('power');if(state.connected)action('plug');render();}
+ if(frame.id==='see'){if(!state.connected)action('plug');if(!state.running)action('power');render();}
+ if(frame.id==='isolate'||frame.id==='next'){if(state.running)action('power');if(state.connected)action('plug');render();}
 }
 function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
 // Tour targets on the 3D checklist, looked up when the tour reaches them (the 3D view mounts after the page opens).
