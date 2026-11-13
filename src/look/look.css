@@ -446,3 +446,10 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 @keyframes lk-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.lk-loading i,.look-stage #viewer-loading::before,.lab-loading::before{animation-duration:2.4s}}
 .lk-simple .lk-slot>.startup-panel>summary::before,.lk-simple .lk-slot>.startup-panel[open]>summary::before{transform:none;line-height:1}
+
+/* ---- brand: the EFS · Centre of Excellence logo on a white plate (it is drawn for light backgrounds) ---- */
+.brand{padding:0 0 22px}
+.brand-plate{display:block;padding:9px 10px;border-radius:10px;background:#fff;box-shadow:0 6px 18px -10px rgba(0,0,0,.6)}
+.brand .brand-plate img{display:block;width:100%;height:auto;margin:0}
+.brand .brand-plate img.brand-mark{display:none}
+@media(min-width:1051px){.nav-collapsed .brand-plate{padding:6px 5px}.nav-collapsed .brand .brand-plate img.brand-full{display:none}.nav-collapsed .brand .brand-plate img.brand-mark{display:block}}

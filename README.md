@@ -38,7 +38,7 @@ All supplied photo images and their UI controls were removed from source and bui
 
 ## Official logo
 
-`src/assets/efs-logo.svg` is the unchanged EFS Facilities Services header logo, downloaded from https://efsme.com/wp-content/uploads/2022/01/logo-2.svg, linked by the [official EFS site](https://efsme.com/). No replacement or generated logo is used.
+`src/assets/efs-coe-logo.png` is the EFS Facilities Services · Centre of Excellence logo supplied by the project owner, resized for the web. `src/assets/efs-coe-mark.png` is its EFS half, shown on the narrow collapsed sidebar. Both sit on a white plate because the logo is drawn for light backgrounds. No replacement or generated logo is used.
 
 ## Scientific basis and limits
 
@@ -72,7 +72,7 @@ No HEPA, pathogen-removal, liquid-pickup, safe fill fraction or measured noise c
 | `tests/look.test.mjs`, `tests/look-hands.test.mjs` | Springs, waves, layers, categories, faults and the gesture recogniser |
 | `src/app.js` | Authoritative interaction state, UI rendering, navigation and checklist |
 | `src/index.html`, `src/style.css`, `src/styles.css` | Semantic layout, responsive navigation, controls and styling; `styles.css` is the single stylesheet entry that bundles the three CSS files |
-| `src/assets/efs-logo.svg`, `src/assets/favicon.svg` | Original official EFS logo; tab icon |
+| `src/assets/efs-coe-logo.png`, `src/assets/efs-coe-mark.png`, `src/assets/favicon.svg` | EFS · Centre of Excellence logo and its EFS half; tab icon |
 | `build.mjs`, `package.json`, lockfile | Reproducible local Three.js bundle; code-split, content-hashed, precompressed static build |
 | `server.mjs` | Loopback-only preview serving exactly the files in `dist/`; compression negotiation, ETag, cache and security headers |
 | `src/maintenance3d.js`, `src/maintenance3d.hud`, `src/sim3d/`, `src/sim3d/tasks/`, `src/maintenance-text.js` | The Maintenance Checklist, in 3D only (see [the record](docs/sim3d-stages.md)): every task for both Junior machines (weekly filter wash, dust bag, connector inspection), each shown by two hands and then practised with the learner's own hands (webcam, MediaPipe in a Web Worker, first-person view, 0.75 m distance coach) or the mouse/touch (click to pick up and click to put down, or drag). Browsers without WebGL2 get the written steps instead. |

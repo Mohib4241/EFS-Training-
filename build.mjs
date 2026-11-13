@@ -39,7 +39,7 @@ const app=entry('app.js'),styles=entry('styles.css');
 if(!app||!styles)throw new Error('esbuild did not emit the app and stylesheet entry points');
 
 const assets={};
-for(const file of ['efs-logo.svg','favicon.svg']){const body=await readFile(join(src,'assets',file)),name=`${file.replace(/\.svg$/,'')}-${hash(body)}.svg`;await writeFile(join(out,name),body);assets[`/assets/${file}`]=`/static/${name}`;}
+for(const file of ['efs-coe-logo.png','efs-coe-mark.png','favicon.svg']){const body=await readFile(join(src,'assets',file)),ext=file.slice(file.lastIndexOf('.')),name=`${file.slice(0,-ext.length)}-${hash(body)}${ext}`;await writeFile(join(out,name),body);assets[`/assets/${file}`]=`/static/${name}`;}
 
 // Static imports of the entry are fetched in parallel with it; dynamic imports (3D, labs) stay lazy.
 const preload=app.meta.imports.filter(i=>i.kind==='import-statement').map(i=>url(join(root,i.path)));
