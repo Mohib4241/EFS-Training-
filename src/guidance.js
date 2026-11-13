@@ -82,11 +82,18 @@ export function mountGuidance(container){
  // If a browser never reports the end of speech, a generous cap keeps the tour moving.
  function queue(){
   clearTimer();if(!tour?.playing||document.hidden)return;const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index],t=tour;
-  t.timeUp=false;timer=setTimeout(()=>{timer=null;if(tour!==t)return;t.timeUp=true;advanceWhenReady();},f.duration);
-  const words=(f.title+' '+(f.spokenHi||f.caption)).split(/\s+/).length;const seq=t.seq;t.cap=setTimeout(()=>{if(tour===t&&t.seq===seq){t.spoken=true;advanceWhenReady();}},f.duration+words*480+4000);
+  // safety: if a browser never reports the end of speech, the step is still carried out and the tour moves on
+  const words=(f.title+' '+(f.spokenHi||f.caption)).split(/\s+/).length;const seq=t.seq;t.cap=setTimeout(()=>{if(tour===t&&t.seq===seq)t.finish?.();},f.duration+words*480+4000);
  }
  function advanceWhenReady(){if(!tour?.playing||!tour.timeUp||!(tour.spoken||!narrator.enabled))return;clearTimer();timer=setTimeout(()=>{timer=null;move(1);},450);}
- function say(f){if(!tour)return;const t=tour,seq=t.seq=(t.seq||0)+1;t.spoken=!narrator.enabled;narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,()=>{if(tour===t&&t.seq===seq){t.spoken=true;advanceWhenReady();}});}
+ // Each card first explains the step (shown, highlighted and read out); only then is the step carried out on the machine,
+ // and the result stays on screen for a moment before the next card.
+ function say(f){
+  if(!tour)return;const t=tour,seq=t.seq=(t.seq||0)+1;t.spoken=false;t.timeUp=false;clearTimeout(t.hold);clearTimeout(t.quiet);let acted=false;
+  const finish=t.finish=()=>{if(tour!==t||t.seq!==seq||acted)return;acted=true;t.spoken=true;callbacks.onTourFrame?.(f,t.kind,true);schedulePosition();
+   t.hold=setTimeout(()=>{if(tour===t&&t.seq===seq){t.timeUp=true;advanceWhenReady();}},2800);};
+  if(narrator.enabled)narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,finish);else t.quiet=setTimeout(finish,Math.max(2400,f.duration*.6));
+ }
  function paintTour(apply=false){
   if(!tour||!machine)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index];
   overlay.hidden=false;overlay.classList.toggle('tour-paused',!tour.playing);overlay.classList.toggle('tour-reduced',reduced.matches);card.lang=language==='hinglish'?'hi-Latn':'en';
@@ -95,7 +102,7 @@ export function mountGuidance(container){
   const play=card.querySelector('[data-guide-command=play]');play.textContent=tour.playing?'Ⅱ':'▶';play.setAttribute('aria-label',tour.playing?'Pause visual guide':'Play visual guide');
   card.querySelector('[data-guide-command=next]').textContent=tour.index===frames.length-1?'✓':'›';card.querySelector('[data-guide-command=next]').setAttribute('aria-label',tour.index===frames.length-1?'Finish visual guide':'Next guide action');
   card.querySelector('.tour-dots').innerHTML=frames.map((_,i)=>`<i class="${i===tour.index?'active':''}" aria-label="Action ${i+1}${i===tour.index?', current':''}"></i>`).join('');
-  if(apply){callbacks.onTourFrame?.(f,tour.kind);say(f);}
+  if(apply){callbacks.onTourFrame?.(f,tour.kind,false);say(f);}
   schedulePosition();sync();queue();
  }
  function closeTour(restore=true){
@@ -116,7 +123,7 @@ export function mountGuidance(container){
  function sayPart(id){if(!machine||tour||id==='overview')return;const part=machine.parts.find(p=>p.id===id);if(!part)return;const now=performance.now();if(canHover.matches&&lastSaid.name===part.name&&now-lastSaid.at<2500)return;lastSaid={name:part.name,at:now};narrator.stop();const spoken=partNameSpeech(part,language);narrator.hover(spoken.text,part.name,spoken.spokenHi);}
  function click(event){
   const b=event.target.closest('[data-guide-command]');if(!b)return;const command=b.dataset.guideCommand;
-  if(command==='sound'){narrator.setEnabled(!narrator.enabled);try{localStorage.setItem('efs-guide-sound',narrator.enabled?'on':'off');}catch{}sync();if(tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];if(narrator.enabled){paintTour();say(f);}else{tour.spoken=true;advanceWhenReady();}}}
+  if(command==='sound'){narrator.setEnabled(!narrator.enabled);try{localStorage.setItem('efs-guide-sound',narrator.enabled?'on':'off');}catch{}sync();if(tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];if(narrator.enabled){paintTour();say(f);}else tour.finish?.();}}
   if(command==='rotate'){autoRotate=!autoRotate;sync();}
   if(command==='guide')startGuide('guide');
   if(command==='close')closeTour();if(command==='next')move(1);if(command==='previous')move(-1);

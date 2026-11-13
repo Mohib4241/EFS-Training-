@@ -34,14 +34,14 @@ export function mountHardLab(container,{onNavigate,onMachine,guidance}){
  <section class="hl-learn" aria-label="Engineering basis"><div class="hl-cause"><span>INPUT → MECHANISM → RESPONSE</span><h3>Why this result?</h3><p data-hl="cause"></p></div><details class="hl-reference" open><summary>Manufacturer reference facts</summary><dl data-hl="facts"></dl></details><details class="hl-contract"><summary>Equations, units & model limits</summary><div data-hl="equations"></div><p data-hl="assumptions"></p><p>Initial conditions: assembled, disconnected and stopped. Input defaults are shown in the experiment. Rendering coordinates and reveal percentages are not physical dimensions. Geometry is conceptual (Fidelity A); only the stated equations are evaluated (Fidelity B). No manufacturer performance validation is claimed.</p></details><details class="hl-quiz"><summary>Check your understanding</summary><p data-hl="question"></p><div data-hl="answers"></div><p data-hl="answer-feedback" role="status"></p></details><details class="hl-sources"><summary>Research & primary sources</summary><p>The family/product is a reference for learning. Major assemblies and internal blocks are schematic; this is not an exhaustive spare-parts drawing or manufacturer-approved training.</p><div data-hl="sources"></div></details></section></div>`;
  const startup=document.createElement('details');startup.className='startup-panel';startup.innerHTML='<summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><span>Start the machine</span></summary>';q('.hl-viewport').append(startup);startup.append(q('.hl-power'));
  function tourStart(){tourSnapshot={part:state.part,open:state.open,xray:state.xray};stopLesson();state=reduceHard(state,{type:'isolate'}).state;if(!state.residualV)state=reduceHard(state,{type:'open',value:0}).state;state.part='overview';state.xray=false;viewer?.clearHover();viewer?.cameraAction('reset');paint();startDischarge();}
- function tourFrame(frame){
-  startup.open=['connect','run','see','isolate'].includes(frame.id);
+ function tourFrame(frame,kind,act=true){
+  startup.open=['connect','run','see','isolate'].includes(frame.id);if(!act)return;
   if(frame.id==='inside')dispatch({type:'open',value:100});
   if(frame.id==='point'){state.part=module.parts[0].id;paint();}
   if(frame.id==='outside'){state.part='overview';dispatch({type:'open',value:0});}
   if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
   if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
-  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
+  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});if(state.xray)dispatch({type:'xray'});}
   if(frame.id==='isolate'||frame.id==='next')dispatch({type:'isolate'});
  }
  function tourEnd(preserve){if(!preserve)guidance?.setFocused(true);if(!preserve&&tourSnapshot){state={...state,...tourSnapshot};state=reduceHard(state,{type:'isolate'}).state;startup.open=false;viewer?.cameraAction('reset');paint();startDischarge();}tourSnapshot=null;}

@@ -19,14 +19,14 @@ export function mountScrubber(container,{guidance,onNavigate,onMachine}){
  <section class="hl-learn" aria-label="Reference and scope"><details open><summary>Nameplate & reference facts</summary><dl>${machine.facts.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></details><details><summary>Scope & sources</summary><p>Fidelity A: conceptual geometry and functional paths, not a service drawing. Initial state: assembled, isolated, stopped, all three functions selected. No quantitative performance calculation. The supplied photographs are reference evidence only. Filter and float fitment are unverified.</p>${machine.sources.map(s=>`<a target="_blank" rel="noopener noreferrer" href="${escape(s.url)}">${s.title} ↗</a>`).join('')}</details></section></div>`;
  const startup=document.createElement('details');startup.className='startup-panel';startup.innerHTML='<summary><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0"/></svg><span>Start the machine</span></summary>';q('.hl-viewport').append(startup);startup.append(q('.hl-power'));
  function tourStart(){tourSnapshot={...state,inputs:{...state.inputs}};stopLesson();state={...initialScrubber(),inputs:{...state.inputs}};viewer?.clearHover();viewer?.cameraAction('reset');render();}
- function tourFrame(frame){
-  startup.open=['connect','run','see','isolate'].includes(frame.id);
+ function tourFrame(frame,kind,act=true){
+  startup.open=['connect','run','see','isolate'].includes(frame.id);if(!act)return;
   if(frame.id==='inside')dispatch({type:'open',value:100});
   if(frame.id==='point'){state.part='controls';render();}
   if(frame.id==='outside'){state.part='overview';dispatch({type:'open',value:0});}
   if(frame.id==='connect'&&!state.connected)dispatch({type:'connect'});
   if(frame.id==='run'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
-  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});}
+  if(frame.id==='see'){if(!state.connected)dispatch({type:'connect'});if(!state.running)dispatch({type:'run'});if(state.xray)dispatch({type:'xray'});}
   if(frame.id==='isolate'||frame.id==='next')dispatch({type:'isolate'});
  }
  function tourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false};startup.open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
