@@ -179,7 +179,10 @@ function ensureUi(){
   ui=mountLookUI($('viewport'),vacuumAdapter,{focus:true,ids:{'rotate-left':'rotate-left','rotate-right':'rotate-right','zoom-out':'zoom-out','zoom-in':'zoom-in','camera-reset':'camera-reset'}});
   const checklist=document.createElement('button');checklist.type='button';checklist.className='lk-step';checklist.dataset.step='maintenance';checklist.innerHTML='<span class="lk-step-name">Maintenance checklist</span><small>Practise this machine’s tasks in 3D</small>';
   checklist.addEventListener('click',()=>showPage('soft-checklist',[machine.id]));
-  ui.slot.append($('startup-panel'),checklist);render();if(viewer)vacuumAdapter.hand.attach();return ui;
+  // Settings & facts: floor type, wet/dry pickup, reset and the specs, kept beside the machine instead of below it
+  const settings=document.createElement('details');settings.className='startup-panel lk-settings';settings.innerHTML='<summary><span>Settings &amp; facts</span></summary>';
+  const inner=document.createElement('div');inner.className='lk-settings-body';inner.append(document.querySelector('#module .floor-mode-controls'),document.querySelector('#module .toggle-row'),$('specs-panel'),$('vacuum-scope'));settings.append(inner);
+  ui.slot.append($('startup-panel'),checklist,settings);render();if(viewer)vacuumAdapter.hand.attach();return ui;
  }).catch(error=>{uiReady=undefined;console.warn('Controls unavailable:',error.message);return null;});
 }
 const narrowNav=window.matchMedia('(max-width:1050px)');
@@ -208,7 +211,7 @@ function showPage(next,path=[],historyMode='push'){
  for(const [id,page] of [['home','home'],['hard-lab','hardlab'],['scrubber-lab','scrubber']])$(id).hidden=next!==page;
  // the maintenance checklist is part of the machine page: it takes the place of the machine view
  const checklistView=next==='soft-checklist';$('module').hidden=!['module','soft-checklist'].includes(next);
- for(const el of [$('viewport'),document.querySelector('#module .stage-below'),document.querySelector('#module .module-footer')])el.hidden=checklistView;$('module-maintenance').hidden=!checklistView;
+ for(const el of [$('viewport')])el.hidden=checklistView;$('module-maintenance').hidden=!checklistView;
  $('catalogue').hidden=!['catalogue','hard-checklist'].includes(next);setCollapsed(next!=='home');let title='EFS Learning Academy',hash=pageHashes[next]||'home',hardId=null;
  if(next==='module'||next==='soft-checklist'){
   loadVacuum(path[0]||machine.id);configureVacuum(next==='soft-checklist');
@@ -243,7 +246,7 @@ $('machine-view').addEventListener('click',()=>showPage('module',[machine.id]));
 for(const id of ['home-machine','home-lab'])$(id).addEventListener('click',()=>showPage('module',['junior-103']));
 for(const b of document.querySelectorAll('[data-home-hard]'))b.addEventListener('click',()=>showPage('hardlab',[b.dataset.homeHard,'explore']));
 for(const b of document.querySelectorAll('[data-soft-entry]'))b.addEventListener('click',()=>b.dataset.softEntry==='hyper-2000b'?showPage('scrubber'):showPage('module',[b.dataset.softEntry]));
-$('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent='Connect the plug, switch on and choose Move floor tool to pick up the virtual dust on tiles.';});
+$('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent='Connect the plug and switch on: the floor tool then sweeps and picks up the virtual dust.';});
 window.addEventListener('popstate',()=>{const route=readRoute();showPage(route.page,route.path,'none');});
 for(const check of operatorChecks){const label=document.createElement('label');label.className='check-row';const input=document.createElement('input');input.type='checkbox';input.id=`check-${check.id}`;const text=document.createElement('span');const title=document.createElement('strong');title.textContent=check.name;const desc=document.createElement('small');desc.textContent=check.text;text.append(title,desc);label.append(input,text);$('operator-checks').append(label);input.addEventListener('change',()=>updateChecks(input));}
 function updateChecks(changed){const inputs=[...document.querySelectorAll('#operator-checks input')],index=inputs.indexOf(changed);if(index>=0){if(changed.checked){const previous=inputs.slice(0,index).findIndex(input=>!input.checked);if(previous>=0){changed.checked=false;guidance.notify('See the checklist: '+operatorChecks[previous].name+' comes first.');}else guidance.clearNotice();}else{for(const input of inputs.slice(index+1))input.checked=false;guidance.clearNotice();}}$('check-progress').textContent=`${document.querySelectorAll('#operator-checks input:checked').length} / ${operatorChecks.length} checked`;}
