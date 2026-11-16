@@ -215,3 +215,11 @@ test('machine pages show only the machine: nothing sits below it, and the rest l
  assert.match(read('../src/hard-lab.js'),/startup\.append\(q\('\.hl-power'\),q\('\.hl-view-controls'\)\)/);
  assert.match(read('../src/scrubber.js'),/startup\.append\(q\('\.hl-power'\),q\('\.scrubber-functions'\),q\('\.hl-view-controls'\)\)/);
 });
+
+test('phones get one column with thumb-sized controls, and the maintenance checklist is only about the machine',()=>{
+ const css=readFileSync(new URL('../src/look/look.css',import.meta.url),'utf8');
+ assert.match(css,/#module-maintenance \.operator-record[^{]*\{display:none\}/,'no optional record under the checklist');
+ assert.match(css,/@media\(max-width:768px\)\{\s*\/\* checklist: tasks, then the machine/,'a phone layout for the checklist');
+ assert.match(css,/\.s3 \.s3-controls\{grid-row:3/,'the checklist controls sit right under the machine on a phone');
+ assert.match(css,/\.lk-step\{min-height:46px\}/,'step buttons are thumb-sized');
+});
