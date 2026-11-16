@@ -469,6 +469,46 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .lk-settings-body .source-note{font-size:10.5px;line-height:1.5;color:var(--lk-muted)}
 .lk-settings-body #vacuum-scope{font-size:11px;line-height:1.5;color:var(--lk-muted)}
 @media(max-width:768px){.lk-simple .lk-slot>.lk-settings[open]{grid-column:1/-1}}
+
+/* ---- the maintenance checklist is about the machine: heading, tasks, the 3D stage, the current step and the controls ---- */
+#module-maintenance .operator-record,#module-maintenance .view-notice:not([hidden]):empty{display:none}
+#module-maintenance .s3-scope{opacity:.85}
+.maintenance-bar{flex-wrap:wrap}
+#module-maintenance .s3-tabs{scrollbar-width:none}#module-maintenance .s3-tabs::-webkit-scrollbar{display:none}
+
+/* ---- phones: one column, the machine first, and thumb-sized controls ---- */
+@media(max-width:768px){
+ /* checklist: tasks, then the machine at a size that leaves the current step in view, then step list and controls */
+ .maintenance-bar{gap:10px;margin-bottom:10px}.maintenance-bar h2{font-size:17px}
+ #machine-view{padding:8px 12px}
+ .s3{gap:8px}
+ .s3-stage{height:clamp(340px,54dvh,520px)!important;border-radius:12px}
+ .s3-side{display:grid;gap:8px}
+ .s3-coach{padding:10px 12px}.s3-coach strong{font-size:15px}.s3-coach p{font-size:13px}
+ .s3-steps-panel{padding:8px}
+ .s3 .s3-controls{grid-row:3;margin:0;padding:8px;gap:6px}
+ .s3 .s3-side{grid-row:4}
+ .s3-stage{height:clamp(320px,50dvh,480px)!important}
+ .s3-controls .s3-group{gap:6px;flex:1 1 auto}.s3 .s3-controls button{padding:8px 10px;min-width:44px}
+ .s3-controls input[type=range]{flex:1 1 90px;min-width:90px}
+ .s3-spacer,.s3-controls [data-s3=full],.s3-controls .s3-time,.s3-controls #s3-speed{display:none}
+ .s3-controls .s3-modes{flex:1 1 100%}.s3-controls .s3-modes button{flex:1}
+ .s3 .s3-tabs button{min-height:44px}
+ .s3-preflight{padding:10px}.s3-card{padding:14px}
+ .s3-turn{bottom:10px}.s3-done{bottom:10px;padding:12px 14px}
+ /* machine pages */
+ .hl-heading{flex-wrap:wrap;gap:10px}.hl-equipment-select{width:100%}.hl-equipment-select select{width:100%}
+ .equipment-toolbar,.hl-heading .equipment-toolbar{flex-wrap:wrap}
+ .lk-step{min-height:46px}
+ .lk-simple .lk-slot{max-height:60%;overflow:auto}
+ .lk-simple .lk-slot>.startup-panel[open]>.operation,.lk-simple .lk-slot>.startup-panel[open]>.hl-power{padding:10px}
+ #part-tooltip,.hl-tooltip{max-width:min(240px,calc(100vw - 40px))!important}
+ .look-stage .startup-panel button{min-height:44px}
+}
+@media(max-width:420px){
+ .tr-hero h1{font-size:30px}.tr-console{display:none}
+ .lk-step small{display:none}
+}
 /* Hard Services and scrubber: the machine alone while exploring. The calculation, reference facts, quiz and sources belong to
    Experiment; the lesson to Maintenance; controls that work the machine are in the Start panel. */
 .hl-explorer~.hl-power,.hl-centre>.hl-view-controls{display:none}
