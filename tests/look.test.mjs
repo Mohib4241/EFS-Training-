@@ -205,3 +205,13 @@ test('a spinner covers the stage until the machine is ready, the guide waits for
  assert.match(guide,/function sayPart\(id\)\{if\(!machine\|\|tour\|\|id==='overview'\)return;/);
  assert.match(read('../src/look/rig.js'),/checkShaderErrors=false/,'no frame stalls for shader log read-back');
 });
+
+test('machine pages show only the machine: nothing sits below it, and the rest lives in the steps or in Experiment / Maintenance',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8');
+ const css=read('../src/look/look.css'),app=read('../src/app.js');
+ assert.match(css,/#module \.stage-below,#module \.module-footer\{display:none\}/,'vacuum: no practice, specs or footer below the stage');
+ assert.match(app,/Settings &amp; facts/,'vacuum: floor, wet/dry, reset and specs sit in the steps panel');
+ assert.match(css,/\[data-mode=explore\] \.hl-calculation,\[data-mode=explore\] \.hl-learn,\[data-mode=maintenance\] \.hl-learn\{display:none\}/,'the calculation, facts, quiz and sources show only in Experiment');
+ assert.match(read('../src/hard-lab.js'),/startup\.append\(q\('\.hl-power'\),q\('\.hl-view-controls'\)\)/);
+ assert.match(read('../src/scrubber.js'),/startup\.append\(q\('\.hl-power'\),q\('\.scrubber-functions'\),q\('\.hl-view-controls'\)\)/);
+});

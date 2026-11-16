@@ -453,3 +453,31 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .brand .brand-plate img{display:block;width:100%;height:auto;margin:0}
 .brand .brand-plate img.brand-mark{display:none}
 @media(min-width:1051px){.nav-collapsed .brand-plate{padding:6px 5px}.nav-collapsed .brand .brand-plate img.brand-full{display:none}.nav-collapsed .brand .brand-plate img.brand-mark{display:block}}
+
+/* ---- machine pages show the machine: everything else sits in the right-hand steps, or in Experiment / Maintenance ---- */
+#module .stage-below,#module .module-footer{display:none}
+.lk-simple .lk-slot>.lk-settings>summary{padding:10px 12px;font-weight:600;color:var(--lk-text)}
+.lk-settings[open]{max-height:min(52vh,420px);overflow:auto}
+.lk-settings-body{padding:4px 12px 12px;display:grid;gap:10px;color:var(--lk-text)}
+.lk-settings-body .floor-mode-controls{display:grid;gap:6px;background:transparent;border:0;padding:0}
+.lk-settings-body .floor-mode-controls span,.lk-settings-body .floor-mode-controls p{font-size:11px;color:var(--lk-muted);margin:0}
+.lk-settings-body button{background:var(--lk-field);color:var(--lk-text);border:1px solid var(--lk-line);border-radius:8px;padding:7px 10px;font:500 12px var(--font-body);cursor:pointer}
+.lk-settings-body button[aria-pressed=true]{border-color:var(--lk-accent);color:var(--lk-accent);background:var(--lk-accent-soft)}
+.lk-settings-body .stage-card{padding:10px 12px;box-shadow:none;border-radius:10px}
+.lk-settings-body .stage-card h2{font-size:14px;margin:4px 0 6px}
+.lk-settings-body dl{margin:0;display:grid;gap:4px;font-size:11px}.lk-settings-body dl>div{display:flex;justify-content:space-between;gap:8px}.lk-settings-body dt,.lk-settings-body dd small{color:var(--lk-muted)}.lk-settings-body dd{margin:0;text-align:right}
+.lk-settings-body .source-note{font-size:10.5px;line-height:1.5;color:var(--lk-muted)}
+.lk-settings-body #vacuum-scope{font-size:11px;line-height:1.5;color:var(--lk-muted)}
+@media(max-width:768px){.lk-simple .lk-slot>.lk-settings[open]{grid-column:1/-1}}
+/* Hard Services and scrubber: the machine alone while exploring. The calculation, reference facts, quiz and sources belong to
+   Experiment; the lesson to Maintenance; controls that work the machine are in the Start panel. */
+.hl-explorer~.hl-power,.hl-centre>.hl-view-controls{display:none}
+[data-mode=explore] .hl-calculation,[data-mode=explore] .hl-learn,[data-mode=maintenance] .hl-learn{display:none}
+
+.startup-panel .scrubber-functions{margin:0;padding:10px 13px;border:0;border-top:1px solid var(--lk-line);border-radius:0;box-shadow:none;background:transparent}
+.startup-panel .scrubber-functions h2,.startup-panel .scrubber-functions small{display:none}
+.startup-panel .scrubber-functions>div{display:grid;gap:6px;margin-top:6px}
+.startup-panel .scrubber-functions label{font-size:12px;color:var(--lk-text)}
+.startup-panel .scrubber-functions p{font-size:10.5px!important;color:var(--lk-muted)!important;margin:6px 0 0!important}
+.startup-panel .hl-view-controls{margin:0;padding:8px 13px 12px;border:0;box-shadow:none;background:transparent;display:block}
+.startup-panel .hl-view-controls button{width:100%;font-size:12px}
