@@ -147,7 +147,7 @@ test('a browser that refuses speech before any click or key press holds the word
  const statuses=[],blockedEvents=[];let spoken;const synth={cancel(){},speak(u){spoken=u;},getVoices(){return [{name:'Daniel',lang:'en-GB',localService:true}];}};
  const narrator=createNarrator({synth,Utterance:class{constructor(text){this.text=text;}},onStatus:v=>statuses.push(v),onBlocked:v=>blockedEvents.push(v)});narrator.setEnabled(true);
  const done=[];narrator.speak('Meet your machine.','guide',null,ok=>done.push(ok));spoken.onerror({error:'not-allowed'});
- assert.equal(narrator.blocked,true);assert.equal(narrator.pending,true,'the words are kept');assert.deepEqual(done,[],'nothing is reported as finished while the voice is held back');assert.match(statuses.at(-1),/Click or press a key/);assert.equal(narrator.enabled,true,'sound stays on');assert.deepEqual(blockedEvents,[true]);
+ assert.equal(narrator.blocked,true);assert.equal(narrator.pending,true,'the words are kept');assert.deepEqual(done,[],'nothing is reported as finished while the voice is held back');assert.match(statuses.at(-1),/as soon as the browser allows/);assert.equal(narrator.enabled,true,'sound stays on');assert.deepEqual(blockedEvents,[true]);
  // the first click or key press: the same words are spoken, not lost
  assert.equal(narrator.retryBlocked(),true);assert.equal(spoken.text,'Meet your machine.');spoken.onstart();assert.equal(narrator.blocked,false,'speech working again clears the notice');assert.deepEqual(blockedEvents,[true,false]);
  spoken.onend();assert.deepEqual(done,[true],'finished once it has all been said');

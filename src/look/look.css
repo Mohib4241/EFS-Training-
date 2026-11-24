@@ -540,8 +540,6 @@ body[data-view=soft-checklist] .maintenance-bar{margin:0 0 6px;gap:12px}
 body[data-view=soft-checklist] .maintenance-bar .eyebrow{display:none}
 body[data-view=soft-checklist] .maintenance-bar h2{margin:0;font-size:17px}
 @media(min-width:769px){body[data-view=soft-checklist] .s3-stage{height:clamp(380px,calc(100dvh - 262px),1100px)}}
-/* the voice is held back by the browser until one tap or key press */
-.tour-voice{margin:8px 0 0;padding:6px 10px;border-radius:8px;background:var(--lk-accent-soft,#e3f4f5);color:var(--lk-accent,#0a8f9c);font:600 12px var(--font-body,inherit)}
 
 /* ---- maintenance: the machine first ---- */
 /* the title block of the machine page is hidden; the checklist's own bar (Machine view + name) takes its place beside the sound and language controls */
