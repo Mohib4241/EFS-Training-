@@ -228,7 +228,7 @@ test('machine and maintenance pages fill the screen: no breadcrumb bar, title bl
  const read=path=>readFileSync(new URL(path,import.meta.url),'utf8'),css=read('../src/look/look.css');
  assert.match(css,/body:is\(\[data-view=equipment\],\[data-view=soft-checklist\]\) \.app>header :is\(\.breadcrumb,\.version\)\{display:none\}/);
  assert.match(css,/:is\(\.app-footer,\.module-footer\)\{display:none\}/);
- assert.match(css,/\.equipment-heading>div:first-child[^}]*\{display:none\}/,'the title block is hidden, the guide toolbar stays');
+ assert.match(css,/\.equipment-heading>\.eq-title[^}]*\{display:none\}/,'the title block is hidden, the guide toolbar stays');
  assert.match(css,/#module \.look-stage[^{]*\{--lk-stage-h:calc\(100dvh - 64px\)\}/,'the machine stage takes the screen height');
 });
 

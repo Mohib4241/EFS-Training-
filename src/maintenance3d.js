@@ -53,11 +53,13 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  </aside>
  <div class="s3-panel s3-controls" data-s3="controls">
   <div class="s3-group s3-modes" role="group" aria-label="Mode"><button type="button" data-s3="mode-demo" aria-pressed="false">Watch how</button><button type="button" data-s3="mode-practice" aria-pressed="false">Practise</button></div>
-  <div class="s3-group" data-s3="demo-controls"><button type="button" data-s3="prev" aria-label="Previous step">‹</button><button type="button" data-s3="play" aria-label="Play or pause the demonstration">Play</button><button type="button" data-s3="next" aria-label="Next step">›</button><input type="range" min="0" max="1000" value="0" step="1" data-s3="scrub" aria-label="Scrub the demonstration"><span class="s3-time" data-s3="time">0:00</span><label class="sr-only" for="s3-speed">Speed</label><select id="s3-speed" data-s3="speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select><button type="button" class="s3-primary" data-s3="try">Now you try</button></div>
+  <div class="s3-group" data-s3="demo-controls"><button type="button" data-s3="prev" aria-label="Previous step">‹</button><button type="button" data-s3="play" aria-label="Play or pause the demonstration">Play</button><button type="button" data-s3="next" aria-label="Next step">›</button><input type="range" min="0" max="1000" value="0" step="1" data-s3="scrub" aria-label="Scrub the demonstration"><button type="button" class="s3-primary" data-s3="try">Now you try</button></div>
   <div class="s3-group" data-s3="practice-controls"><button type="button" data-s3="assist">Do this step for me</button><button type="button" data-s3="reset">Reset</button><button type="button" data-s3="camera" hidden>Use camera</button></div>
   <span class="s3-spacer"></span><button type="button" data-s3="full" aria-pressed="false" title="Full screen">Full screen</button>
  </div></div>`;
  life.onCleanup(()=>container.replaceChildren());
+ // On a wide screen the coach and checklist float over the machine so it can use the whole width; on a phone they sit below it.
+ {const side=container.querySelector('.s3-side'),wide=matchMedia('(min-width:769px)'),place=()=>(wide.matches?container.querySelector('.s3-stage'):container.querySelector('.s3')).append(side);place();wide.addEventListener('change',place,{signal});}
  const $=name=>container.querySelector(`[data-s3="${name}"]`),root=container.querySelector('.s3'),stageEl=container.querySelector('.s3-stage'),canvas=container.querySelector('canvas.s3-canvas'),video=container.querySelector('video'),overlay=container.querySelector('.s3-preview canvas');
 
  // ---- renderer (one for the whole page visit; each task brings its own scene) ----
@@ -183,7 +185,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  function setDemoTime(ms,{pause=false}={}){
   demoTime=Math.max(0,Math.min(S.demo.duration-1,ms));if(pause)playing=false;
   if(demoTime>=S.demo.duration-60&&!entry(S.kind).watched){entry(S.kind).watched=true;renderTabs();}
-  $('scrub').value=String(Math.round(demoTime/S.demo.duration*1000));const s=Math.floor(demoTime/1000);$('time').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  $('scrub').value=String(Math.round(demoTime/S.demo.duration*1000));
   $('play').textContent=playing?'Pause':(demoTime>=S.demo.duration-60?'Replay':'Play');renderHud();pump.invalidate();
  }
  const stepFrames=i=>S.demo.steps.filter(item=>S.steps[i].frames.includes(item.frame));
@@ -366,7 +368,6 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   }
  },{signal});
  container.addEventListener('input',event=>{if(event.target.dataset.s3==='scrub'){frameAdjust=false;setDemoTime(Number(event.target.value)/1000*S.demo.duration,{pause:true});}},{signal});
- container.addEventListener('change',event=>{if(event.target.dataset.s3==='speed')speed=Number(event.target.value);},{signal});
  container.addEventListener('keydown',event=>{
   const typing=event.target.closest('button,input,select');
   if(event.key==='Escape'&&mouse.sticky){mouse.sticky=false;mouse.released=true;pump.invalidate();return;}

@@ -491,7 +491,7 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
  .s3-stage{height:clamp(320px,50dvh,480px)!important}
  .s3-controls .s3-group{gap:6px;flex:1 1 auto}.s3 .s3-controls button{padding:8px 10px;min-width:44px}
  .s3-controls input[type=range]{flex:1 1 90px;min-width:90px}
- .s3-spacer,.s3-controls [data-s3=full],.s3-controls .s3-time,.s3-controls #s3-speed{display:none}
+ .s3-spacer,.s3-controls [data-s3=full]{display:none}
  .s3-controls .s3-modes{flex:1 1 100%}.s3-controls .s3-modes button{flex:1}
  .s3 .s3-tabs button{min-height:44px}
  .s3-preflight{padding:10px}.s3-card{padding:14px}
@@ -532,7 +532,7 @@ body:is([data-view=equipment],[data-view=soft-checklist]) main{padding:8px 12px 
 @media(max-width:1050px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{position:fixed;left:10px;top:8px;z-index:60}body:is([data-view=equipment],[data-view=soft-checklist]) main{padding-top:8px}body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading{padding-left:52px!important;min-height:44px;align-items:center;justify-content:flex-start}body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .equipment-toolbar{margin-left:0}body[data-view=equipment] .hl-heading{padding-left:52px!important}}
 /* machine pages: only the guide controls stay above the machine */
 body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading{margin:0 0 6px;padding:0;min-height:0;display:flex;justify-content:flex-end;gap:0}
-body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading>div:first-child,body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .module-badge{display:none}
+
 body[data-view=equipment] #module .look-stage,body[data-view=equipment] #scrubber-lab .look-stage{--lk-stage-h:calc(100dvh - 64px)}
 body[data-view=equipment] .hl-viewport.look-stage{--lk-stage-h:clamp(540px,calc(100dvh - 190px),1100px)}
 /* maintenance: a compact top line, and the 3D stage as tall as the screen allows */
@@ -542,3 +542,24 @@ body[data-view=soft-checklist] .maintenance-bar h2{margin:0;font-size:17px}
 @media(min-width:769px){body[data-view=soft-checklist] .s3-stage{height:clamp(380px,calc(100dvh - 262px),1100px)}}
 /* the voice is held back by the browser until one tap or key press */
 .tour-voice{margin:8px 0 0;padding:6px 10px;border-radius:8px;background:var(--lk-accent-soft,#e3f4f5);color:var(--lk-accent,#0a8f9c);font:600 12px var(--font-body,inherit)}
+
+/* ---- maintenance: the machine first ---- */
+/* the title block of the machine page is hidden; the checklist's own bar (Machine view + name) takes its place beside the sound and language controls */
+body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading>.eq-title,body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .module-badge{display:none}
+body[data-view=soft-checklist] .equipment-heading{justify-content:space-between;align-items:center;gap:10px}
+body[data-view=soft-checklist] .equipment-heading>.maintenance-bar{margin:0;flex:1 1 auto;min-width:0}
+body[data-view=soft-checklist] .equipment-heading>.maintenance-bar h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body[data-view=soft-checklist] .equipment-heading .equipment-toolbar{margin-left:auto}
+@media(min-width:769px){
+ body[data-view=soft-checklist] .s3{grid-template-columns:minmax(0,1fr)}
+ body[data-view=soft-checklist] .s3-stage{grid-column:1/-1;height:clamp(420px,calc(100dvh - 226px),1200px)}
+ /* coach and checklist float over the machine, small and see-through, so the machine uses the whole width */
+ .s3-stage>.s3-side{position:absolute;z-index:3;top:12px;right:12px;bottom:12px;width:240px;max-height:none;gap:8px;pointer-events:none}
+ .s3-stage>.s3-side>*{pointer-events:auto}
+ .s3-stage>.s3-side .s3-panel{background:color-mix(in srgb,var(--panel) 82%,transparent)}
+ .s3-stage>.s3-side .s3-coach{padding:10px 12px}.s3-stage>.s3-side .s3-coach strong{font-size:15px}.s3-stage>.s3-side .s3-coach p{font-size:13px}
+ .s3-stage>.s3-side .s3-steps-panel{padding:8px;font-size:12.5px}
+ .s3-stage>.s3-side .s3-scope{display:none}
+}
+
+@media(max-width:1050px){body[data-view=soft-checklist] .equipment-heading{flex-wrap:wrap}body[data-view=soft-checklist] .equipment-heading>.maintenance-bar{flex:1 1 150px}}

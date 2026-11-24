@@ -211,6 +211,8 @@ function showPage(next,path=[],historyMode='push'){
  for(const [id,page] of [['home','home'],['hard-lab','hardlab'],['scrubber-lab','scrubber']])$(id).hidden=next!==page;
  // the maintenance checklist is part of the machine page: it takes the place of the machine view
  const checklistView=next==='soft-checklist';$('module').hidden=!['module','soft-checklist'].includes(next);
+ // in the checklist the Machine view button and machine name sit on the guide toolbar's row; they go back with the page
+ const bar=$('module-maintenance').querySelector('.maintenance-bar')||$('module').querySelector('.maintenance-bar');if(bar){if(checklistView)$('module').querySelector('.equipment-heading').prepend(bar);else $('module-maintenance').prepend(bar);}
  for(const el of [$('viewport')])el.hidden=checklistView;$('module-maintenance').hidden=!checklistView;
  $('catalogue').hidden=!['catalogue','hard-checklist'].includes(next);setCollapsed(next!=='home');let title='EFS Learning Academy',hash=pageHashes[next]||'home',hardId=null;
  if(next==='module'||next==='soft-checklist'){
