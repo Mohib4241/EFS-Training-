@@ -529,7 +529,7 @@ body:is([data-view=equipment],[data-view=soft-checklist]) .app>header :is(.bread
 body:is([data-view=equipment],[data-view=soft-checklist]) :is(.app-footer,.module-footer){display:none}
 body:is([data-view=equipment],[data-view=soft-checklist]) main{padding:8px 12px 0}
 @media(min-width:1051px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{display:none}}
-@media(max-width:1050px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{position:fixed;left:10px;top:8px;z-index:60}body:is([data-view=equipment],[data-view=soft-checklist]) main{padding-top:52px}}
+@media(max-width:1050px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{position:fixed;left:10px;top:8px;z-index:60}body:is([data-view=equipment],[data-view=soft-checklist]) main{padding-top:8px}body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading{padding-left:52px!important;min-height:44px;align-items:center;justify-content:flex-start}body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .equipment-toolbar{margin-left:0}body[data-view=equipment] .hl-heading{padding-left:52px!important}}
 /* machine pages: only the guide controls stay above the machine */
 body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading{margin:0 0 6px;padding:0;min-height:0;display:flex;justify-content:flex-end;gap:0}
 body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading>div:first-child,body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .module-badge{display:none}
