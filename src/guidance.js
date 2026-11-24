@@ -2,6 +2,8 @@ import {GUIDE_LANGUAGES,guideFrames,moveGuide,partNameSpeech} from './guide-cont
 // Speech is sent in short pieces, split at sentence ends (then commas, then words): Chromium can stop a long utterance
 // part-way (around 15 seconds), and a sentence boundary is a natural place to pause.
 const CHUNK=180;
+// how long the cursor rests on a part before its name is spoken (short, so it feels immediate, but not on every pass)
+export const HOVER_MS=110;
 export function speechChunks(text){
  const sentences=String(text).trim().replace(/\s+/g,' ').match(/[^.!?।]+[.!?।]+["')\]]*\s*|[^.!?।]+$/g)||[];
  const pieces=[];
@@ -25,6 +27,8 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
  const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,lastKey=null,current=null,voicesSettled=false,dropVoiceWait=()=>{};
  function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;current=null;if(supported)synth.cancel();}
  // Chromium fills the voice list asynchronously. Wait briefly for it once; after that, never delay speech again.
+ // Asking for the list once makes Chromium start loading it now, so it is usually ready before the first word.
+ if(supported){try{synth.getVoices?.();}catch{}}
  function withVoices(run,ready){
   const list=synth.getVoices?.()||[];if(list.length||voicesSettled||!synth.addEventListener){ready(list);return;}
   const finish=()=>{dropVoiceWait();voicesSettled=true;if(run===token)ready(synth.getVoices?.()||[]);};
@@ -41,8 +45,10 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
    onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The visual guide still works.');done();}
   }withVoices(run,begin);return true;
  }
- function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},220);}
- return {supported,hoverEnd(){let dropped=false;if(timer!==null&&!current){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;dropped=true;}lastKey=null;return dropped;},get lastKey(){return lastKey;},get enabled(){return enabled;},get blocked(){return blocked;},get language(){return language;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its name.':'Sound off');},setLanguage(value){if(!GUIDE_LANGUAGES.includes(value))throw new RangeError('Unknown guide language');stop();lastKey=null;language=value;},setEnabled(value){enabled=Boolean(value)&&supported;stop();if(enabled)synth.getVoices?.();lastKey=null;onStatus(!supported?'Voice unavailable in this browser. The visual guide still works.':enabled?'Sound on · point to a part.':'Sound off');return enabled;}};
+ function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},HOVER_MS);}
+ let warmed=false;
+ function warmUp(){if(warmed||!enabled||!supported)return;warmed=true;try{const u=new Utterance(' ');u.volume=0;u.rate=2;synth.resume?.();synth.speak(u);}catch{}}
+ return {supported,warmUp,hoverEnd(){let dropped=false;if(timer!==null&&!current){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;dropped=true;}lastKey=null;return dropped;},get lastKey(){return lastKey;},get enabled(){return enabled;},get blocked(){return blocked;},get language(){return language;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its name.':'Sound off');},setLanguage(value){if(!GUIDE_LANGUAGES.includes(value))throw new RangeError('Unknown guide language');stop();lastKey=null;language=value;},setEnabled(value){enabled=Boolean(value)&&supported;stop();if(enabled)synth.getVoices?.();lastKey=null;onStatus(!supported?'Voice unavailable in this browser. The visual guide still works.':enabled?'Sound on · point to a part.':'Sound off');return enabled;}};
 }
 const icons={
  sound:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 8q5 4 0 8M20 5q8 7 0 14"/>',
@@ -123,7 +129,7 @@ export function mountGuidance(container){
  function sayPart(id){if(!machine||tour||id==='overview')return;const part=machine.parts.find(p=>p.id===id);if(!part)return;const now=performance.now();if(canHover.matches&&lastSaid.name===part.name&&now-lastSaid.at<2500)return;lastSaid={name:part.name,at:now};narrator.stop();const spoken=partNameSpeech(part,language);narrator.hover(spoken.text,part.name,spoken.spokenHi);}
  function click(event){
   const b=event.target.closest('[data-guide-command]');if(!b)return;const command=b.dataset.guideCommand;
-  if(command==='sound'){narrator.setEnabled(!narrator.enabled);try{localStorage.setItem('efs-guide-sound',narrator.enabled?'on':'off');}catch{}sync();if(tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];if(narrator.enabled){paintTour();say(f);}else tour.finish?.();}}
+  if(command==='sound'){narrator.setEnabled(!narrator.enabled);narrator.warmUp();try{localStorage.setItem('efs-guide-sound',narrator.enabled?'on':'off');}catch{}sync();if(tour){const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];if(narrator.enabled){paintTour();say(f);}else tour.finish?.();}}
   if(command==='rotate'){autoRotate=!autoRotate;sync();}
   if(command==='guide')startGuide('guide');
   if(command==='close')closeTour();if(command==='next')move(1);if(command==='previous')move(-1);
@@ -138,5 +144,10 @@ export function mountGuidance(container){
  document.addEventListener('focusin',e=>{const b=partButton(e.target);if(b)hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});document.addEventListener('focusout',e=>{if(partButton(e.target))hover(null);});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseTour();narrator.stop();}else if(tour?.waitingForVisibility){tour.waitingForVisibility=false;tour.playing=!reduced.matches;paintTour(true);}});addEventListener('resize',schedulePosition);addEventListener('scroll',schedulePosition,{passive:true,capture:true});
  reduced.addEventListener('change',()=>{if(reduced.matches){autoRotate=false;pauseTour();overlay.classList.add('tour-reduced');sync();}});
- return {hover,sayPart,notify,clearNotice,narrator,get language(){return language;},get autoRotate(){return autoRotate&&!tour;},get focused(){return focused;},setAutoRotate(value){autoRotate=Boolean(value)&&!reduced.matches;sync();},setFocused(value){focused=Boolean(value);sync();},startGuide,updateMachine(next){machine=next;if(!tour)narrator.stop();else paintTour();},setOptions(options){closeTour(false);callbacks=options;clearNotice();sync();},setMachine(next,options={}){closeTour(false);machine=next;callbacks=options;focused=Boolean(options.focused);toolbar.hidden=!next;clearNotice();const generation=++machineGen;if(!next){container.prepend(toolbar);return;}(options.toolbarHost||container).append(toolbar);sync();if(options.autoGuide!==false&&!options.maintenance)Promise.resolve(options.ready).then(()=>{if(generation===machineGen)entryTimer=setTimeout(()=>startGuide('guide'),160);});}};
+ // The first click, tap or key press anywhere warms the voice up, so pointing at a part right after a reload is named at once.
+ const warm=()=>{narrator.warmUp();if(narrator.enabled){for(const type of ['pointerdown','keydown','touchstart'])removeEventListener(type,warm,true);}};
+ for(const type of ['pointerdown','keydown','touchstart'])addEventListener(type,warm,{capture:true,passive:true});
+ // Spoken checklist steps never talk over the guide: while a guide is open, its card is the only voice.
+ function speakStep(text,key){if(tour)return false;return narrator.speak(text,key);}
+ return {hover,sayPart,speakStep,notify,clearNotice,narrator,get language(){return language;},get autoRotate(){return autoRotate&&!tour;},get focused(){return focused;},setAutoRotate(value){autoRotate=Boolean(value)&&!reduced.matches;sync();},setFocused(value){focused=Boolean(value);sync();},startGuide,updateMachine(next){machine=next;if(!tour)narrator.stop();else paintTour();},setOptions(options){closeTour(false);callbacks=options;clearNotice();sync();},setMachine(next,options={}){closeTour(false);machine=next;callbacks=options;focused=Boolean(options.focused);toolbar.hidden=!next;clearNotice();const generation=++machineGen;if(!next){container.prepend(toolbar);return;}(options.toolbarHost||container).append(toolbar);sync();if(options.autoGuide!==false&&!options.maintenance)Promise.resolve(options.ready).then(()=>{if(generation===machineGen)entryTimer=setTimeout(()=>startGuide('guide'),160);});}};
 }

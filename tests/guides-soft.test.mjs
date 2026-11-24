@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createNarrator,speechChunks,voiceForLanguage,soundPreference} from '../src/guidance.js';
 import {vacuumModules,vacuumPartList,scrubberModule} from '../src/soft-content.js';
 import {initialState,transition} from '../src/machine-state.js';
@@ -162,4 +163,15 @@ test('a part name is never cut off by moving away, and a name not yet started is
  n.hover('Collection tank','Collection tank');[...pending.values()][0]();assert.equal(calls.length,1);calls[0].onstart?.();
  const before=cancels;assert.equal(n.hoverEnd(),false);assert.equal(cancels,before,'the name in progress is not cancelled');
  assert.equal(n.lastKey,null,'so the same part can be named again later');
+});
+
+test('the voice is ready fast after a reload, and checklist steps never talk over the guide',async()=>{
+ const {HOVER_MS}=await import('../src/guidance.js');assert.ok(HOVER_MS<=120,'a hovered part is named quickly');
+ // the voice list is requested as soon as the narrator exists, and a silent warm-up runs once
+ let asked=0;const spoken=[];const synth={cancel(){},getVoices:()=>{asked++;return [{lang:'en-GB',localService:true}];},speak:u=>spoken.push(u)};
+ const n=createNarrator({synth,Utterance:class{constructor(t){this.text=t;}}});assert.ok(asked>=1,'voices requested up front');
+ n.setEnabled(true);n.warmUp();n.warmUp();assert.equal(spoken.length,1,'one warm-up only');assert.equal(spoken[0].volume,0,'the warm-up is silent');
+ const src=readFileSync(new URL('../src/guidance.js',import.meta.url),'utf8');
+ assert.match(src,/function speakStep\(text,key\)\{if\(tour\)return false;/,'checklist steps wait while a guide is open');
+ assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/onSay:\(text,key\)=>guidance\.speakStep\(text,key\)/);
 });
