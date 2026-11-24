@@ -24,10 +24,11 @@ export function voiceForLanguage(voices,language){
 // Sound is on by default (English); a learner who turns it off stays off. Pure, so it can be tested.
 export const soundPreference=storage=>{try{return storage?.getItem('efs-guide-sound')!=='off';}catch{return true;}};
 export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},onBlocked=()=>{},delay=setTimeout,clearDelay=clearTimeout,watchDelay=(fn,ms)=>{const id=setTimeout(fn,ms);id?.unref?.();return id;},watchClear=clearTimeout}={}){
- const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,watch=null,lastKey=null,current=null,voicesSettled=false,activeDone=null,pending=null,dropVoiceWait=()=>{};
+ const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,watch=null,lastKey=null,current=null,voicesSettled=false,activeDone=null,pending=null,cancelledAt=-1e9,dropVoiceWait=()=>{};
+ const now=()=>Date.now();
  const setBlocked=value=>{if(blocked!==value){blocked=value;onBlocked(value);}};
  // done(true) = the whole text was spoken (or could not be); done(false) = it was cut off by newer speech, stop() or a sound-off.
- function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;if(watch!==null)watchClear(watch);watch=null;current=null;if(supported)synth.cancel();const a=activeDone,p=pending;activeDone=null;pending=null;a?.(false);p?.onDone(false);}
+ function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;if(watch!==null)watchClear(watch);watch=null;current=null;if(supported){const busy=Boolean(synth.speaking||synth.pending);synth.cancel();if(busy)cancelledAt=now();}const a=activeDone,p=pending;activeDone=null;pending=null;a?.(false);p?.onDone(false);}
  // Chromium fills the voice list asynchronously. Wait briefly for it once; after that, never delay speech again.
  // Asking for the list once makes Chromium start loading it now, so it is usually ready before the first word.
  if(supported){try{synth.getVoices?.();}catch{}}
@@ -42,7 +43,7 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
   if(!enabled||!supported){callback(true);return false;}stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
   const finish=ok=>{if(activeDone===callback)activeDone=null;callback(ok);};if(explicit)activeDone=callback;
   function begin(voices){voice=voiceForLanguage(voices,language);const useHindi=language==='hinglish'&&/^hi[-_]/i.test(voice?.lang||'');chunks=speechChunks(useHindi&&spokenHi?spokenHi:text);next();}
-  function utter(chunk,retried){
+  function utter(chunk,attempt){
    const u=current=new Utterance(chunk);let started=false;u.lang=voice?.lang||(language==='hinglish'?'en-IN':'en-GB');u.rate=.96;u.voice=voice;
    u.onstart=()=>{started=true;if(watch!==null)watchClear(watch);watch=null;setBlocked(false);if(run===token)onStatus('Speaking · '+key);};
    u.onend=()=>{if(current===u)next();};
@@ -52,11 +53,11 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
    onStatus('Preparing voice · '+key);
    try{synth.resume?.();synth.speak(u);}catch{onStatus('Audio unavailable. The visual guide still works.');finish(true);return;}
    // a browser sometimes swallows a request made right after a cancel: if nothing starts, ask once more
-   if(watch!==null)watchClear(watch);watch=watchDelay(()=>{watch=null;if(run!==token||started||current!==u||blocked)return;if(retried){return;}try{synth.cancel();}catch{}current=null;utter(chunk,true);},2500);
+   if(watch!==null)watchClear(watch);watch=watchDelay(()=>{watch=null;if(run!==token||started||current!==u||blocked||attempt>=2)return;try{synth.cancel();}catch{}cancelledAt=now();current=null;timer=delay(()=>{timer=null;if(run===token)utter(chunk,attempt+1);},150);},1500);
   }
-  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;if(watch!==null)watchClear(watch);watch=null;onStatus('Ready · hover a part to hear its name.');finish(true);return;}utter(chunks[index++],false);}
+  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;if(watch!==null)watchClear(watch);watch=null;onStatus('Ready · hover a part to hear its name.');finish(true);return;}utter(chunks[index++],0);}
   // right after a cancel the browser is still tidying up: starting at once can lose the first words, so give it a moment
-  const go=()=>withVoices(run,begin);if(synth.speaking||synth.pending){timer=delay(()=>{timer=null;if(run===token)go();},90);}else go();
+  const go=()=>withVoices(run,begin),since=now()-cancelledAt;if(synth.speaking||synth.pending||since<250){timer=delay(()=>{timer=null;if(run===token)go();},150);}else go();
   return true;
  }
  // after a click or key press the browser allows speech: say what was held back

@@ -47,7 +47,7 @@ function writtenSteps(container,token,text){
 function enterMaintenance(token){
  const container=$('maintenance-practice');
  if(!hasWebGL2()){writtenSteps(container,token,'This browser cannot show 3D (WebGL2 is missing), so the written steps are shown instead.');return;}
- if(maintenance){viewNotice();maintenance.setMachine(machine.id);return;}
+ if(maintenance){viewNotice();maintenance.setMachine(machine.id);maintenance.resume();return;}
  loadLab('maintenance3d',container,'3D maintenance practice',token).then(module=>{
   if(!module||maintenance)return;
   try{

@@ -239,3 +239,11 @@ test('the checklist demonstration reads each frame in full and waits for the voi
  assert.match(src,/ahead\*=Math\.max\(0\.25,Math\.min\(1,frame\.duration\/voice\.need\)\)/,'the demonstration slows to the length of the speech');
  assert.match(src,/const sayKey=\[machineId,/,'switching machine says the first step again');
 });
+
+test('the checklist stays quiet while its page is away and speaks the current step again when it returns',()=>{
+ const src=readFileSync(new URL('../src/maintenance3d.js',import.meta.url),'utf8');
+ assert.match(src,/if\(suspended\)\{voice\.key=key;voice\.done=true;voice\.need=0;return;\}/);
+ assert.match(src,/pause\(\)\{suspended=true;/);
+ assert.match(src,/resume\(\)\{if\(!S\)return;suspended=false;said='';hudKey='';/);
+ assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/maintenance\.setMachine\(machine\.id\);maintenance\.resume\(\)/,'re-entering the checklist resumes it');
+});

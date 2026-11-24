@@ -166,7 +166,8 @@ test('a request made right after a cancel waits a moment, and a swallowed reques
  n.setEnabled(true);busy=true;n.speak('After a switch.','k');assert.equal(calls.length,0,'waits while the browser is still tidying up');
  [...pending.values()][0]();assert.equal(calls.length,1);
  // nothing starts: the watchdog cancels and asks again, once
- busy=false;watchdogs.at(-1)();assert.equal(calls.length,2,'asked once more');assert.equal(calls[1].text,'After a switch.');
+ busy=false;watchdogs.at(-1)();assert.equal(calls.length,1,'it waits a moment after cancelling before asking again');[...pending.values()].at(-1)();assert.equal(calls.length,2,'asked once more');assert.equal(calls[1].text,'After a switch.');
+ watchdogs.at(-1)();[...pending.values()].at(-1)();assert.equal(calls.length,3,'and a second time');watchdogs.at(-1)();assert.equal(calls.length,3,'then it gives up rather than looping');
 });
 
 test('a part name is never cut off by moving away, and a name not yet started is dropped cleanly',()=>{

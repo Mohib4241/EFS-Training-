@@ -92,7 +92,9 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  const voice={key:'',done:true,need:0,until:0};
  const speechMs=text=>600+String(text).split(/\s+/).length*(language==='hinglish'?470:400);
  const voiceBusy=()=>!voice.done&&performance.now()<voice.until;
+ let suspended=false;   // the page is away (or a guide is open): stay quiet until the learner is back
  function say(text,key){
+  if(suspended){voice.key=key;voice.done=true;voice.need=0;return;}
   voice.key=key;voice.done=false;voice.need=speechMs(text);voice.until=performance.now()+voice.need*1.6+4000;
   const spoken=onSay(text,key,()=>{if(voice.key===key){voice.done=true;pump.invalidate();}});
   if(!spoken&&voice.key===key){voice.done=true;voice.need=0;}
@@ -195,8 +197,8 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   if(target>=S.steps.length){setDemoTime(S.demo.duration,{pause:true});return;}
   frameAdjust=true;setDemoTime(reduced?stepEnd(Math.max(0,target)):stepStart(Math.max(0,target)),{pause:true});
  }
- function beginDemo(){S.interaction.cancel();releaseHolds();view='demo';$('preflight').hidden=true;shownState=null;if(demoTime>=S.demo.duration-60)demoTime=0;playing=!reduced;setDemoTime(demoTime);toast('');}
- function beginPractice(){
+ function beginDemo(){suspended=false;S.interaction.cancel();releaseHolds();view='demo';$('preflight').hidden=true;shownState=null;if(demoTime>=S.demo.duration-60)demoTime=0;playing=!reduced;setDemoTime(demoTime);toast('');}
+ function beginPractice(){suspended=false;
   if(!entry(S.kind).watched){beginDemo();return;}
   S.interaction.cancel();releaseHolds();view='practice';$('preflight').hidden=true;shownState=null;playing=false;hudKey='';choiceKey='';mouse.sticky=false;renderHud();pump.invalidate();
   toast(input==='hands'?`Show your hands. Stand about ${TARGET_DISTANCE} m from the camera.`:'Click the highlighted part to pick it up and click again to put it down, or drag it.');
@@ -347,7 +349,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  document.addEventListener('fullscreenchange',()=>{const on=document.fullscreenElement===root;fullButton.setAttribute('aria-pressed',String(on));fullButton.textContent=on?'Exit full screen':'Full screen';},{signal});
 
  // ---- controls ----
- container.addEventListener('click',event=>{
+ container.addEventListener('click',event=>{suspended=false;
   const tab=event.target.closest('[data-task]');if(tab){if(tab.dataset.task!==S?.kind)openTask(tab.dataset.task);return;}
   const choice=event.target.closest('[data-choice]');if(choice){if(view==='practice'){const c=S.task.choices(practice(),language).find(x=>x.id===choice.dataset.choice);if(c)dispatch(c.action);}return;}
   const chip=event.target.closest('[data-chip]');if(chip){if(view==='practice'){const c=S.task.status?.(practice(),{})?.chips?.find(x=>x.id===chip.dataset.chip);if(c?.action)dispatch(c.action);}return;}
@@ -388,7 +390,9 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  pump.invalidate();
  return {
   setMachine(id){if(!MACHINE_LABELS[id]||id===machineId)return;const kind=S?.kind;machineId=id;const list=tasksFor(id).map(t=>t.kind);openTask(list.includes(kind)?kind:kind==='filter'||kind==='wet-filter'?list[0]:list[0]);$('pre-eyebrow').textContent=`3D · ${MACHINE_LABELS[machineId]} · maintenance`;},
-  pause(){playing=false;if(S)renderHud();},
+  pause(){suspended=true;playing=false;if(S)renderHud();},
+  // coming back to the checklist: say the current step again and carry on with the demonstration
+  resume(){if(!S)return;suspended=false;said='';hudKey='';if(view==='demo'&&!reduced)playing=true;renderHud();pump.invalidate();},
   destroy:()=>{closeTask();tracker?.stop();life.dispose();}
  };
 }
