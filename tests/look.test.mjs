@@ -223,3 +223,19 @@ test('phones get one column with thumb-sized controls, and the maintenance check
  assert.match(css,/\.s3 \.s3-controls\{grid-row:3/,'the checklist controls sit right under the machine on a phone');
  assert.match(css,/\.lk-step\{min-height:46px\}/,'step buttons are thumb-sized');
 });
+
+test('machine and maintenance pages fill the screen: no breadcrumb bar, title block or footer',()=>{
+ const read=path=>readFileSync(new URL(path,import.meta.url),'utf8'),css=read('../src/look/look.css');
+ assert.match(css,/body:is\(\[data-view=equipment\],\[data-view=soft-checklist\]\) \.app>header :is\(\.breadcrumb,\.version\)\{display:none\}/);
+ assert.match(css,/:is\(\.app-footer,\.module-footer\)\{display:none\}/);
+ assert.match(css,/\.equipment-heading>div:first-child[^}]*\{display:none\}/,'the title block is hidden, the guide toolbar stays');
+ assert.match(css,/#module \.look-stage[^{]*\{--lk-stage-h:calc\(100dvh - 64px\)\}/,'the machine stage takes the screen height');
+});
+
+test('the checklist demonstration reads each frame in full and waits for the voice',()=>{
+ const src=readFileSync(new URL('../src/maintenance3d.js',import.meta.url),'utf8');
+ assert.match(src,/inDemo\?`\$\{opening\?`Step \$\{n\}\. `:''\}\$\{title\}\. \$\{body\}`/,'a demo frame is read as its title and its caption');
+ assert.match(src,/if\(voiceBusy\(\)\)next=Math\.max\(demoTime,Math\.min\(next,frame\.end-2\)\)/,'the picture never moves into the next frame while the voice is still speaking');
+ assert.match(src,/ahead\*=Math\.max\(0\.25,Math\.min\(1,frame\.duration\/voice\.need\)\)/,'the demonstration slows to the length of the speech');
+ assert.match(src,/const sayKey=\[machineId,/,'switching machine says the first step again');
+});

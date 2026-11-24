@@ -23,9 +23,11 @@ export function voiceForLanguage(voices,language){
 }
 // Sound is on by default (English); a learner who turns it off stays off. Pure, so it can be tested.
 export const soundPreference=storage=>{try{return storage?.getItem('efs-guide-sound')!=='off';}catch{return true;}};
-export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},delay=setTimeout,clearDelay=clearTimeout}={}){
- const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,lastKey=null,current=null,voicesSettled=false,dropVoiceWait=()=>{};
- function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;current=null;if(supported)synth.cancel();}
+export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},onBlocked=()=>{},delay=setTimeout,clearDelay=clearTimeout,watchDelay=(fn,ms)=>{const id=setTimeout(fn,ms);id?.unref?.();return id;},watchClear=clearTimeout}={}){
+ const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,watch=null,lastKey=null,current=null,voicesSettled=false,activeDone=null,pending=null,dropVoiceWait=()=>{};
+ const setBlocked=value=>{if(blocked!==value){blocked=value;onBlocked(value);}};
+ // done(true) = the whole text was spoken (or could not be); done(false) = it was cut off by newer speech, stop() or a sound-off.
+ function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;if(watch!==null)watchClear(watch);watch=null;current=null;if(supported)synth.cancel();const a=activeDone,p=pending;activeDone=null;pending=null;a?.(false);p?.onDone(false);}
  // Chromium fills the voice list asynchronously. Wait briefly for it once; after that, never delay speech again.
  // Asking for the list once makes Chromium start loading it now, so it is usually ready before the first word.
  if(supported){try{synth.getVoices?.();}catch{}}
@@ -36,19 +38,33 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
   synth.addEventListener('voiceschanged',finish);timer=delay(()=>{timer=null;finish();},400);
  }
  function speak(text,key='guide',spokenHi=null,onDone=null){
-  const done=typeof onDone==='function'?onDone:()=>{};
-  if(!enabled||!supported){done();return false;}stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
+  const explicit=typeof onDone==='function',callback=explicit?onDone:()=>{};
+  if(!enabled||!supported){callback(true);return false;}stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
+  const finish=ok=>{if(activeDone===callback)activeDone=null;callback(ok);};if(explicit)activeDone=callback;
   function begin(voices){voice=voiceForLanguage(voices,language);const useHindi=language==='hinglish'&&/^hi[-_]/i.test(voice?.lang||'');chunks=speechChunks(useHindi&&spokenHi?spokenHi:text);next();}
-  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;onStatus('Ready · hover a part to hear its name.');done();return;}
-   current=new Utterance(chunks[index++]);current.lang=voice?.lang||(language==='hinglish'?'en-IN':'en-GB');current.rate=.96;current.voice=voice;
-   current.onstart=()=>{blocked=false;if(run===token)onStatus('Speaking · '+key);};current.onend=next;current.onerror=e=>{if(run!==token)return;current=null;if(e.error==='not-allowed'){blocked=true;onStatus('Sound is on. Click or press a key once and the voice will start.');done();return;}if(!['canceled','interrupted'].includes(e.error)){onStatus('Audio unavailable. The visual guide still works.');done();}};
-   onStatus('Preparing voice · '+key);try{synth.resume?.();synth.speak(current);}catch{onStatus('Audio unavailable. The visual guide still works.');done();}
-  }withVoices(run,begin);return true;
+  function utter(chunk,retried){
+   const u=current=new Utterance(chunk);let started=false;u.lang=voice?.lang||(language==='hinglish'?'en-IN':'en-GB');u.rate=.96;u.voice=voice;
+   u.onstart=()=>{started=true;if(watch!==null)watchClear(watch);watch=null;setBlocked(false);if(run===token)onStatus('Speaking · '+key);};
+   u.onend=()=>{if(current===u)next();};
+   u.onerror=e=>{if(run!==token||current!==u)return;current=null;
+    if(e.error==='not-allowed'){activeDone=null;if(explicit)pending={text,key,spokenHi,onDone:callback};setBlocked(true);onStatus('Sound is on. Click or press a key once and the voice will start.');return;}
+    if(!['canceled','interrupted'].includes(e.error)){onStatus('Audio unavailable. The visual guide still works.');finish(true);}};
+   onStatus('Preparing voice · '+key);
+   try{synth.resume?.();synth.speak(u);}catch{onStatus('Audio unavailable. The visual guide still works.');finish(true);return;}
+   // a browser sometimes swallows a request made right after a cancel: if nothing starts, ask once more
+   if(watch!==null)watchClear(watch);watch=watchDelay(()=>{watch=null;if(run!==token||started||current!==u||blocked)return;if(retried){return;}try{synth.cancel();}catch{}current=null;utter(chunk,true);},2500);
+  }
+  function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;if(watch!==null)watchClear(watch);watch=null;onStatus('Ready · hover a part to hear its name.');finish(true);return;}utter(chunks[index++],false);}
+  // right after a cancel the browser is still tidying up: starting at once can lose the first words, so give it a moment
+  const go=()=>withVoices(run,begin);if(synth.speaking||synth.pending){timer=delay(()=>{timer=null;if(run===token)go();},90);}else go();
+  return true;
  }
+ // after a click or key press the browser allows speech: say what was held back
+ function retryBlocked(){if(!pending||!enabled||!supported)return false;const p=pending;pending=null;return speak(p.text,p.key,p.spokenHi,p.onDone);}
  function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},HOVER_MS);}
  let warmed=false;
  function warmUp(){if(warmed||!enabled||!supported)return;warmed=true;try{const u=new Utterance(' ');u.volume=0;u.rate=2;synth.resume?.();synth.speak(u);}catch{}}
- return {supported,warmUp,hoverEnd(){let dropped=false;if(timer!==null&&!current){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;dropped=true;}lastKey=null;return dropped;},get lastKey(){return lastKey;},get enabled(){return enabled;},get blocked(){return blocked;},get language(){return language;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its name.':'Sound off');},setLanguage(value){if(!GUIDE_LANGUAGES.includes(value))throw new RangeError('Unknown guide language');stop();lastKey=null;language=value;},setEnabled(value){enabled=Boolean(value)&&supported;stop();if(enabled)synth.getVoices?.();lastKey=null;onStatus(!supported?'Voice unavailable in this browser. The visual guide still works.':enabled?'Sound on · point to a part.':'Sound off');return enabled;}};
+ return {supported,warmUp,retryBlocked,get pending(){return Boolean(pending);},hoverEnd(){let dropped=false;if(timer!==null&&!current){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;dropped=true;}lastKey=null;return dropped;},get lastKey(){return lastKey;},get enabled(){return enabled;},get blocked(){return blocked;},get language(){return language;},speak,hover,stop(){stop();lastKey=null;onStatus(enabled?'Ready · hover a part to hear its name.':'Sound off');},setLanguage(value){if(!GUIDE_LANGUAGES.includes(value))throw new RangeError('Unknown guide language');stop();lastKey=null;language=value;},setEnabled(value){enabled=Boolean(value)&&supported;stop();if(enabled)synth.getVoices?.();lastKey=null;onStatus(!supported?'Voice unavailable in this browser. The visual guide still works.':enabled?'Sound on · point to a part.':'Sound off');if(!enabled)setBlocked(false);return enabled;}};
 }
 const icons={
  sound:'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 8q5 4 0 8M20 5q8 7 0 14"/>',
@@ -59,9 +75,10 @@ const icon=id=>`<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="
 export function mountGuidance(container){
  const reduced=matchMedia('(prefers-reduced-motion: reduce)');let machine=null,callbacks={},autoRotate=!reduced.matches,focused=true,language='english',tour=null,timer=null,entryTimer=null,toastTimer=null,opener=null,positionRAF=0,machineGen=0;
  try{const saved=localStorage.getItem('efs-guide-language');if(GUIDE_LANGUAGES.includes(saved))language=saved;}catch{}
- container.innerHTML=`<div class="equipment-toolbar" hidden aria-label="Machine guides and viewing controls"><button class="guide-icon" data-guide-command="sound" aria-label="Turn sound on" title="Turn sound on" aria-pressed="false">${icon('muted')}</button><label class="guide-language"><span class="sr-only">Guide language</span><select aria-label="Guide language"><option value="english">English</option><option value="hinglish">Hinglish</option></select></label><button class="guide-icon" data-guide-command="rotate" aria-label="Pause auto rotation" title="Pause auto rotation" aria-pressed="true">${icon('rotate')}</button><button data-guide-command="guide">Guide</button><span class="sr-only" data-guide-status role="status">Sound off</span></div><div class="guided-tour" hidden><div class="tour-spotlight" aria-hidden="true"></div><section class="tour-card" role="dialog" aria-modal="false" aria-labelledby="tour-title" aria-describedby="tour-copy"><button class="tour-close" data-guide-command="close" aria-label="Close visual guide">×</button><div class="tour-main"><div class="tour-gesture" aria-hidden="true"><svg viewBox="0 0 90 58"><path class="gesture-track" d="M10 30H80"/><circle class="gesture-finger finger-a" cx="30" cy="29" r="9"/><circle class="gesture-finger finger-b" cx="60" cy="29" r="9"/><path class="gesture-arrow" d="m8 30 9-6m-9 6 9 6m65-6-9-6m9 6-9 6"/><text class="gesture-zoom" x="45" y="39" text-anchor="middle">+</text><path class="gesture-pointer" d="m35 9 1 31 9-9 9 17 7-4-9-17 13-1z"/></svg></div><div><span class="tour-kind"></span><h2 id="tour-title"></h2><p id="tour-copy"></p></div></div><div class="tour-controls"><button data-guide-command="previous" aria-label="Previous guide action">‹</button><div class="tour-dots" aria-label="Guide progress"></div><button data-guide-command="play" aria-label="Pause visual guide">Ⅱ</button><button data-guide-command="next" aria-label="Next guide action">›</button></div></section></div>`;
+ container.innerHTML=`<div class="equipment-toolbar" hidden aria-label="Machine guides and viewing controls"><button class="guide-icon" data-guide-command="sound" aria-label="Turn sound on" title="Turn sound on" aria-pressed="false">${icon('muted')}</button><label class="guide-language"><span class="sr-only">Guide language</span><select aria-label="Guide language"><option value="english">English</option><option value="hinglish">Hinglish</option></select></label><button class="guide-icon" data-guide-command="rotate" aria-label="Pause auto rotation" title="Pause auto rotation" aria-pressed="true">${icon('rotate')}</button><button data-guide-command="guide">Guide</button><span class="sr-only" data-guide-status role="status">Sound off</span></div><div class="guided-tour" hidden><div class="tour-spotlight" aria-hidden="true"></div><section class="tour-card" role="dialog" aria-modal="false" aria-labelledby="tour-title" aria-describedby="tour-copy"><button class="tour-close" data-guide-command="close" aria-label="Close visual guide">×</button><div class="tour-main"><div class="tour-gesture" aria-hidden="true"><svg viewBox="0 0 90 58"><path class="gesture-track" d="M10 30H80"/><circle class="gesture-finger finger-a" cx="30" cy="29" r="9"/><circle class="gesture-finger finger-b" cx="60" cy="29" r="9"/><path class="gesture-arrow" d="m8 30 9-6m-9 6 9 6m65-6-9-6m9 6-9 6"/><text class="gesture-zoom" x="45" y="39" text-anchor="middle">+</text><path class="gesture-pointer" d="m35 9 1 31 9-9 9 17 7-4-9-17 13-1z"/></svg></div><div><span class="tour-kind"></span><h2 id="tour-title"></h2><p id="tour-copy"></p><p class="tour-voice" role="status" hidden>🔊 Tap anywhere or press any key to start the voice.</p></div></div><div class="tour-controls"><button data-guide-command="previous" aria-label="Previous guide action">‹</button><div class="tour-dots" aria-label="Guide progress"></div><button data-guide-command="play" aria-label="Pause visual guide">Ⅱ</button><button data-guide-command="next" aria-label="Next guide action">›</button></div></section></div>`;
  const toolbar=container.querySelector('.equipment-toolbar'),overlay=container.querySelector('.guided-tour'),card=container.querySelector('.tour-card'),spotlight=container.querySelector('.tour-spotlight'),status=toolbar.querySelector('[data-guide-status]');
- const narrator=createNarrator({onStatus:text=>{status.textContent=text;}});narrator.setLanguage(language);toolbar.querySelector('select').value=language;
+ const voiceHint=card.querySelector('.tour-voice');
+ const narrator=createNarrator({onStatus:text=>{status.textContent=text;},onBlocked:value=>{voiceHint.hidden=!value||!tour;if(value&&!tour)notify('Tap anywhere or press any key once, and the voice will start.');else if(!value)clearNotice();}});narrator.setLanguage(language);toolbar.querySelector('select').value=language;
  try{if(soundPreference(localStorage))narrator.setEnabled(true);}catch{}
  const toast=document.createElement('div');toast.className='top-notification';toast.hidden=true;toast.setAttribute('role','alert');toast.innerHTML='<span></span><button aria-label="Dismiss notification">✕</button>';document.body.append(toast);
  function clearNotice(){clearTimeout(toastTimer);toast.hidden=true;}
@@ -89,7 +106,7 @@ export function mountGuidance(container){
  function queue(){
   clearTimer();if(!tour?.playing||document.hidden)return;const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index],t=tour;
   // safety: if a browser never reports the end of speech, the step is still carried out and the tour moves on
-  const words=(f.title+' '+(f.spokenHi||f.caption)).split(/\s+/).length;const seq=t.seq;t.cap=setTimeout(()=>{if(tour===t&&t.seq===seq)t.finish?.();},f.duration+words*480+4000);
+  const words=(f.title+' '+(f.spokenHi||f.caption)).split(/\s+/).length;const seq=t.seq;const cap=()=>{if(tour!==t||t.seq!==seq)return;if(narrator.enabled&&(narrator.blocked||narrator.pending)){t.cap=setTimeout(cap,3000);return;}t.finish?.();};t.cap=setTimeout(cap,f.duration+words*480+4000);
  }
  function advanceWhenReady(){if(!tour?.playing||!tour.timeUp||!(tour.spoken||!narrator.enabled))return;clearTimer();timer=setTimeout(()=>{timer=null;move(1);},450);}
  // Each card first explains the step (shown, highlighted and read out); only then is the step carried out on the machine,
@@ -98,7 +115,7 @@ export function mountGuidance(container){
   if(!tour)return;const t=tour,seq=t.seq=(t.seq||0)+1;t.spoken=false;t.timeUp=false;clearTimeout(t.hold);clearTimeout(t.quiet);let acted=false;
   const finish=t.finish=()=>{if(tour!==t||t.seq!==seq||acted)return;acted=true;t.spoken=true;callbacks.onTourFrame?.(f,t.kind,true);schedulePosition();
    t.hold=setTimeout(()=>{if(tour===t&&t.seq===seq){t.timeUp=true;advanceWhenReady();}},2800);};
-  if(narrator.enabled)narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,finish);else t.quiet=setTimeout(finish,Math.max(2400,f.duration*.6));
+  if(narrator.enabled)narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,ok=>{if(ok!==false)finish();});else t.quiet=setTimeout(finish,Math.max(2400,f.duration*.6));
  }
  function paintTour(apply=false){
   if(!tour||!machine)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index];
@@ -138,16 +155,16 @@ export function mountGuidance(container){
  toolbar.addEventListener('click',e=>{e.stopPropagation();click(e);});container.addEventListener('click',click);
  toolbar.querySelector('select').addEventListener('change',event=>{language=event.target.value;narrator.setLanguage(language);try{localStorage.setItem('efs-guide-language',language);}catch{}document.dispatchEvent(new CustomEvent('efs-guide-language',{detail:{language}}));if(tour){paintTour();const f=guideFrames(tour.kind,machine,language,callbacks.maintenance)[tour.index];say(f);}sync();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&tour){e.preventDefault();closeTour();}});
- document.addEventListener('pointerdown',e=>{if(tour&&!card.contains(e.target)&&!toolbar.contains(e.target))pauseTour(true);},{capture:true});
+ document.addEventListener('pointerdown',e=>{if(tour&&!card.contains(e.target)&&!toolbar.contains(e.target)){if(narrator.blocked||narrator.pending)return;pauseTour(true);}},{capture:true});
  const partButton=target=>target.closest('[data-part],[data-hl-part],[data-soft-part]');
  document.addEventListener('pointerover',e=>{const b=partButton(e.target);if(b&&!b.contains(e.relatedTarget))hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});document.addEventListener('pointerout',e=>{const b=partButton(e.target);if(b&&!b.contains(e.relatedTarget))hover(null);});
  document.addEventListener('focusin',e=>{const b=partButton(e.target);if(b)hover(b.dataset.part||b.dataset.hlPart||b.dataset.softPart);});document.addEventListener('focusout',e=>{if(partButton(e.target))hover(null);});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){pauseTour();narrator.stop();}else if(tour?.waitingForVisibility){tour.waitingForVisibility=false;tour.playing=!reduced.matches;paintTour(true);}});addEventListener('resize',schedulePosition);addEventListener('scroll',schedulePosition,{passive:true,capture:true});
  reduced.addEventListener('change',()=>{if(reduced.matches){autoRotate=false;pauseTour();overlay.classList.add('tour-reduced');sync();}});
  // The first click, tap or key press anywhere warms the voice up, so pointing at a part right after a reload is named at once.
- const warm=()=>{narrator.warmUp();if(narrator.enabled){for(const type of ['pointerdown','keydown','touchstart'])removeEventListener(type,warm,true);}};
- for(const type of ['pointerdown','keydown','touchstart'])addEventListener(type,warm,{capture:true,passive:true});
+ const warm=()=>{narrator.warmUp();if(narrator.pending){voiceHint.hidden=true;narrator.retryBlocked();}};
+ for(const type of ['pointerdown','pointerup','click','keydown','touchend'])addEventListener(type,warm,{capture:true,passive:true});
  // Spoken checklist steps never talk over the guide: while a guide is open, its card is the only voice.
- function speakStep(text,key){if(tour)return false;return narrator.speak(text,key);}
+ function speakStep(text,key,onDone){if(tour)return false;return narrator.speak(text,key,null,onDone);}
  return {hover,sayPart,speakStep,notify,clearNotice,narrator,get language(){return language;},get autoRotate(){return autoRotate&&!tour;},get focused(){return focused;},setAutoRotate(value){autoRotate=Boolean(value)&&!reduced.matches;sync();},setFocused(value){focused=Boolean(value);sync();},startGuide,updateMachine(next){machine=next;if(!tour)narrator.stop();else paintTour();},setOptions(options){closeTour(false);callbacks=options;clearNotice();sync();},setMachine(next,options={}){closeTour(false);machine=next;callbacks=options;focused=Boolean(options.focused);toolbar.hidden=!next;clearNotice();const generation=++machineGen;if(!next){container.prepend(toolbar);return;}(options.toolbarHost||container).append(toolbar);sync();if(options.autoGuide!==false&&!options.maintenance)Promise.resolve(options.ready).then(()=>{if(generation===machineGen)entryTimer=setTimeout(()=>startGuide('guide'),160);});}};
 }

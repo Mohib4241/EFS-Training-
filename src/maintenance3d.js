@@ -10,7 +10,7 @@ import {createStage} from './sim3d/stage.js';
 import {getLook} from './look/look.js';
 import {createHandRig,handMaterial} from './sim3d/hand-rig.js';
 import {placeAtContact,orientationForBlend,handOrientation} from './sim3d/hand-placement.js';
-import {buildDemo,sampleDemo,cameraAt,scripts} from './sim3d/demo.js';
+import {buildDemo,sampleDemo,cameraAt,frameAt,scripts} from './sim3d/demo.js';
 import {createInteraction} from './sim3d/interaction.js';
 import {createHandTracker,CAMERA_MESSAGES} from './sim3d/hand-tracking.js';
 import {distanceAdvice,TARGET_DISTANCE,GOOD_BAND} from './sim3d/tracking-math.js';
@@ -85,6 +85,16 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   zoneDepth:zone=>{const box=S.task.ZONES[zone];return box?(box.min[2]+box.max[2])/2:0;},
   hold:(part,anchor)=>S.stage.hold(part,anchor)
  };
+ // What is being read out now. The demonstration slows down to the length of the speech and waits for it to finish
+ // before the next frame, so no step is cut off. A deadline keeps it moving if a browser never reports the end of speech.
+ const voice={key:'',done:true,need:0,until:0};
+ const speechMs=text=>600+String(text).split(/\s+/).length*(language==='hinglish'?470:400);
+ const voiceBusy=()=>!voice.done&&performance.now()<voice.until;
+ function say(text,key){
+  voice.key=key;voice.done=false;voice.need=speechMs(text);voice.until=performance.now()+voice.need*1.6+4000;
+  const spoken=onSay(text,key,()=>{if(voice.key===key){voice.done=true;pump.invalidate();}});
+  if(!spoken&&voice.key===key){voice.done=true;voice.need=0;}
+ }
  const practice=()=>entry(S.kind).state;
  function commit(state){entry(S.kind).state=state;}
  function dispatch(action){
@@ -113,7 +123,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   S.interaction=createInteraction({rules:task.rules,world,getState:practice,dispatch,onHint:message=>toast(message),onEvent:()=>pump.invalidate()});
   S.gestures=task.gestures?.({world,getState:practice,dispatch,onHint:message=>toast(message)})??null;
   if(width&&height)stage.resize(width,height);
-  shownState=null;hudKey='';choiceKey='';heldByDemo=null;demoTime=0;playing=false;frameAdjust=false;
+  shownState=null;hudKey='';said='';choiceKey='';heldByDemo=null;demoTime=0;playing=false;frameAdjust=false;
   stage.setPlaces(task.places(practice()),{instant:true});stage.setFocus(WIDE,{instant:true});sceneView.apply?.(practice(),{instant:true});
   renderTabs();$('sources').innerHTML=task.sources;
   if(view!=='ready'){if(entry(kind).watched)beginPractice();else beginDemo();}else renderHud();
@@ -143,9 +153,10 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   $('count').textContent=done?'Complete':view==='ready'?'3D maintenance':`${inDemo?'Watch · ':''}Step ${Math.min(stepIndex+1,steps.length)} of ${steps.length}${S.task.cadence?' · '+S.task.cadence(language):''}`;
   const [title,body]=inDemo?[hi?(frame.titleHi||frame.title):frame.title,hi?(frame.captionHi||frame.caption):frame.caption]:S.task.instructions(state,language);
   // The voice reads the checklist: each step by name while the demonstration plays, and what to do now during practice.
-  const sayKey=[S.kind,view,stepIndex,done].join('|');
-  if(sayKey!==said&&view!=='ready'){said=sayKey;const n=Math.min(stepIndex+1,steps.length),label=steps[Math.max(0,Math.min(stepIndex,steps.length-1))]?.label||'';
-   onSay(done?`${title}. ${body}`:inDemo?`Step ${n}. ${label}.`:`${hi?'Ab aap karo':'Now you do it'}. Step ${n}. ${label}. ${body}`,sayKey);}
+  // While the demonstration plays, each frame is read out in full (its title and its caption); the picture waits for the voice.
+  const sayKey=[machineId,S.kind,view,inDemo?'f'+frameIndex:stepIndex,done].join('|');
+  if(sayKey!==said&&view!=='ready'){said=sayKey;const n=Math.min(stepIndex+1,steps.length),label=steps[Math.max(0,Math.min(stepIndex,steps.length-1))]?.label||'',opening=inDemo&&steps[stepIndex]?.frames[0]===frame;
+   say(done?`${title}. ${body}`:inDemo?`${opening?`Step ${n}. `:''}${title}. ${body}`:`${hi?'Ab aap karo':'Now you do it'}. Step ${n}. ${label}. ${body}`,sayKey);}
   $('title').textContent=done?(hi?'Ho gaya':'All done'):title;$('body').textContent=done?(hi?'Dobara try karne ke liye Reset karo, ya demonstration phir dekho.':'Reset to try again, or watch how once more.'):body;
   const part=!inDemo&&!done&&view==='practice'?S.task.rules.targetPart(state):null,zone=part?S.task.rules.targetZone(state):null;
   $('use').hidden=!part;if(part)$('use').textContent=`Use ${S.task.rules.label(part)}${zone?' → '+S.task.rules.zoneLabel(zone):''}`;
@@ -272,7 +283,11 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
  function hideRigs(){for(const rig of Object.values(rigs))rig.object.visible=false;}
  function placeSample(h){const rig=rigs[h.side],blend=h.pose,orientation=h.orient?handOrientation(h.side,h.orient,q):orientationForBlend(h.side,blend,q);placeAtContact(rig,{blend,target:h.target,orientation});rig.object.visible=true;}
  function drawDemo(wall){
-  if(playing){setDemoTime(demoTime+wall*1000*speed);if(demoTime>=S.demo.duration-1){playing=false;setDemoTime(S.demo.duration-1);}}
+  if(playing){
+   const frame=S.demo.steps[frameAt(S.demo,demoTime)];let ahead=wall*1000*speed;
+   if(voiceBusy()&&voice.need>0)ahead*=Math.max(0.25,Math.min(1,frame.duration/voice.need));
+   let next=demoTime+ahead;if(voiceBusy())next=Math.max(demoTime,Math.min(next,frame.end-2));
+   setDemoTime(next);if(demoTime>=S.demo.duration-1){playing=false;setDemoTime(S.demo.duration-1);}}
   const sample=sampleDemo(S.demo,demoTime),cam=cameraAt(S.demo,demoTime,S.task.focusFor);
   S.stage.setFocusBlend(focusOf(cam.from),focusOf(cam.to),reduced?1:cam.k);
   const state=reduced&&frameAdjust?sample.step.frame.to:sample.state;

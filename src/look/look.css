@@ -521,3 +521,24 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
 .startup-panel .scrubber-functions p{font-size:10.5px!important;color:var(--lk-muted)!important;margin:6px 0 0!important}
 .startup-panel .hl-view-controls{margin:0;padding:8px 13px 12px;border:0;box-shadow:none;background:transparent;display:block}
 .startup-panel .hl-view-controls button{width:100%;font-size:12px}
+
+/* ---- Machine and maintenance pages use the whole screen ----
+   No breadcrumb bar, title block or footer: the machine fills the page and everything else sits on it in panels. */
+body:is([data-view=equipment],[data-view=soft-checklist]) .app>header{background:transparent;border:0;padding:0;min-height:0;height:0;overflow:visible;box-shadow:none}
+body:is([data-view=equipment],[data-view=soft-checklist]) .app>header :is(.breadcrumb,.version){display:none}
+body:is([data-view=equipment],[data-view=soft-checklist]) :is(.app-footer,.module-footer){display:none}
+body:is([data-view=equipment],[data-view=soft-checklist]) main{padding:8px 12px 0}
+@media(min-width:1051px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{display:none}}
+@media(max-width:1050px){body:is([data-view=equipment],[data-view=soft-checklist]) #menu{position:fixed;left:10px;top:8px;z-index:60}body:is([data-view=equipment],[data-view=soft-checklist]) main{padding-top:52px}}
+/* machine pages: only the guide controls stay above the machine */
+body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading{margin:0 0 6px;padding:0;min-height:0;display:flex;justify-content:flex-end;gap:0}
+body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading>div:first-child,body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading .module-badge{display:none}
+body[data-view=equipment] #module .look-stage,body[data-view=equipment] #scrubber-lab .look-stage{--lk-stage-h:calc(100dvh - 64px)}
+body[data-view=equipment] .hl-viewport.look-stage{--lk-stage-h:clamp(540px,calc(100dvh - 190px),1100px)}
+/* maintenance: a compact top line, and the 3D stage as tall as the screen allows */
+body[data-view=soft-checklist] .maintenance-bar{margin:0 0 6px;gap:12px}
+body[data-view=soft-checklist] .maintenance-bar .eyebrow{display:none}
+body[data-view=soft-checklist] .maintenance-bar h2{margin:0;font-size:17px}
+@media(min-width:769px){body[data-view=soft-checklist] .s3-stage{height:clamp(380px,calc(100dvh - 262px),1100px)}}
+/* the voice is held back by the browser until one tap or key press */
+.tour-voice{margin:8px 0 0;padding:6px 10px;border-radius:8px;background:var(--lk-accent-soft,#e3f4f5);color:var(--lk-accent,#0a8f9c);font:600 12px var(--font-body,inherit)}

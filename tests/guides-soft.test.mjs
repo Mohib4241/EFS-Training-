@@ -143,12 +143,30 @@ test('the voice is on by default in English, and stays off only if the learner t
  assert.equal(narrator.enabled,true);assert.equal(narrator.language,'english','the voice language starts as English');
 });
 
-test('a browser that refuses speech before any click or key press is told so, and the guide carries on',()=>{
- const statuses=[];let spoken;const synth={cancel(){},speak(u){spoken=u;},getVoices(){return [{name:'Daniel',lang:'en-GB',localService:true}];}};
- const narrator=createNarrator({synth,Utterance:class{constructor(text){this.text=text;}},onStatus:v=>statuses.push(v)});narrator.setEnabled(true);
- let done=0;narrator.speak('Meet your machine.','guide',null,()=>done++);spoken.onerror({error:'not-allowed'});
- assert.equal(narrator.blocked,true);assert.equal(done,1,'the visual guide is not held up');assert.match(statuses.at(-1),/Click or press a key/);assert.equal(narrator.enabled,true,'sound stays on');
- narrator.speak('Again.','guide');spoken.onstart();assert.equal(narrator.blocked,false,'speech working again clears the notice');
+test('a browser that refuses speech before any click or key press holds the words back and says them after the first click',()=>{
+ const statuses=[],blockedEvents=[];let spoken;const synth={cancel(){},speak(u){spoken=u;},getVoices(){return [{name:'Daniel',lang:'en-GB',localService:true}];}};
+ const narrator=createNarrator({synth,Utterance:class{constructor(text){this.text=text;}},onStatus:v=>statuses.push(v),onBlocked:v=>blockedEvents.push(v)});narrator.setEnabled(true);
+ const done=[];narrator.speak('Meet your machine.','guide',null,ok=>done.push(ok));spoken.onerror({error:'not-allowed'});
+ assert.equal(narrator.blocked,true);assert.equal(narrator.pending,true,'the words are kept');assert.deepEqual(done,[],'nothing is reported as finished while the voice is held back');assert.match(statuses.at(-1),/Click or press a key/);assert.equal(narrator.enabled,true,'sound stays on');assert.deepEqual(blockedEvents,[true]);
+ // the first click or key press: the same words are spoken, not lost
+ assert.equal(narrator.retryBlocked(),true);assert.equal(spoken.text,'Meet your machine.');spoken.onstart();assert.equal(narrator.blocked,false,'speech working again clears the notice');assert.deepEqual(blockedEvents,[true,false]);
+ spoken.onend();assert.deepEqual(done,[true],'finished once it has all been said');
+});
+
+test('speech cut off by newer speech reports false, and a finished one reports true',()=>{
+ const calls=[];const n=createNarrator({synth:{cancel(){},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}}});n.setEnabled(true);
+ const first=[],second=[];n.speak('First sentence.','a',null,ok=>first.push(ok));n.speak('Second sentence.','b',null,ok=>second.push(ok));
+ assert.deepEqual(first,[false],'the first was interrupted');calls[1].onend();assert.deepEqual(second,[true]);
+ const third=[];n.speak('Third.','c',null,ok=>third.push(ok));n.stop();assert.deepEqual(third,[false],'stopping reports it was not finished');
+});
+
+test('a request made right after a cancel waits a moment, and a swallowed request is asked once more',()=>{
+ const pending=new Map(),watchdogs=[];let next=0;const calls=[];let cancels=0;let busy=false;
+ const n=createNarrator({synth:{cancel(){cancels++;},get speaking(){return busy;},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}},delay:fn=>{pending.set(++next,fn);return next;},clearDelay:id=>pending.delete(id),watchDelay:fn=>{watchdogs.push(fn);return watchdogs.length;},watchClear:()=>{}});
+ n.setEnabled(true);busy=true;n.speak('After a switch.','k');assert.equal(calls.length,0,'waits while the browser is still tidying up');
+ [...pending.values()][0]();assert.equal(calls.length,1);
+ // nothing starts: the watchdog cancels and asks again, once
+ busy=false;watchdogs.at(-1)();assert.equal(calls.length,2,'asked once more');assert.equal(calls[1].text,'After a switch.');
 });
 
 test('a part name is never cut off by moving away, and a name not yet started is dropped cleanly',()=>{
@@ -172,6 +190,6 @@ test('the voice is ready fast after a reload, and checklist steps never talk ove
  const n=createNarrator({synth,Utterance:class{constructor(t){this.text=t;}}});assert.ok(asked>=1,'voices requested up front');
  n.setEnabled(true);n.warmUp();n.warmUp();assert.equal(spoken.length,1,'one warm-up only');assert.equal(spoken[0].volume,0,'the warm-up is silent');
  const src=readFileSync(new URL('../src/guidance.js',import.meta.url),'utf8');
- assert.match(src,/function speakStep\(text,key\)\{if\(tour\)return false;/,'checklist steps wait while a guide is open');
- assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/onSay:\(text,key\)=>guidance\.speakStep\(text,key\)/);
+ assert.match(src,/function speakStep\(text,key,onDone\)\{if\(tour\)return false;/,'checklist steps wait while a guide is open');
+ assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/onSay:\(text,key,done\)=>guidance\.speakStep\(text,key,done\)/);
 });

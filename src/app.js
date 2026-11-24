@@ -52,7 +52,7 @@ function enterMaintenance(token){
   if(!module||maintenance)return;
   try{
    container.replaceChildren();viewNotice();
-   maintenance=module.mountMaintenance3D(container,{machine:machine.id,getLanguage:()=>guidance.language,onProgress:guidance.clearNotice,onSay:(text,key)=>guidance.speakStep(text,key),onUnavailable:()=>{maintenance?.destroy();maintenance=null;writtenSteps(container,navToken,'The 3D view lost its graphics context, so the written steps are shown instead. Reload the page to try 3D again.');}});
+   maintenance=module.mountMaintenance3D(container,{machine:machine.id,getLanguage:()=>guidance.language,onProgress:guidance.clearNotice,onSay:(text,key,done)=>guidance.speakStep(text,key,done),onUnavailable:()=>{maintenance?.destroy();maintenance=null;writtenSteps(container,navToken,'The 3D view lost its graphics context, so the written steps are shown instead. Reload the page to try 3D again.');}});
   }catch(error){console.warn('3D maintenance unavailable:',error.message);maintenance=null;writtenSteps(container,token,'3D could not start on this device, so the written steps are shown instead.');}
  });
 }
