@@ -561,3 +561,13 @@ body[data-view=soft-checklist] .equipment-heading .equipment-toolbar{margin-left
 }
 
 @media(max-width:1050px){body[data-view=soft-checklist] .equipment-heading{flex-wrap:wrap}body[data-view=soft-checklist] .equipment-heading>.maintenance-bar{flex:1 1 150px}}
+
+/* ---- Machine and maintenance pages have no sidebar: the small EFS Centre of Excellence logo (top left) is part of the page and leads home ---- */
+.eq-logo{display:none}
+body:is([data-view=equipment],[data-view=soft-checklist]) :is(.sidebar,#nav-backdrop,#menu){display:none!important}
+body:is([data-view=equipment],[data-view=soft-checklist]) .app{margin-left:0!important}
+body:is([data-view=equipment],[data-view=soft-checklist]) .eq-logo{display:block;position:fixed;left:12px;top:10px;z-index:60;width:66px;padding:5px 7px;background:var(--lk-panel,#fff);border:1px solid var(--lk-line);border-radius:10px;box-shadow:var(--lk-shadow);-webkit-backdrop-filter:var(--lk-blur);backdrop-filter:var(--lk-blur)}
+body:is([data-view=equipment],[data-view=soft-checklist]) .eq-logo img{display:block;width:100%;height:auto}
+body:is([data-view=equipment],[data-view=soft-checklist]) .eq-logo:focus-visible{outline:2px solid var(--lk-accent);outline-offset:2px}
+body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading,body[data-view=equipment] .hl-heading{padding-left:84px!important}
+@media(max-width:480px){body:is([data-view=equipment],[data-view=soft-checklist]) .eq-logo{width:56px;left:8px;top:8px}body:is([data-view=equipment],[data-view=soft-checklist]) .equipment-heading,body[data-view=equipment] .hl-heading{padding-left:72px!important}}

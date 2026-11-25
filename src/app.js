@@ -9,6 +9,7 @@ import {revealOpening,runView} from './look/motion.js';
 import {layerOf} from './look/layers.js';
 import {faultsFor} from './look/faults.js';
 import {handHandle,stopHands} from './look/hand-lazy.js';
+import {encodeRoute,decodeRoute} from './route-cipher.js';
 initLook();
 // Registering a (do-nothing) service worker is what lets the browser offer "Install app".
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -201,7 +202,8 @@ function hardNames(container,inspection=false){container.replaceChildren();const
   else{button.textContent='Open equipment lab →';button.addEventListener('click',()=>showPage('hardlab',[m.id,'explore']));card.append(button);}
   grid.append(card);}container.append(grid);}
 const pageHashes={home:'home','soft-checklist':'maintenance',catalogue:'hard-services','hard-checklist':'hard-maintenance'};
-function readRoute(){const [prefix,id,view,list]=location.hash.slice(1).split('/');if(Object.hasOwn(vacuumModules,prefix))return {page:id==='maintenance'?'soft-checklist':'module',path:[prefix]};if(prefix==='maintenance'&&id==='hyper-2000b')return {page:'scrubber',path:['maintenance']};if(prefix==='equipment'&&Object.hasOwn(hardModules,id))return {page:'hardlab',path:[id,view,list?String(Number(list)-1):undefined]};if(prefix==='hyper-2000b')return {page:'scrubber',path:[id||'explore']};return {page:Object.keys(pageHashes).find(p=>pageHashes[p]===prefix)||'home',path:id?[id]:[]};}
+// The address after # is scrambled (route-cipher.js). An old, readable address still opens the right page and is then scrambled.
+function readRoute(){const raw=location.hash.slice(1),[prefix,id,view,list]=(decodeRoute(raw)??raw).split('/');if(Object.hasOwn(vacuumModules,prefix))return {page:id==='maintenance'?'soft-checklist':'module',path:[prefix]};if(prefix==='maintenance'&&id==='hyper-2000b')return {page:'scrubber',path:['maintenance']};if(prefix==='equipment'&&Object.hasOwn(hardModules,id))return {page:'hardlab',path:[id,view,list?String(Number(list)-1):undefined]};if(prefix==='hyper-2000b')return {page:'scrubber',path:[id||'explore']};return {page:Object.keys(pageHashes).find(p=>pageHashes[p]===prefix)||'home',path:id?[id]:[]};}
 function setCollapsed(collapsed){document.body.classList.toggle('nav-collapsed',collapsed);$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');}
 function showPage(next,path=[],historyMode='push'){
  page=next;const token=++navToken;
@@ -241,10 +243,10 @@ function showPage(next,path=[],historyMode='push'){
  document.body.dataset.view=['module','hardlab','scrubber'].includes(next)?'equipment':next;
  if(document.body.dataset.view!=='equipment')stopHands();
  document.title=title==='EFS Learning Academy'?title:`${title} · EFS Learning Academy`;
- if(historyMode!=='none')history[historyMode==='replace'?'replaceState':'pushState']({page:next,path},'',`#${hash}`);
+ if(historyMode!=='none')history[historyMode==='replace'?'replaceState':'pushState']({page:next,path},'',`#${encodeRoute(hash)}`);
  closeMenu();window.scrollTo({top:0,behavior:'instant'});render();
 }
-for(const b of document.querySelectorAll('[data-vacuum]'))b.addEventListener('click',()=>showPage('module',[b.dataset.vacuum]));document.querySelector('.brand').addEventListener('click',e=>{e.preventDefault();showPage('home');});
+for(const b of document.querySelectorAll('[data-vacuum]'))b.addEventListener('click',()=>showPage('module',[b.dataset.vacuum]));for(const logo of document.querySelectorAll('.brand,.eq-logo'))logo.addEventListener('click',e=>{e.preventDefault();showPage('home');});
 for(const b of document.querySelectorAll('[data-page]'))b.addEventListener('click',()=>showPage(b.dataset.page));
 for(const id of ['home-maintenance','home-practice'])$(id).addEventListener('click',()=>showPage('soft-checklist'));
 $('machine-view').addEventListener('click',()=>showPage('module',[machine.id]));
@@ -252,7 +254,7 @@ for(const id of ['home-machine','home-lab'])$(id).addEventListener('click',()=>s
 for(const b of document.querySelectorAll('[data-home-hard]'))b.addEventListener('click',()=>showPage('hardlab',[b.dataset.homeHard,'explore']));
 for(const b of document.querySelectorAll('[data-soft-entry]'))b.addEventListener('click',()=>b.dataset.softEntry==='hyper-2000b'?showPage('scrubber'):showPage('module',[b.dataset.softEntry]));
 $('home-cleaning').addEventListener('click',()=>{showPage('module',['junior-103']);document.querySelector('#module .cleaning-practice').open=true;$('startup-panel').open=true;withViewer(ready=>ready.cameraAction('floor'));$('operation-message').textContent='Connect the plug and switch on: the floor tool then sweeps and picks up the virtual dust.';});
-window.addEventListener('popstate',()=>{const route=readRoute();showPage(route.page,route.path,'none');});
+window.addEventListener('popstate',()=>{const route=readRoute();showPage(route.page,route.path,decodeRoute(location.hash.slice(1))===null?'replace':'none');});
 for(const check of operatorChecks){const label=document.createElement('label');label.className='check-row';const input=document.createElement('input');input.type='checkbox';input.id=`check-${check.id}`;const text=document.createElement('span');const title=document.createElement('strong');title.textContent=check.name;const desc=document.createElement('small');desc.textContent=check.text;text.append(title,desc);label.append(input,text);$('operator-checks').append(label);input.addEventListener('change',()=>updateChecks(input));}
 function updateChecks(changed){const inputs=[...document.querySelectorAll('#operator-checks input')],index=inputs.indexOf(changed);if(index>=0){if(changed.checked){const previous=inputs.slice(0,index).findIndex(input=>!input.checked);if(previous>=0){changed.checked=false;guidance.notify('See the checklist: '+operatorChecks[previous].name+' comes first.');}else guidance.clearNotice();}else{for(const input of inputs.slice(index+1))input.checked=false;guidance.clearNotice();}}$('check-progress').textContent=`${document.querySelectorAll('#operator-checks input:checked').length} / ${operatorChecks.length} checked`;}
 $('clear-checks').addEventListener('click',()=>{for(const input of document.querySelectorAll('#operator-checks input'))input.checked=false;updateChecks();});
