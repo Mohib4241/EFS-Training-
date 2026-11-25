@@ -247,3 +247,11 @@ test('the checklist stays quiet while its page is away and speaks the current st
  assert.match(src,/resume\(\)\{if\(!S\)return;suspended=false;said='';hudKey='';/);
  assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/maintenance\.setMachine\(machine\.id\);maintenance\.resume\(\)/,'re-entering the checklist resumes it');
 });
+
+test('on a tall phone screen the vacuum is framed smaller and above the step panels, and the panels stay short',()=>{
+ const viewer=readFileSync(new URL('../src/viewer.js',import.meta.url),'utf8'),css=readFileSync(new URL('../src/look/look.css',import.meta.url),'utf8');
+ assert.match(viewer,/camera\.aspect<0\.8\)camera\.setViewOffset\(/,'the machine is lifted into the upper part of the screen');
+ assert.match(viewer,/clamp\(0\.95\/camera\.aspect,1\.22,2\.4\)/,'and pulled back so it fits the width');
+ assert.match(viewer,/!userMoved&&Math\.abs\(camera\.aspect-framedAspect\)>0\.08/,'it is framed again when the screen changes shape');
+ assert.match(css,/\.lk-simple \.lk-slot\{max-height:46%;overflow:auto\}/,'an open panel never takes more than under half of the screen');
+});

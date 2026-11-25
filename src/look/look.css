@@ -500,7 +500,7 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
  .hl-heading{flex-wrap:wrap;gap:10px}.hl-equipment-select{width:100%}.hl-equipment-select select{width:100%}
  .equipment-toolbar,.hl-heading .equipment-toolbar{flex-wrap:wrap}
  .lk-step{min-height:46px}
- .lk-simple .lk-slot{max-height:60%;overflow:auto}
+ .lk-simple .lk-slot{max-height:46%;overflow:auto}
  .lk-simple .lk-slot>.startup-panel[open]>.operation,.lk-simple .lk-slot>.startup-panel[open]>.hl-power{padding:10px}
  #part-tooltip,.hl-tooltip{max-width:min(240px,calc(100vw - 40px))!important}
  .look-stage .startup-panel button{min-height:44px}
