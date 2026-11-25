@@ -221,3 +221,15 @@ test('a guide card with a recording plays it, and the browser voice is only the 
  b.speak('Hello','k',null,ok=>d2.push(ok),'/static/audio/b.mp3');await Promise.resolve();await Promise.resolve();
  assert.equal(b.blocked,true);assert.equal(b.pending,true);assert.deepEqual(d2,[]);refuse=false;b.retryBlocked();assert.equal(plays.length,2);await Promise.resolve();audio.onplaying();assert.equal(b.blocked,false);audio.onended();assert.deepEqual(d2,[true]);
 });
+
+test('leaving a page silences the guide at once and checks again, without cutting off newer speech',()=>{
+ const later=[];let cancels=0,pauses=0;const calls=[];
+ class Player{play(){return Promise.resolve();}pause(){pauses++;}}
+ const n=createNarrator({synth:{cancel(){cancels++;},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}},AudioPlayer:Player,watchDelay:fn=>{later.push(fn);return later.length;},watchClear:()=>{}});
+ n.setEnabled(true);n.speak('Guide words','k',null,null,'/static/audio/a.mp3');
+ const done=[];n.speak('More words','k2',null,ok=>done.push(ok),'/static/audio/b.mp3');
+ cancels=0;pauses=0;later.length=0;n.silence();assert.ok(cancels>=1&&pauses>=1,'stopped at once');assert.deepEqual(done,[false]);
+ assert.equal(later.length,3,'three later checks');const before=cancels;later.forEach(fn=>fn());assert.equal(cancels,before+3,'each check cancels again');
+ // something new starts speaking after leaving: the later checks leave it alone
+ later.length=0;n.silence();n.speak('Next page words','k3',null,null);const c=cancels;later.slice(0,3).forEach(fn=>fn());assert.equal(cancels,c,'new speech is not cut off');
+});

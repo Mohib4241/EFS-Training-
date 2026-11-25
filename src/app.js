@@ -205,6 +205,7 @@ function readRoute(){const [prefix,id,view,list]=location.hash.slice(1).split('/
 function setCollapsed(collapsed){document.body.classList.toggle('nav-collapsed',collapsed);$('collapse').setAttribute('aria-expanded',String(!collapsed));$('collapse').setAttribute('aria-label',collapsed?'Expand navigation':'Collapse navigation');}
 function showPage(next,path=[],historyMode='push'){
  page=next;const token=++navToken;
+ guidance.setMachine(null);   // first of all: whatever the guide was saying stops the moment the page is left
  if(next!=='hardlab')hardLab?.release();if(next!=='scrubber')scrubber?.release();if(next!=='soft-checklist')maintenance?.pause();
  viewer?.clearHover();if(next!=='module'){state.connected=false;state.running=false;state.stroke=false;}viewer?.setActive(next==='module');
  if(next!=='module'&&viewer){viewer.destroy();viewer=null;viewerReady=undefined;}
