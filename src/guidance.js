@@ -1,4 +1,5 @@
 import {GUIDE_LANGUAGES,guideFrames,moveGuide,partNameSpeech} from './guide-content.js';
+import {findClip} from './guide-audio.js';
 // Speech is sent in short pieces, split at sentence ends (then commas, then words): Chromium can stop a long utterance
 // part-way (around 15 seconds), and a sentence boundary is a natural place to pause.
 const CHUNK=180;
@@ -23,12 +24,12 @@ export function voiceForLanguage(voices,language){
 }
 // Sound is on by default (English); a learner who turns it off stays off. Pure, so it can be tested.
 export const soundPreference=storage=>{try{return storage?.getItem('efs-guide-sound')!=='off';}catch{return true;}};
-export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},onBlocked=()=>{},delay=setTimeout,clearDelay=clearTimeout,watchDelay=(fn,ms)=>{const id=setTimeout(fn,ms);id?.unref?.();return id;},watchClear=clearTimeout}={}){
- const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,watch=null,lastKey=null,current=null,voicesSettled=false,activeDone=null,pending=null,cancelledAt=-1e9,dropVoiceWait=()=>{};
+export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globalThis.SpeechSynthesisUtterance,onStatus=()=>{},onBlocked=()=>{},delay=setTimeout,clearDelay=clearTimeout,AudioPlayer=globalThis.Audio,watchDelay=(fn,ms)=>{const id=setTimeout(fn,ms);id?.unref?.();return id;},watchClear=clearTimeout}={}){
+ const supported=Boolean(synth&&Utterance);let enabled=false,blocked=false,language='english',token=0,timer=null,watch=null,lastKey=null,current=null,voicesSettled=false,activeDone=null,pending=null,cancelledAt=-1e9,player=null,dropVoiceWait=()=>{};
  const now=()=>Date.now();
  const setBlocked=value=>{if(blocked!==value){blocked=value;onBlocked(value);}};
  // done(true) = the whole text was spoken (or could not be); done(false) = it was cut off by newer speech, stop() or a sound-off.
- function stop(){token++;dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;if(watch!==null)watchClear(watch);watch=null;current=null;if(supported){const busy=Boolean(synth.speaking||synth.pending);synth.cancel();if(busy)cancelledAt=now();}const a=activeDone,p=pending;activeDone=null;pending=null;a?.(false);p?.onDone(false);}
+ function stop(){token++;if(player){player.onended=player.onerror=player.onplaying=null;try{player.pause();}catch{}}dropVoiceWait();if(timer!==null)clearDelay(timer);timer=null;if(watch!==null)watchClear(watch);watch=null;current=null;if(supported){const busy=Boolean(synth.speaking||synth.pending);synth.cancel();if(busy)cancelledAt=now();}const a=activeDone,p=pending;activeDone=null;pending=null;a?.(false);p?.onDone(false);}
  // Chromium fills the voice list asynchronously. Wait briefly for it once; after that, never delay speech again.
  // Asking for the list once makes Chromium start loading it now, so it is usually ready before the first word.
  if(supported){try{synth.getVoices?.();}catch{}}
@@ -38,7 +39,8 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
   dropVoiceWait=()=>{synth.removeEventListener('voiceschanged',finish);if(timer!==null){clearDelay(timer);timer=null;}dropVoiceWait=()=>{};};
   synth.addEventListener('voiceschanged',finish);timer=delay(()=>{timer=null;finish();},400);
  }
- function speak(text,key='guide',spokenHi=null,onDone=null){
+ // clip: the address of a recording of exactly these words; it is played instead of the browser voice, which reads them only if the recording cannot be played.
+ function speak(text,key='guide',spokenHi=null,onDone=null,clip=null){
   const explicit=typeof onDone==='function',callback=explicit?onDone:()=>{};
   if(!enabled||!supported){callback(true);return false;}stop();lastKey=key;const run=token;let index=0,voice=null,chunks=[];
   const finish=ok=>{if(activeDone===callback)activeDone=null;callback(ok);};if(explicit)activeDone=callback;
@@ -57,11 +59,26 @@ export function createNarrator({synth=globalThis.speechSynthesis,Utterance=globa
   }
   function next(){if(run!==token||!enabled)return;if(index===chunks.length){current=null;if(watch!==null)watchClear(watch);watch=null;onStatus('Ready · hover a part to hear its name.');finish(true);return;}utter(chunks[index++],0);}
   // right after a cancel the browser is still tidying up: starting at once can lose the first words, so give it a moment
-  const go=()=>withVoices(run,begin),since=now()-cancelledAt;if(synth.speaking||synth.pending||since<250){timer=delay(()=>{timer=null;if(run===token)go();},150);}else go();
+  const go=()=>withVoices(run,begin),since=now()-cancelledAt,startVoice=()=>{if(synth.speaking||synth.pending||since<250){timer=delay(()=>{timer=null;if(run===token)go();},150);}else go();};
+  if(clip&&AudioPlayer){
+   const audio=player??=new AudioPlayer();let began=false;
+   const unavailable=()=>{if(run!==token||began)return;began=true;if(watch!==null)watchClear(watch);watch=null;startVoice();};
+   audio.onplaying=()=>{began=true;if(watch!==null)watchClear(watch);watch=null;setBlocked(false);if(run===token)onStatus('Speaking · '+key);};
+   audio.onended=()=>{if(run!==token)return;onStatus('Ready · hover a part to hear its name.');finish(true);};
+   audio.onerror=unavailable;
+   onStatus('Preparing voice · '+key);
+   try{audio.src=clip;const played=audio.play();played?.catch?.(error=>{if(run!==token)return;
+    if(error?.name==='NotAllowedError'){activeDone=null;if(explicit)pending={text,key,spokenHi,onDone:callback,clip};setBlocked(true);onStatus('Sound is on. The voice starts as soon as the browser allows it.');return;}
+    unavailable();});}catch{unavailable();return true;}
+   // a recording that never starts (slow or broken connection) is replaced by the browser voice
+   watch=watchDelay(()=>{watch=null;unavailable();},4000);
+   return true;
+  }
+  startVoice();
   return true;
  }
  // after a click or key press the browser allows speech: say what was held back
- function retryBlocked(){if(!pending||!enabled||!supported)return false;const p=pending;pending=null;return speak(p.text,p.key,p.spokenHi,p.onDone);}
+ function retryBlocked(){if(!pending||!enabled||!supported)return false;const p=pending;pending=null;return speak(p.text,p.key,p.spokenHi,p.onDone,p.clip);}
  function hover(text,key,spokenHi=null){if(!enabled||!supported||key===lastKey)return;stop();lastKey=key;if(!key){onStatus('Ready · hover a part to hear its name.');return;}timer=delay(()=>{timer=null;speak(text,key,spokenHi);},HOVER_MS);}
  let warmed=false;
  function warmUp(){if(warmed||!enabled||!supported)return;warmed=true;try{const u=new Utterance(' ');u.volume=0;u.rate=2;synth.resume?.();synth.speak(u);}catch{}}
@@ -80,6 +97,7 @@ export function mountGuidance(container){
  const toolbar=container.querySelector('.equipment-toolbar'),overlay=container.querySelector('.guided-tour'),card=container.querySelector('.tour-card'),spotlight=container.querySelector('.tour-spotlight'),status=toolbar.querySelector('[data-guide-status]');
   const narrator=createNarrator({onStatus:text=>{status.textContent=text;}});narrator.setLanguage(language);toolbar.querySelector('select').value=language;
  try{if(soundPreference(localStorage))narrator.setEnabled(true);}catch{}
+ let clips={};try{clips=JSON.parse(document.getElementById('guide-audio')?.textContent||'{}');}catch{}
  const toast=document.createElement('div');toast.className='top-notification';toast.hidden=true;toast.setAttribute('role','alert');toast.innerHTML='<span></span><button aria-label="Dismiss notification">✕</button>';document.body.append(toast);
  function clearNotice(){clearTimeout(toastTimer);toast.hidden=true;}
  function notify(message){clearNotice();toast.querySelector('span').textContent=message;toast.hidden=false;toastTimer=setTimeout(()=>toast.hidden=true,7000);}
@@ -115,7 +133,7 @@ export function mountGuidance(container){
   if(!tour)return;const t=tour,seq=t.seq=(t.seq||0)+1;t.spoken=false;t.timeUp=false;clearTimeout(t.hold);clearTimeout(t.quiet);let acted=false;
   const finish=t.finish=()=>{if(tour!==t||t.seq!==seq||acted)return;acted=true;t.spoken=true;callbacks.onTourFrame?.(f,t.kind,true);schedulePosition();
    t.hold=setTimeout(()=>{if(tour===t&&t.seq===seq){t.timeUp=true;advanceWhenReady();}},2800);};
-  if(narrator.enabled)narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,ok=>{if(ok!==false)finish();});else t.quiet=setTimeout(finish,Math.max(2400,f.duration*.6));
+  if(narrator.enabled)narrator.speak(f.title+'. '+f.caption,f.title,f.spokenHi,ok=>{if(ok!==false)finish();},findClip(clips,language,f));else t.quiet=setTimeout(finish,Math.max(2400,f.duration*.6));
  }
  function paintTour(apply=false){
   if(!tour||!machine)return;const frames=guideFrames(tour.kind,machine,language,callbacks.maintenance),f=frames[tour.index];

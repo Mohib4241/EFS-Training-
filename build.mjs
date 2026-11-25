@@ -41,6 +41,11 @@ if(!app||!styles)throw new Error('esbuild did not emit the app and stylesheet en
 const assets={};
 for(const file of ['efs-coe-logo.png','efs-coe-mark.png','favicon.svg']){const body=await readFile(join(src,'assets',file)),ext=file.slice(file.lastIndexOf('.')),name=`${file.slice(0,-ext.length)}-${hash(body)}${ext}`;await writeFile(join(out,name),body);assets[`/assets/${file}`]=`/static/${name}`;}
 
+// The Guide's recorded voice (src/assets/audio, made by scripts/make-guide-audio.py): hashed names, listed in the page as JSON.
+const audioDir=join(src,'assets/audio'),clips={};
+await mkdir(join(out,'audio'),{recursive:true});
+for(const file of (await readdir(audioDir).catch(()=>[])).filter(name=>name.endsWith('.mp3'))){const body=await readFile(join(audioDir,file)),key=file.slice(0,-4),name=`audio/${key}-${hash(body)}.mp3`;await writeFile(join(out,name),body);clips[key]=`/static/${name}`;}
+
 // Static imports of the entry are fetched in parallel with it; dynamic imports (3D, labs) stay lazy.
 const preload=app.meta.imports.filter(i=>i.kind==='import-statement').map(i=>url(join(root,i.path)));
 let html=await readFile(join(src,'index.html'),'utf8');
@@ -48,6 +53,7 @@ function swap(from,to){if(html.split(from).length!==2)throw new Error(`index.htm
 swap('/styles.css',url(styles.file));
 swap('<script type="module" src="/app.js"></script>',`${preload.map(href=>`<link rel="modulepreload" href="${href}">`).join('')}<script type="module" src="${url(app.file)}"></script>`);
 for(const [from,to] of Object.entries(assets))html=html.split(from).join(to);
+swap('<script type="application/json" id="guide-audio">{}</script>',`<script type="application/json" id="guide-audio">${JSON.stringify(clips)}</script>`);
 await writeFile(join(dist,'index.html'),html);
 
 // Precompress once at build time so the server never compresses per request. EFS_FAST=1 (local iteration only) skips the slow maximum-quality pass on the multi-megabyte vendor files.

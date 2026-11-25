@@ -24,6 +24,15 @@ const STEPS=[['isolate','Switch off & unplug'],['inspect','Inspect three areas']
 const LABELS={...PART_LABELS,pins:'marker 1 · pins and casing',cable:'marker 2 · cable entry',heat:'marker 3 · heat mark'};
 const ZONE_LABELS={mat:'on the inspection mat'};
 const NAMES={pins:'Pins & casing',cable:'Cable entry',heat:'Heat mark'};
+const STEPS_HI=[['isolate','Switch off aur unplug karo'],['inspect','Teen areas inspect karo'],['decide','Safe response choose karo']];
+const LABELS_HI={pins:'marker 1 · pins aur casing',cable:'marker 2 · cable entry',heat:'marker 3 · heat mark'};
+const NAMES_HI={pins:'Pins aur casing',cable:'Cable entry',heat:'Heat mark'};
+const COPY_HI={
+ isolate:['Pehle switch off aur unplug karo.','Plug ko wall socket se bahar kheencho aur inspection mat par rakho. Yeh sirf external visual check hai: live testing nahi.'],
+ inspect:['Teeno marked areas inspect karo.','Har numbered marker ko touch (ya click) karo: 1 pins aur casing, 2 cable entry, 3 heat mark.'],
+ decide:['Visible concern ka clear response chahiye.','Connector par heat staining dikh rahi hai. Choose karo ki equipment ke saath ab kya hona chahiye.'],
+ done:['Fault pehchana aur report kiya.','Visible damage wale equipment ko authorised competent person ke assess karne tak use se bahar rakho. Sirf dikhne se electrical safety certify nahi hoti.']
+};
 
 const targetPart=state=>state.complete?null:state.phase==='isolate'?'plug':state.phase==='inspect'?AREAS.find(a=>!state.checks.includes(a)):null;
 const targetZone=state=>state.phase==='isolate'&&!state.complete?'mat':null;
@@ -41,21 +50,23 @@ const COPY={
 };
 export const task={
  kind:'terminals',
- title:()=>'Inspect the connector',
- steps:()=>STEPS,
+ title:(machine,language)=>language==='hinglish'?'Connector inspect karo':'Inspect the connector',
+ steps:language=>language==='hinglish'?STEPS_HI:STEPS,
  places,anchorAt,ZONES,RINGS,FOCUS,PARTS,
  // several markers can be used, in any order, during the inspection
  anyOrder:['inspect'],
  focusFor:state=>state.complete?'decide':state.phase==='isolate'?'plug':state.phase==='inspect'?'mat':'decide',
  rules:{carry:['plug'],press:AREAS,canGrab,pressAction:(state,id)=>({type:'inspect',area:id}),
   release:(state,id,ctx)=>id==='plug'&&state.phase==='isolate'&&ctx.inZone('mat')&&ctx.pulled>=UNPLUG_DISTANCE?{type:'isolate'}:null,
-  targetPart,targetZone,label:id=>LABELS[id],zoneLabel:zone=>ZONE_LABELS[zone],partDepth:id=>id==='plug'?0.05:undefined,
+  targetPart,targetZone,label:(id,language)=>language==='hinglish'&&LABELS_HI[id]||LABELS[id],zoneLabel:(zone,language)=>language==='hinglish'?'inspection mat par':ZONE_LABELS[zone],partDepth:id=>id==='plug'?0.05:undefined,
   missHint:(state,id)=>id==='plug'&&state.phase==='isolate'?'Pull the plug out and lay it on the inspection mat.':undefined},
- instructions:state=>COPY[state.complete?'done':state.phase]??COPY.isolate,
- choices:state=>state.phase==='decide'&&!state.complete?[
+ instructions:(state,language)=>{const copy=language==='hinglish'?COPY_HI:COPY;return copy[state.complete?'done':state.phase]??copy.isolate;},
+ choices:(state,language)=>state.phase==='decide'&&!state.complete?(language==='hinglish'?[
+  {id:'report',label:'Use se hatao aur report karo',hint:'Competent person assess kare tab tak use se bahar rakho',action:{type:'decide',choice:'report'},correct:true},
+  {id:'clear',label:'Koi visible concern nahi',hint:'Wapas use mein lagao',action:{type:'decide',choice:'clear'}}]:[
   {id:'report',label:'Remove from use & report',hint:'Keep it out of use until a competent person assesses it',action:{type:'decide',choice:'report'},correct:true},
-  {id:'clear',label:'No visible concern',hint:'Put it back into use',action:{type:'decide',choice:'clear'}}]:[],
- status:state=>state.phase==='isolate'?null:{chips:AREAS.map((area,i)=>({id:area,label:`${i+1} · ${NAMES[area]}`,done:state.checks.includes(area),current:state.activeCheck===area,action:state.phase==='inspect'&&!state.checks.includes(area)?{type:'inspect',area}:null}))},
+  {id:'clear',label:'No visible concern',hint:'Put it back into use',action:{type:'decide',choice:'clear'}}]):[],
+ status:(state,{language}={})=>state.phase==='isolate'?null:{chips:AREAS.map((area,i)=>({id:area,label:`${i+1} · ${(language==='hinglish'?NAMES_HI:NAMES)[area]}`,done:state.checks.includes(area),current:state.activeCheck===area,action:state.phase==='inspect'&&!state.checks.includes(area)?{type:'inspect',area}:null}))},
  sources:'<strong>External visual checks only.</strong> No live test, wiring, tightening or repair is taught. Internal terminal inspection requires an authorised person with task-appropriate competence and the correct manual. <a href="https://www.hse.gov.uk/electricity/electricequip.htm" target="_blank" rel="noopener noreferrer">HSE equipment-check guidance ↗</a>',
  build(stage,{label}){
   const {kit}=stage;

@@ -14,6 +14,22 @@ const guideSteps=[
  frame('isolate','startup','tap',['Switch off, then disconnect', 'Tap button 2 to stop it first, then button 1 to disconnect.'],['Pehle band karo, phir disconnect', 'Pehle button 2 se band karo, phir button 1 se disconnect karo.'],'पहले button 2 से बंद करो, फिर button 1 से disconnect करो।'),
  frame('next','maintenance','point',['Step 3 · Maintenance checklist','Open it to watch each maintenance step, then do it yourself. Machine view brings you back here.'],['Step 3 · Maintenance checklist','Ise kholo, har maintenance step dekho, phir khud karo. Machine view se wapas yahan aao.'],'इसे खोलो, हर maintenance step देखो, फिर खुद करो। Machine view से वापस यहाँ आओ।')
 ];
+// Recorded Hinglish: the same lines written fully in Devanagari (English words as they are said), so one Hindi voice reads them.
+const AUDIO_HI={
+ inside:'व्यू इनसाइड दबाओ। मशीन खुल जाएगी, हर पार्ट दिखेगा और मशीन घूमती रहेगी।',
+ point:'कर्सर को किसी भी पार्ट पर ले जाओ। पार्ट का नाम सुनाई देगा और उसका काम कर्सर के पास दिखेगा।',
+ outside:'वही बटन अब व्यू आउटसाइड है। इसे दबाओ, मशीन फिर से जुड़ जाएगी।',
+ connect:'स्टार्ट द मशीन खोलो और बटन एक दबाओ। बैज कनेक्टेड दिखाएगा, मशीन अभी ऑफ़ है।',
+ run:'बटन दो दबाओ, मशीन चलेगी। शेल सी-थ्रू हो जाएगा और अंदर के पार्ट्स दिखेंगे।',
+ see:'चलते वक़्त स्टेप एक सी आउटसाइड होता है। इसे दबाओ, शेल बंद होगा और मशीन चलती रहेगी।',
+ isolate:'पहले बटन दो से बंद करो, फिर बटन एक से डिस्कनेक्ट करो।',
+ next:'इसे खोलो, हर मेंटेनेंस स्टेप देखो, फिर खुद करो। मशीन व्यू से वापस यहाँ आओ।',
+ 'choose-task':'टास्क चूज़ करो। फ़िल्टर वॉश और डस्ट बैग चेंज अलग टास्क हैं।',
+ watch:'एनिमेशन प्ले करो, या ऐरोज़ से हर एक्शन देखो।',
+ practise:'डेमॉन्स्ट्रेशन के बाद हर स्टेप खुद करो: पार्ट को क्लिक करके उठाओ और हाइलाइटेड जगह पर रखो। वॉइस स्टेप बताएगी।'
+};
+const AUDIO_HI_HARD_NEXT='एक्सपेरिमेंट में एक इनपुट बदलो और रिज़ल्ट देखो। मेंटेनेंस में चेक्स सीखो। मशीन व्यू से वापस आओ।';
+const AUDIO_HI_EQUIPMENT={'choose-task':'इंस्पेक्शन प्रैक्टिस से पहले ऑब्ज़र्वेशन लेसन का सीक्वेंस देखो।',practise:'लेसन के बाद वर्चुअल इक्विपमेंट आइसोलेट करो और इंस्पेक्शन एरियाज़ को ऑर्डर में आइडेंटिफ़ाई करो।'};
 // what button 1 does on this machine
 function connectWords(machine){
  const id=machine?.id||'',kind=machine?.kind||'';
@@ -33,16 +49,16 @@ export function guideFrames(kind,machine,language='english',maintenance=false){
  return frames.map(source=>{
   let f={...source};
   if(maintenance&&!machine.id?.startsWith('junior-')){
-   if(f.id==='choose-task')f={...f,en:['Choose the equipment lesson','Review the observation lesson before starting its inspection practice.'],hi:['Equipment lesson choose karo','Inspection practice se pehle observation lesson ka sequence dekho.'],speech:'Inspection practice से पहले observation lesson का sequence देखो।'};
-   if(f.id==='practise')f={...f,gesture:'point',en:['Identify, then explain','After the lesson, isolate the virtual equipment and identify the inspection areas in order.'],hi:['Pehchano aur explain karo','Lesson ke baad virtual equipment isolate karo aur inspection areas ko order mein identify karo.'],speech:'Lesson के बाद virtual equipment isolate करो और inspection areas को order में identify करो।'};
+   if(f.id==='choose-task')f={...f,en:['Choose the equipment lesson','Review the observation lesson before starting its inspection practice.'],hi:['Equipment lesson choose karo','Inspection practice se pehle observation lesson ka sequence dekho.'],speech:'Inspection practice से पहले observation lesson का sequence देखो।',audioHi:AUDIO_HI_EQUIPMENT['choose-task']};
+   if(f.id==='practise')f={...f,gesture:'point',en:['Identify, then explain','After the lesson, isolate the virtual equipment and identify the inspection areas in order.'],hi:['Pehchano aur explain karo','Lesson ke baad virtual equipment isolate karo aur inspection areas ko order mein identify karo.'],speech:'Lesson के बाद virtual equipment isolate करो और inspection areas को order में identify करो।',audioHi:AUDIO_HI_EQUIPMENT.practise};
   }
   if(!maintenance){
    const [connect,connectHi]=connectWords(machine),hard=!(machine.id||'').startsWith('junior-')&&machine.kind!=='scrubber'&&machine.id!=='hyper-2000b';
    if(f.id==='connect')f={...f,en:f.en.map(t=>t.replace('{connect}',connect)),hi:f.hi.map(t=>t.replace('{connectHi}',connectHi))};
-   if(f.id==='next'&&hard)f={...f,en:['Steps 3 and 4 · Experiment, Maintenance','Experiment changes one input to show the result. Maintenance teaches the checks. Machine view brings you back.'],hi:['Step 3 aur 4 · Experiment, Maintenance','Experiment mein ek input badlo aur result dekho. Maintenance mein checks seekho. Machine view se wapas aao.'],speech:'Experiment में एक input बदलो और result देखो। Maintenance में checks सीखो। Machine view से वापस आओ।'};
+   if(f.id==='next'&&hard)f={...f,en:['Steps 3 and 4 · Experiment, Maintenance','Experiment changes one input to show the result. Maintenance teaches the checks. Machine view brings you back.'],hi:['Step 3 aur 4 · Experiment, Maintenance','Experiment mein ek input badlo aur result dekho. Maintenance mein checks seekho. Machine view se wapas aao.'],speech:'Experiment में एक input बदलो और result देखो। Maintenance में checks सीखो। Machine view से वापस आओ।',audioHi:AUDIO_HI_HARD_NEXT};
   }
   const [title,caption]=language==='hinglish'?f.hi:f.en;
-  return {...f,title,caption,spokenHi:f.speech,duration:Math.max(5200,caption.split(/\s+/).length*360)};
+  return {...f,title,caption,spokenHi:f.speech,audioHi:f.audioHi||AUDIO_HI[f.id],duration:Math.max(5200,caption.split(/\s+/).length*360)};
  });
 }
 export function moveGuide(index,direction,total){

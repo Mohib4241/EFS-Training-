@@ -19,3 +19,29 @@ test('manual lesson steps provide a reduced-motion path without jumping to pract
  lesson=stepLesson('bag',lesson,-1);assert.equal(lesson.complete,false);assert.equal(lesson.playing,false);
  assert.throws(()=>advanceLesson('bag',lesson,NaN),RangeError);assert.throws(()=>stepLesson('bag',lesson,3),RangeError);
 });
+
+test('every vacuum maintenance task is fully available in Hinglish, not only the first',async()=>{
+ const {TASKS,tasksFor}=await import('../src/sim3d/tasks/index.js');
+ const {LESSONS}=await import('../src/maintenance-lessons.js');
+ const {initialPractice}=await import('../src/maintenance-state.js');
+ for(const machine of ['junior-103','junior-429']){
+  const list=tasksFor(machine,'hinglish'),english=tasksFor(machine,'english');
+  assert.equal(list.length,3);
+  for(const [i,{kind,title}] of list.entries()){
+   if(kind!=='filter'&&kind!=='wet-filter')assert.notEqual(title,english[i].title,`${machine} ${kind}: the tab title is in Hinglish`);
+   for(const frame of LESSONS[kind])assert.ok(frame.titleHi&&frame.captionHi,`${kind}: "${frame.title}" has Hinglish`);
+   const task=TASKS[kind],en=task.steps('english'),hi=task.steps('hinglish');
+   assert.equal(hi.length,en.length);en.forEach(([id,label],n)=>{assert.equal(hi[n][0],id);assert.notEqual(hi[n][1],label,`${kind} step ${id} is in Hinglish`);});
+   const state=initialPractice(kind);
+   assert.notDeepEqual(task.instructions(state,'hinglish'),task.instructions(state,'english'),`${kind}: the instruction is in Hinglish`);
+  }
+ }
+ // every instruction of the two newer tasks, including the finished one, has Hinglish
+ for(const kind of ['bag','terminals']){
+  const task=TASKS[kind];
+  for(const phase of task.steps('english').map(([id])=>id).concat('done')){
+   const state={...initialPractice(kind),phase,complete:phase==='done'};
+   assert.notDeepEqual(task.instructions(state,'hinglish'),task.instructions(state,'english'),`${kind} ${phase}`);
+  }
+ }
+});

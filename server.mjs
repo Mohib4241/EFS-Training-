@@ -6,7 +6,7 @@ import {join,extname,relative,sep} from 'node:path';
 const port=Number(process.env.PORT||5173);
 if(!Number.isInteger(port)||port<1||port>65535)throw new Error('PORT must be between 1 and 65535');
 const root=fileURLToPath(new URL('./dist/',import.meta.url));
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.wasm':'application/wasm','.task':'application/octet-stream','.woff2':'font/woff2'};
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.wasm':'application/wasm','.task':'application/octet-stream','.woff2':'font/woff2','.mp3':'audio/mpeg'};
 const security={'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",'Referrer-Policy':'strict-origin-when-cross-origin','Permissions-Policy':'camera=(self), microphone=(), geolocation=()'};
 async function* walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())yield*walk(path);else yield path;}}
 // The build output is the allowlist: only files found here are served, so no request path can reach anything else.
@@ -33,5 +33,9 @@ createServer((req,res)=>{
  const etag=`"${route.etag}-${encoding}"`,headers={...security,'Content-Type':route.type,'Cache-Control':route.cache,'ETag':etag,'Vary':'Accept-Encoding'};
  if(encoding!=='identity')headers['Content-Encoding']=encoding;
  if(req.headers['if-none-match']?.split(',').some(tag=>tag.trim()===etag)){res.writeHead(304,headers);res.end();return;}
+ // audio is played in pieces by some browsers (Safari insists), so honour a single byte range
+ const range=route.type==='audio/mpeg'&&encoding==='identity'?/^bytes=(\d*)-(\d*)$/.exec(req.headers.range||''):null;
+ if(route.type==='audio/mpeg')headers['Accept-Ranges']='bytes';
+ if(range&&(range[1]||range[2])){const size=body.length,start=range[1]?Number(range[1]):Math.max(0,size-Number(range[2])),end=range[1]&&range[2]?Math.min(size-1,Number(range[2])):size-1;if(start>end||start>=size){res.writeHead(416,{...headers,'Content-Range':`bytes */${size}`});res.end();return;}headers['Content-Range']=`bytes ${start}-${end}/${size}`;headers['Content-Length']=end-start+1;res.writeHead(206,headers);res.end(req.method==='HEAD'?undefined:body.subarray(start,end+1));return;}
  headers['Content-Length']=body.length;res.writeHead(200,headers);res.end(req.method==='HEAD'?undefined:body);
 }).listen(port,'127.0.0.1',()=>console.log(`EFS Learning Hub: http://127.0.0.1:${port}`));

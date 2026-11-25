@@ -42,10 +42,15 @@ const filterScript=wet=>[
  ['Secure the second clip','Lock the right clip. Weekly is the site training schedule; the machine stays isolated.',1500,[{type:'secure',clip:'right'}],{at:{x:643,y:305}},'Doosra clip lock karo','Right clip lock karo. Weekly site training schedule hai; machine isolated rahegi.']
 ];
 scripts.filter=filterScript(false);scripts['wet-filter']=filterScript(true);
+// Hinglish for the lessons that are written in English above (the filter lessons carry their own).
+const HINGLISH={
+ bag:[['Machine ko isolate karo','Clips kholne ya cleaner kholne se pehle switch off aur unplug karo.'],['Left clip kholo','Retaining clips head ko tank par pakadte hain. Pehla clip kholo.'],['Right clip kholo','Head uthane se pehle doosra clip kholo.'],['Head ko rest par rakho','Handle pakdo, head ko uthao aur marked head rest par rakh do.'],['Used bag nikalo','Bag ko pakdo aur bina khaali kiye removal tray par uthao.'],['Opening seal karo','Used bag ko waste bin le jaane se pehle dust ko andar band karo.'],['Sealed bag bin mein dalo','Sealed bag ko pakdo, bin tak le jao aur wahin chhod do.'],['Naya clean bag lagao','Shelf se clean bag lo aur khule tank mein rakho.'],['Head wapas lagao','Park kiya hua head uthao aur tank ke upar wapas rakho.'],['Left clip lock karo','Head seat hone ke baad pehla retaining clip lock karo.'],['Right clip lock karo','Doosra clip lock karo. Yeh practice power isolated rakh kar khatam hoti hai.']],
+ terminals:[['Check se pehle isolate karo','Is external visual observation se pehle switch off aur unplug karo.'],['Pins aur casing dekho','Visible damage check karo. Sirf dekhne se terminal tightness ya electrical safety prove nahi hoti.'],['Cable entry dekho','Sheath damage ya exposed conductors dekho. Internal kaam ke liye sahi competence chahiye.'],['Heat mark pehchano','Kala dhabba visible warning sign hai. Is dikhaye gaye defect ko clear check mat samjho.'],['Use se hatao aur report karo','Equipment ko use se bahar rakho aur concern report karo. Yeh lesson live testing ya repair nahi sikhata.']]
+};
 export function lessonFrames(kind){
  if(!Object.hasOwn(scripts,kind))throw new RangeError('Unknown lesson');
  let state=initialPractice(kind),start=0;
- return scripts[kind].map(([title,caption,duration,actions,gesture,titleHi,captionHi])=>{const from=state;for(const action of actions)state=reducePractice(state,action).state;const frame={title,caption,titleHi,captionHi,duration,start,end:start+duration,from,to:state,gesture,actions};start=frame.end;return frame;});
+ return scripts[kind].map(([title,caption,duration,actions,gesture,titleHi,captionHi],index)=>{const from=state;for(const action of actions)state=reducePractice(state,action).state;const frame={title,caption,titleHi:titleHi??HINGLISH[kind]?.[index]?.[0],captionHi:captionHi??HINGLISH[kind]?.[index]?.[1],duration,start,end:start+duration,from,to:state,gesture,actions};start=frame.end;return frame;});
 }
 export const LESSONS=Object.fromEntries(Object.keys(scripts).map(kind=>[kind,lessonFrames(kind)]));
 export function initialLesson(){return {elapsed:0,playing:false,started:false,complete:false};}

@@ -14,8 +14,11 @@ export const RINGS={...headRings(REST),machine:{x:0,y:0.408,z:0,rx:0.2,rz:0.2},t
 export const FOCUS={plug:{c:[-0.32,0.3],w:0.7,h:0.46},clips:{c:[0,0.36],w:0.5,h:0.4},stool:{c:[0.28,0.42],w:0.54,h:0.46},tray:{c:[-0.28,0.28],w:0.52,h:0.44},tape:{c:[-0.38,0.18],w:0.44,h:0.38},bin:{c:[0.12,0.27],w:1.0,h:0.46},shelf:{c:[-0.3,0.55],w:0.56,h:0.5},seat:{c:[0.28,0.5],w:0.56,h:0.46}};
 const FOCUS_OF_PHASE={isolate:'plug',release:'clips',secure:'clips',open:'stool',remove:'tray',seal:'tape',dispose:'bin',fit:'shelf',close:'seat'};
 export const STEPS=[['isolate','Switch off & unplug'],['release','Release both clips'],['open','Lift head to its rest'],['remove','Lift bag to the tray'],['seal','Seal the used bag'],['dispose','Put sealed bag in bin'],['fit','Fit the clean bag'],['close','Return the head'],['secure','Secure both clips']];
+const STEPS_HI=['Switch off aur unplug karo','Dono clips kholo','Head ko rest par rakho','Bag ko tray par nikalo','Used bag seal karo','Sealed bag bin mein dalo','Clean bag lagao','Head wapas rakho','Dono clips lock karo'];
 const LABELS={...PART_LABELS,used:'the used bag',fresh:'the clean bag',tape:'the sealing tape'};
+const LABELS_HI={used:'used bag',fresh:'clean bag',tape:'sealing tape'};
 const ZONE_LABELS={rest:'on the stool',tray:'on the tray',bin:'in the bin',machine:'into the machine',head:'back on the machine'};
+const ZONE_LABELS_HI={rest:'stool par',tray:'tray par',bin:'bin mein',machine:'machine ke andar',head:'machine par wapas'};
 
 export function targetPart(state){
  if(state.complete)return null;
@@ -60,16 +63,28 @@ const COPY={
  secure:['Secure both clips.','Press both clips closed. The machine stays unplugged at the end of this practice.'],
  done:['Dust bag changed.','The used bag is sealed and binned, the clean bag is fitted, the head is clipped on and the power stays isolated.']
 };
+const COPY_HI={
+ isolate:['Pehle switch off aur unplug karo.','Plug ko wall socket se bahar kheencho. Real equipment ko connected rehte hue kabhi mat kholo.'],
+ release:['Dono retaining clips kholo.','Tank ki side ka har clip dabao. Head uthane se pehle dono khule hone chahiye.'],
+ open:['Head ko stool par rakho.','Head ko handle se pakdo aur stool tak le jao. Amber ring ke upar chhodo.'],
+ remove:['Used bag bahar nikalo.','Training bag 80% bhara hua hai. Use tank se nikalo aur tray par rakho.'],
+ seal:['Bag ka opening seal karo.','Tray ke paas wala tape roll dabao taaki dust bag ke andar rahe.'],
+ dispose:['Sealed bag ko bin mein dalo.','Sealed bag ko green bin tak le jao aur uske upar chhod do.'],
+ fit:['Clean bag lagao.','Shelf se clean bag lo aur khule tank mein neeche rakho.'],
+ close:['Head wapas rakho.','Head ko stool se wapas tank par le jao.'],
+ secure:['Dono clips lock karo.','Dono clips band karke dabao. Is practice ke end mein machine unplugged rehti hai.'],
+ done:['Dust bag badal diya.','Used bag sealed aur bin mein hai, clean bag laga hai, head clip ho gaya hai aur power isolated hai.']
+};
 export const task={
  kind:'bag',
- title:machine=>machine==='junior-429'?'Change dry dust bag':'Change the dust bag',
- steps:()=>STEPS,
+ title:(machine,language)=>language==='hinglish'?(machine==='junior-429'?'Dry dust bag badlo':'Dust bag badlo'):machine==='junior-429'?'Change dry dust bag':'Change the dust bag',
+ steps:language=>language==='hinglish'?STEPS.map(([id],i)=>[id,STEPS_HI[i]]):STEPS,
  places,anchorAt,ZONES,RINGS,FOCUS,
  focusFor:state=>state.complete?'wide':FOCUS_OF_PHASE[state.phase]??'wide',
  rules:{carry:['plug','head','used','fresh'],press:[...CLIPS,'tape'],canGrab,pressAction,release:releaseAction,targetPart,targetZone,
-  label:id=>LABELS[id],zoneLabel:zone=>ZONE_LABELS[zone],partDepth:id=>id==='plug'?-0.28:undefined,
+  label:(id,language)=>language==='hinglish'&&LABELS_HI[id]||LABELS[id],zoneLabel:(zone,language)=>language==='hinglish'?ZONE_LABELS_HI[zone]:ZONE_LABELS[zone],partDepth:id=>id==='plug'?-0.28:undefined,
   missHint:(state,id)=>id==='plug'&&state.phase==='isolate'?'Pull the plug further out of the wall socket.':undefined},
- instructions:state=>COPY[state.complete?'done':state.phase]??COPY.isolate,
+ instructions:(state,language)=>{const copy=language==='hinglish'?COPY_HI:COPY;return copy[state.complete?'done':state.phase]??copy.isolate;},
  choices:()=>[],
  sources:'<strong>Scenario limit.</strong> The 70% trigger was supplied for this training exercise; it is not a verified Junior 103 service limit. The correct manual, fitted collection system and site waste procedure take precedence.',
  build(stage,{label}){

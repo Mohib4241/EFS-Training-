@@ -194,3 +194,30 @@ test('the voice is ready fast after a reload, and checklist steps never talk ove
  assert.match(src,/function speakStep\(text,key,onDone\)\{if\(tour\)return false;/,'checklist steps wait while a guide is open');
  assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/onSay:\(text,key,done\)=>guidance\.speakStep\(text,key,done\)/);
 });
+
+test('a guide card with a recording plays it, and the browser voice is only the fallback',async()=>{
+ const {clipSources,findClip,clipText,clipKey}=await import('../src/guide-audio.js');
+ const {guideFrames}=await import('../src/guide-content.js');
+ const {existsSync}=await import('node:fs');
+ // every guide card, in both languages, for every kind of machine, has its recording on disk
+ const sources=clipSources();assert.ok(sources.length>=30);
+ for(const {key,text} of sources)assert.ok(existsSync(new URL(`../src/assets/audio/${key}.mp3`,import.meta.url)),`recording for: ${text.slice(0,50)}`);
+ const manifest=Object.fromEntries(sources.map(({key})=>[key,`/static/audio/${key}.mp3`]));
+ for(const language of ['english','hinglish'])for(const maintenance of [false,true])for(const frame of guideFrames('guide',{id:'junior-103'},language,maintenance))assert.ok(findClip(manifest,language,frame),`${language} ${frame.id}`);
+ assert.equal(findClip(manifest,'english',{title:'Something new',caption:'No recording yet.'}),null,'unrecorded wording falls back to the voice');
+ // playing: ends -> done(true); the browser voice stays silent
+ const played=[],spoken=[];let audio;
+ class FakeAudio{constructor(){audio=this;}play(){played.push(this.src);return Promise.resolve();}pause(){this.paused=true;}}
+ const n=createNarrator({synth:{cancel(){},getVoices:()=>[{lang:'en-GB',localService:true}],speak:u=>spoken.push(u)},Utterance:class{constructor(t){this.text=t;}},AudioPlayer:FakeAudio});n.setEnabled(true);
+ const done=[];n.speak('Step 1','k',null,ok=>done.push(ok),'/static/audio/a.mp3');
+ assert.deepEqual(played,['/static/audio/a.mp3']);assert.equal(spoken.length,0);audio.onplaying();audio.onended();assert.deepEqual(done,[true]);
+ // a recording that cannot be loaded is read by the voice instead
+ n.speak('Words to read','k2',null,ok=>done.push(ok),'/static/audio/missing.mp3');audio.onerror();assert.equal(spoken.at(-1).text,'Words to read');
+ // stopping silences the recording and reports it was cut off
+ n.speak('Step 3','k3',null,ok=>done.push(ok),'/static/audio/c.mp3');n.stop();assert.equal(audio.paused,true);assert.equal(done.at(-1),false);
+ // refused before any click: kept, then played after the first click
+ let refuse=true;const plays=[];class Blocked{constructor(){audio=this;}play(){plays.push(this.src);return refuse?Promise.reject(Object.assign(new Error('no'),{name:'NotAllowedError'})):Promise.resolve();}pause(){}}
+ const b=createNarrator({synth:{cancel(){},getVoices:()=>[],speak(){}},Utterance:class{},AudioPlayer:Blocked});b.setEnabled(true);const d2=[];
+ b.speak('Hello','k',null,ok=>d2.push(ok),'/static/audio/b.mp3');await Promise.resolve();await Promise.resolve();
+ assert.equal(b.blocked,true);assert.equal(b.pending,true);assert.deepEqual(d2,[]);refuse=false;b.retryBlocked();assert.equal(plays.length,2);await Promise.resolve();audio.onplaying();assert.equal(b.blocked,false);audio.onended();assert.deepEqual(d2,[true]);
+});

@@ -136,7 +136,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
 
  // ---- HUD ----
  function renderTabs(){
-  const list=tasksFor(machineId);
+  const list=tasksFor(machineId,language);
   $('tabs').innerHTML=list.map((t,i)=>`<button type="button" data-task="${t.kind}" aria-pressed="${S?.kind===t.kind}"><span>0${i+1}</span>${escape(t.title)}${entry(t.kind).state.complete?' <b aria-label="practised">✓</b>':''}</button>`).join('');
  }
  function renderHud(){
@@ -149,7 +149,7 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
   $('mode-practice').disabled=!watched;$('mode-practice').textContent=watched?'Practise':'Practise 🔒';$('mode-practice').title=watched?'':'Watch the demonstration first';
   $('try').disabled=!watched;$('camera').textContent=tracking?'Stop camera':'Use camera';$('camera').setAttribute('aria-pressed',String(tracking));
   $('turn').hidden=!(inDemo&&watched&&demoTime>=S.demo.duration-60);
-  const status=view==='ready'?null:S.task.status?.(state,{demo:inDemo?sample:null})??null;
+  const status=view==='ready'?null:S.task.status?.(state,{demo:inDemo?sample:null,language})??null;
   $('done').hidden=!done;if(done){const [t,b]=S.task.instructions(state,language);$('done-title').textContent=t;$('done-body').textContent=b;}
   const key=[view,stepIndex,done,inDemo?frameIndex:JSON.stringify(state),input,tracking,language,watched,status?JSON.stringify(status):''].join('|');
   if(key===hudKey)return;hudKey=key;
@@ -163,9 +163,9 @@ export function mountMaintenance3D(container,{machine='junior-103',getLanguage=(
    say(done?`${title}. ${body}`:inDemo?`${opening?`Step ${n}. `:''}${title}. ${body}`:`${hi?'Ab aap karo':'Now you do it'}. Step ${n}. ${label}. ${body}`,sayKey);}
   $('title').textContent=done?(hi?'Ho gaya':'All done'):title;$('body').textContent=done?(hi?'Dobara try karne ke liye Reset karo, ya demonstration phir dekho.':'Reset to try again, or watch how once more.'):body;
   const part=!inDemo&&!done&&view==='practice'?S.task.rules.targetPart(state):null,zone=part?S.task.rules.targetZone(state):null;
-  $('use').hidden=!part;if(part)$('use').textContent=`Use ${S.task.rules.label(part)}${zone?' → '+S.task.rules.zoneLabel(zone):''}`;
+  $('use').hidden=!part;if(part)$('use').textContent=`Use ${S.task.rules.label(part,language)}${zone?' → '+S.task.rules.zoneLabel(zone,language):''}`;
   const box=$('task-status');box.hidden=!status;if(status)box.innerHTML=statusMarkup(status);
-  $('steps-title').textContent=`${S.task.title(machineId)} · checklist`;
+  $('steps-title').textContent=`${S.task.title(machineId,language)} · checklist`;
   $('steps').innerHTML=steps.map((s,i)=>`<li class="${(done||i<stepIndex)?'is-done':i===stepIndex?'is-current':''}"><button type="button" data-step="${i}" ${inDemo?'':'aria-disabled="true" tabindex="-1"'}${i===stepIndex&&!done?' aria-current="step"':''}>${done||i<stepIndex?'✓':i+1} · ${escape(s.label)}</button></li>`).join('');
  }
  function statusMarkup(status){
