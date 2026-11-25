@@ -39,7 +39,7 @@ const app=entry('app.js'),styles=entry('styles.css');
 if(!app||!styles)throw new Error('esbuild did not emit the app and stylesheet entry points');
 
 const assets={};
-for(const file of ['efs-coe-logo.png','efs-coe-mark.png','favicon.svg']){const body=await readFile(join(src,'assets',file)),ext=file.slice(file.lastIndexOf('.')),name=`${file.slice(0,-ext.length)}-${hash(body)}${ext}`;await writeFile(join(out,name),body);assets[`/assets/${file}`]=`/static/${name}`;}
+for(const file of ['efs-coe-logo.png','efs-coe-mark.png','favicon.svg','icon-192.png','icon-512.png','icon-maskable-512.png']){const body=await readFile(join(src,'assets',file)),ext=file.slice(file.lastIndexOf('.')),name=`${file.slice(0,-ext.length)}-${hash(body)}${ext}`;await writeFile(join(out,name),body);assets[`/assets/${file}`]=`/static/${name}`;}
 
 // The Guide's recorded voice (src/assets/audio, made by scripts/make-guide-audio.py): hashed names, listed in the page as JSON.
 const audioDir=join(src,'assets/audio'),clips={};
@@ -55,6 +55,9 @@ swap('<script type="module" src="/app.js"></script>',`${preload.map(href=>`<link
 for(const [from,to] of Object.entries(assets))html=html.split(from).join(to);
 swap('<script type="application/json" id="guide-audio">{}</script>',`<script type="application/json" id="guide-audio">${JSON.stringify(clips)}</script>`);
 await writeFile(join(dist,'index.html'),html);
+// An installed copy of the site (a Chrome "app") is allowed to speak and play sound as soon as it opens, so the Guide can start after a reload.
+await writeFile(join(dist,'manifest.webmanifest'),JSON.stringify({name:'EFS Learning Academy',short_name:'EFS Academy',description:'Practise on the machine before you touch it',start_url:'/',scope:'/',display:'standalone',background_color:'#ffffff',theme_color:'#12504f',icons:[{src:assets['/assets/icon-192.png'],sizes:'192x192',type:'image/png'},{src:assets['/assets/icon-512.png'],sizes:'512x512',type:'image/png'},{src:assets['/assets/icon-maskable-512.png'],sizes:'512x512',type:'image/png',purpose:'maskable'}]}));
+await copyFile(join(src,'sw.js'),join(dist,'sw.js'));
 
 // Precompress once at build time so the server never compresses per request. EFS_FAST=1 (local iteration only) skips the slow maximum-quality pass on the multi-megabyte vendor files.
 async function* walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())yield*walk(path);else yield path;}}

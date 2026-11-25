@@ -10,6 +10,8 @@ import {layerOf} from './look/layers.js';
 import {faultsFor} from './look/faults.js';
 import {handHandle,stopHands} from './look/hand-lazy.js';
 initLook();
+// Registering a (do-nothing) service worker is what lets the browser offer "Install app".
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
 const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,ui,uiReady,maintenance,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
 // three.js and the labs are separate chunks: the home page and navigation never wait for them.
 const modules={viewer:()=>import('./viewer.js'),maintenance3d:()=>import('./maintenance3d.js'),maintenanceText:()=>import('./maintenance-text.js'),hardLab:()=>import('./hard-lab.js'),scrubber:()=>import('./scrubber.js'),lookUi:()=>import('./look/ui.js')},pending={};

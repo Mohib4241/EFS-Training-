@@ -33,3 +33,10 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache
+      # The installable-app files are not hashed, so they are always revalidated.
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
