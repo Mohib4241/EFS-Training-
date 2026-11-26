@@ -234,7 +234,7 @@ export function createHardViewer(canvas,{onSelect,onReveal,onHover=()=>{},onCall
   if(groups.dial)groups.dial.rotation.z=module.kind==='multimeter'?({V:-.65,A:.65,'Ω':1.4})[state.inputs.function]:Math.log2(state.inputs.testVoltage/50)*.4;
   if(state.faultPart&&state.faultPart!==markedPart)placeMarker(state.faultPart);
   faultMarker.visible=Boolean(state.inspectionFault);
-  studio.fit(camera,...measure(time));camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
+  const [width,height,bottom]=measure(time);studio.fit(camera,width,height,camera.aspect<0.8?Math.max(bottom,Math.round(height*.3)):bottom);camera.lookAt(controls.target);scene.updateMatrixWorld(true);camera.updateMatrixWorld(true);updateCallouts(opening);
   updateHover();paintHighlights(time/1000);updateGuides();
   const moving=Boolean(cameraTween)||turning||springing||(module.kind==='scrubber'&&(Math.abs(root.position.x)>.002||Math.abs(root.position.z)>.002))||(state.autoRotate&&!hoverPoint&&!pointers.size&&!reduced.matches)||(state.glowParts?.length>0&&!reduced.matches)||glide.pending;
   overlay?.frame(time);studio.render(camera,time,moving||Boolean(overlay?.object.visible));if(moving||overlay?.object.visible)schedule();

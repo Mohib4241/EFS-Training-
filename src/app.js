@@ -12,7 +12,7 @@ import {handHandle,stopHands} from './look/hand-lazy.js';
 initLook();
 // Registering a (do-nothing) service worker is what lets the browser offer "Install app".
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
-const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,ui,uiReady,maintenance,hardLab,scrubber,partsKey,tourSnapshot,page='home',navToken=0;
+const $=id=>document.getElementById(id),guidance=mountGuidance($('machine-guidance'));let machine=vacuumModules['junior-103'],parts=machine.parts,state=initialState(machine.id);let viewer,viewerReady,ui,uiReady,maintenance,hardLab,scrubber,partsKey,tourMessage='',tourSnapshot,page='home',navToken=0;
 // three.js and the labs are separate chunks: the home page and navigation never wait for them.
 const modules={viewer:()=>import('./viewer.js'),maintenance3d:()=>import('./maintenance3d.js'),maintenanceText:()=>import('./maintenance-text.js'),hardLab:()=>import('./hard-lab.js'),scrubber:()=>import('./scrubber.js'),lookUi:()=>import('./look/ui.js')},pending={};
 const loadModule=name=>pending[name]??=modules[name]().catch(error=>{delete pending[name];throw error;});
@@ -108,7 +108,7 @@ function render(){
  if(wet)$('pickup-instruction').textContent='Assemble, connect and switch on. Move the wet squeegee over the virtual liquid markers. No recovery rate is predicted.';
  ui?.update();viewer?.setState(state);
 }
-function vacuumTourStart(){tourSnapshot={...state};state={...state,part:'overview',open:0,connected:false,running:false,stroke:false,xray:false,air:false};viewer?.clearHover();viewer?.cameraAction('reset');render();}
+function vacuumTourStart(){tourSnapshot={...state};tourMessage=$('operation-message').textContent;state={...state,part:'overview',open:0,connected:false,running:false,stroke:false,xray:false,air:false};viewer?.clearHover();viewer?.cameraAction('reset');render();}
 function vacuumTourFrame(frame,kind,act=true){
  $('startup-panel').open=['connect','run','see','isolate'].includes(frame.id);if(!act)return;
  if(frame.id==='inside')action('open',100);
@@ -119,7 +119,7 @@ function vacuumTourFrame(frame,kind,act=true){
  if(frame.id==='see'){if(!state.connected)action('plug');if(!state.running)action('power');state.xray=false;render();}
  if(frame.id==='isolate'||frame.id==='next'){if(state.running)action('power');if(state.connected)action('plug');render();}
 }
-function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();}tourSnapshot=null;}
+function vacuumTourEnd(preserve){if(!preserve)guidance.setFocused(true);if(!preserve&&tourSnapshot){state={...tourSnapshot,connected:false,running:false,stroke:false};$('startup-panel').open=false;viewer?.cameraAction('reset');render();$('operation-message').textContent=tourMessage;}tourSnapshot=null;}
 // Tour targets on the 3D checklist, looked up when the tour reaches them (the 3D view mounts after the page opens).
 const inPractice=selector=>$('maintenance-practice').querySelector(selector)||$('maintenance-practice');
 const maintenanceTargets={get canvas(){return inPractice('.s3-stage');},get tasks(){return inPractice('.s3-tabs');},get lesson(){return inPractice('.s3-modes');},get practice(){return inPractice('.s3-stage');}};

@@ -70,8 +70,7 @@ test('one guide follows the numbered steps on the right, in English and Hinglish
  assert.deepEqual(moveGuide(0,-1,8),{index:0,complete:false});assert.deepEqual(moveGuide(7,1,8),{index:7,complete:true});assert.throws(()=>moveGuide(8,1,8),RangeError);assert.throws(()=>guideFrames('other',m),RangeError);
  // pointing at a part reads only its name; what it does is shown, not read out
  const part={name:'Motor head',body:'The head holds the motor. More detail follows here.'};
- assert.deepEqual(partNameSpeech(part,'english'),{text:'Motor head',spokenHi:null});
- assert.equal(partNameSpeech(part,'hinglish').text,'Yeh Motor head hai.');
+ for(const language of ['english','hinglish'])assert.deepEqual(partNameSpeech(part,language),{text:'Motor head',voice:'english'},'the bare English name in both guide languages');
  assert.equal(partAbout(part),'The head holds the motor.','the description shown beside the cursor');
  assert.equal(partAbout({body:''}),'');
 });
@@ -232,4 +231,17 @@ test('leaving a page silences the guide at once and checks again, without cuttin
  assert.equal(later.length,3,'three later checks');const before=cancels;later.forEach(fn=>fn());assert.equal(cancels,before+3,'each check cancels again');
  // something new starts speaking after leaving: the later checks leave it alone
  later.length=0;n.silence();n.speak('Next page words','k3',null,null);const c=cancels;later.slice(0,3).forEach(fn=>fn());assert.equal(cancels,c,'new speech is not cut off');
+});
+
+test('in Hinglish a part name is still read plainly in the English voice', async()=>{
+ const voices=[{lang:'hi-IN',localService:true},{lang:'en-GB',localService:true}],calls=[],timers=[];
+ const n=createNarrator({synth:{cancel(){},getVoices:()=>voices,speak:u=>calls.push(u)},Utterance:class{constructor(t){this.text=t;}},delay:fn=>timers.push(fn),clearDelay(){},watchDelay:()=>0,watchClear(){}});
+ n.setEnabled(true);n.setLanguage('hinglish');const spoken=partNameSpeech({name:'Motor head cover'},'hinglish');n.hover(spoken.text,'Motor head cover',spoken.voice);
+ while(timers.length)timers.shift()();
+ assert.equal(calls.at(-1).text,'Motor head cover');assert.equal(calls.at(-1).voice.lang,'en-GB');assert.equal(n.language,'hinglish');
+});
+
+test('the guide draws no dialogue box: voice, highlight and actions only', async()=>{
+ const {readFileSync}=await import('node:fs'),src=readFileSync(new URL('../src/guidance.js',import.meta.url),'utf8'),css=readFileSync(new URL('../src/style.css',import.meta.url),'utf8');
+ assert.doesNotMatch(src+css,/tour-card|tour-title|tour-copy/);assert.match(src,/tour-spotlight/);assert.match(src,/'Stop guide':'Guide'/);
 });

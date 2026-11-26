@@ -500,8 +500,6 @@ body[data-view=equipment] :is(.page-heading,.hl-heading) p{color:var(--lk-muted)
  .hl-heading{flex-wrap:wrap;gap:10px}.hl-equipment-select{width:100%}.hl-equipment-select select{width:100%}
  .equipment-toolbar,.hl-heading .equipment-toolbar{flex-wrap:wrap}
  .lk-step{min-height:46px}
- .lk-simple .lk-slot{max-height:60%;overflow:auto}
- .lk-simple .lk-slot>.startup-panel[open]>.operation,.lk-simple .lk-slot>.startup-panel[open]>.hl-power{padding:10px}
  #part-tooltip,.hl-tooltip{max-width:min(240px,calc(100vw - 40px))!important}
  .look-stage .startup-panel button{min-height:44px}
 }
@@ -561,3 +559,30 @@ body[data-view=soft-checklist] .equipment-heading .equipment-toolbar{margin-left
 }
 
 @media(max-width:1050px){body[data-view=soft-checklist] .equipment-heading{flex-wrap:wrap}body[data-view=soft-checklist] .equipment-heading>.maintenance-bar{flex:1 1 150px}}
+
+/* ---- phones: the steps are one row of small numbered tiles; an open step is a short card just above the row, so the machine stays in view ---- */
+@media(max-width:768px){
+ .lk-simple .lk-slot{display:grid;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);align-items:stretch;gap:5px;max-height:none;overflow:visible}
+ .lk-simple .lk-slot>.lk-step,.lk-simple .lk-slot>.startup-panel>summary{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;gap:4px;height:100%;min-height:58px;padding:7px 2px 6px;text-align:center;font-size:11px;line-height:1.2}
+ .lk-simple .lk-slot>.startup-panel>summary::after{display:none}
+ /* the card is placed against the whole row, so nothing between them may become its frame (position or blur would) */
+ .lk-simple .lk-slot>.startup-panel,.lk-simple .lk-slot>.startup-panel[open]{position:static;grid-column:auto;width:auto;max-height:none;overflow:visible;-webkit-backdrop-filter:none;backdrop-filter:none}
+ .lk-simple .lk-slot>.startup-panel[open]{border-color:var(--lk-accent)}
+ .lk-simple .lk-slot>.startup-panel[open]>summary{border:0}
+ .lk-simple .lk-slot>.startup-panel[open]>:not(summary){position:absolute;left:0;right:0;bottom:calc(100% + 6px);max-height:34dvh;overflow:auto;margin:0;padding:8px;background:#fff;border:1px solid var(--lk-line);border-radius:12px;box-shadow:var(--lk-shadow)}
+ .lk-simple .lk-slot>.startup-panel[open] .operation-head{display:none}
+ .lk-simple .lk-slot>.startup-panel[open] .operation-buttons{margin:0}
+ .lk-simple .lk-slot>.startup-panel[open] .operation>p{margin:6px 2px 0;font-size:11px;line-height:1.35}
+ .lk-simple .lk-slot>.startup-panel[open] .scrubber-functions{padding:6px 2px 0;margin-top:6px}
+ .lk-simple .lk-slot>.startup-panel[open] .scrubber-functions :is(.eyebrow,p){display:none}
+ .lk-simple .lk-slot>.startup-panel[open] .scrubber-functions>div{grid-template-columns:repeat(3,minmax(0,1fr));margin:0}
+ .lk-simple .lk-slot>.startup-panel[open] .hl-view-controls{padding:6px 0 0}
+}
+@media(max-width:768px){
+ /* Hard Services: no title block on a phone (kept for screen readers), so the whole machine and its numbered tiles fit one screen */
+ body[data-view=equipment] #hard-lab .hl-heading{margin:0 0 6px;gap:6px}
+ body[data-view=equipment] #hard-lab .hl-heading>div:first-child{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ body[data-view=equipment] #hard-lab .hl-heading .equipment-toolbar{order:-1;width:100%;margin:0;padding-left:52px;min-height:42px}
+ body[data-view=equipment] #hard-lab .hl-equipment-select{font-size:0;margin:0;gap:0}
+ body[data-view=equipment] #hard-lab .hl-viewport.look-stage{--lk-stage-h:calc(100dvh - 116px);height:var(--lk-stage-h);min-height:360px}
+}

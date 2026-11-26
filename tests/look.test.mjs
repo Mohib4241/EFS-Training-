@@ -212,8 +212,8 @@ test('machine pages show only the machine: nothing sits below it, and the rest l
  assert.match(css,/#module \.stage-below,#module \.module-footer\{display:none\}/,'vacuum: no practice, specs or footer below the stage');
  assert.match(app,/Settings &amp; facts/,'vacuum: floor, wet/dry, reset and specs sit in the steps panel');
  assert.match(css,/\[data-mode=explore\] \.hl-calculation,\[data-mode=explore\] \.hl-learn,\[data-mode=maintenance\] \.hl-learn\{display:none\}/,'the calculation, facts, quiz and sources show only in Experiment');
- assert.match(read('../src/hard-lab.js'),/startup\.append\(q\('\.hl-power'\),q\('\.hl-view-controls'\)\)/);
- assert.match(read('../src/scrubber.js'),/startup\.append\(q\('\.hl-power'\),q\('\.scrubber-functions'\),q\('\.hl-view-controls'\)\)/);
+ assert.match(read('../src/hard-lab.js'),/card\.append\(q\('\.hl-power'\),q\('\.hl-view-controls'\)\);startup\.append\(card\)/);
+ assert.match(read('../src/scrubber.js'),/card\.append\(q\('\.hl-power'\),q\('\.scrubber-functions'\),q\('\.hl-view-controls'\)\);startup\.append\(card\)/);
 });
 
 test('phones get one column with thumb-sized controls, and the maintenance checklist is only about the machine',()=>{
@@ -246,4 +246,13 @@ test('the checklist stays quiet while its page is away and speaks the current st
  assert.match(src,/pause\(\)\{suspended=true;/);
  assert.match(src,/resume\(\)\{if\(!S\)return;suspended=false;said='';hudKey='';/);
  assert.match(readFileSync(new URL('../src/app.js',import.meta.url),'utf8'),/maintenance\.setMachine\(machine\.id\);maintenance\.resume\(\)/,'re-entering the checklist resumes it');
+});
+
+test('on a tall phone screen the vacuum is framed smaller and above the step panels, and the panels stay short',()=>{
+ const viewer=readFileSync(new URL('../src/viewer.js',import.meta.url),'utf8'),css=readFileSync(new URL('../src/look/look.css',import.meta.url),'utf8');
+ assert.match(viewer,/studio\.fit\(camera,width,height,camera\.aspect<0\.8\?Math\.max\(bottom,Math\.round\(height\*\.4\)\):bottom\)/,'the machine is lifted into the upper part of the screen, in the framing applied on every frame');
+ assert.match(viewer,/clamp\(0\.95\/camera\.aspect,1\.22,2\.4\)/,'and pulled back so it fits the width');
+ assert.match(viewer,/!userMoved&&Math\.abs\(camera\.aspect-framedAspect\)>0\.08/,'it is framed again when the screen changes shape');
+ assert.match(css,/grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\)/,'on a phone the steps are one row of numbered tiles');
+ assert.match(css,/\.startup-panel\[open\]>:not\(summary\)\{[^}]*max-height:34dvh;overflow:auto/,'an open panel never takes more than under half of the screen');
 });
